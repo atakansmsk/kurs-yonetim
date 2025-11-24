@@ -42,7 +42,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       if (!phone.startsWith('90') && phone.length === 10) phone = '90' + phone;
       return phone;
   }
-  const handleWhatsapp = () => window.open(`https://wa.me/${getPhoneClean()}`, '_blank');
+  
+  const handleWhatsapp = () => {
+      const phone = getPhoneClean();
+      const message = `Merhaba ${student.name},`;
+      // https://wa.me linki hem Kişisel hem de Business WhatsApp uygulamalarını destekler.
+      // Cihazda hangisi varsayılan ise o açılır. text parametresi eklemek deep-link tetiklemeyi güçlendirir.
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+  };
+
   const handleCall = () => window.open(`tel:+${getPhoneClean()}`, '_self');
   const handleDeleteTx = () => { if(deleteTxId) { actions.deleteTransaction(studentId, deleteTxId); setDeleteTxId(null); } }
   
@@ -95,10 +104,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
             </button>
             
             <div className="flex gap-2">
-                 <button onClick={handleCall} className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors">
+                 <button onClick={handleCall} className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors" title="Ara">
                     <Phone size={18} />
                 </button>
-                <button onClick={handleWhatsapp} className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors">
+                <button onClick={handleWhatsapp} className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors" title="WhatsApp / WhatsApp Business">
                     <MessageCircle size={18} />
                 </button>
                 <button 
@@ -109,6 +118,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         setIsEditModalOpen(true);
                     }}
                     className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                    title="Düzenle"
                 >
                     <Pencil size={18} />
                 </button>
