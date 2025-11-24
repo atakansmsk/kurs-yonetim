@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight } from 'lucide-react';
+import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface HomeProps {
@@ -32,14 +32,13 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const isCustomLogo = state.schoolIcon.startsWith('data:');
   const CurrentIcon = !isCustomLogo ? (ICONS[state.schoolIcon] || Sparkles) : Sparkles;
   
-  const today = "Pazartesi"; // Gerçek gün entegrasyonu yapılabilir
+  const today = "Pazartesi"; // Gerçek gün entegrasyonu
   const todayKey = `${state.currentTeacher}|${today}`;
   const todayLessons = (state.schedule[todayKey] || []).filter(s => s.studentId).length;
   
   // HELPER: Belirli bir öğretmenin kaç farklı öğrencisi olduğunu hesapla
   const getStudentCountForTeacher = (teacherName: string) => {
     const uniqueStudents = new Set<string>();
-    // Schedule anahtarları "TeacherName|Day" formatındadır
     Object.keys(state.schedule).forEach(key => {
         if (key.startsWith(`${teacherName}|`)) {
             state.schedule[key].forEach(slot => {
@@ -75,140 +74,106 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-4 pt-6 pb-24">
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-5 pt-8 pb-32">
       
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-1">
-          <div className="flex items-center gap-2">
-             <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-md">
-                 {user?.name?.charAt(0).toUpperCase()}
-             </div>
-             <div>
-                 <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide flex items-center gap-1">
-                        ONLİNE <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    </p>
-                 </div>
-                 <p className="text-sm font-black text-slate-800 leading-none">{user?.name}</p>
-             </div>
+      {/* 1. Header Section */}
+      <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col">
+             <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none">Merhaba,</h1>
+             <p className="text-sm font-medium text-slate-400 mt-1">{user?.name}</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setIsSettingsOpen(true)} className="p-2 bg-white text-slate-400 rounded-xl border border-slate-100 shadow-sm hover:bg-slate-50 transition-colors relative">
-                <Settings size={18} />
-                {state.autoLessonProcessing && <div className="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full border border-white"></div>}
-            </button>
-            <button onClick={logout} className="p-2 bg-white text-red-500 rounded-xl border border-slate-100 shadow-sm hover:bg-red-50 transition-colors">
-                <LogOut size={18} />
-            </button>
-          </div>
+          <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 bg-white text-slate-400 rounded-2xl border border-slate-100 shadow-sm hover:bg-slate-50 transition-colors relative">
+             <Settings size={20} />
+             {state.autoLessonProcessing && <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border border-white"></div>}
+          </button>
       </div>
 
-      {/* Banner */}
+      {/* 2. Brand Card */}
       <button 
          onClick={() => setIsLogoModalOpen(true)}
-         className="w-full bg-white rounded-[2rem] p-2 shadow-sm border border-slate-100 mb-6 relative group overflow-hidden active:scale-[0.99] transition-all"
+         className="w-full bg-white rounded-[2rem] p-1.5 shadow-sm border border-slate-100 mb-6 relative group active:scale-[0.99] transition-all"
       >
          {isCustomLogo ? (
-             <div className="w-full h-36 rounded-[1.5rem] overflow-hidden bg-white flex items-center justify-center relative">
+             <div className="w-full h-32 rounded-[1.7rem] overflow-hidden bg-slate-50 relative">
                 <img src={state.schoolIcon} alt="Logo" className="h-full w-full object-contain" />
              </div>
          ) : (
-             <div className="w-full h-36 rounded-[1.5rem] bg-gradient-to-br from-indigo-500 via-purple-500 to-violet-600 flex flex-col items-center justify-center text-white shadow-inner gap-3 relative overflow-hidden">
-                <CurrentIcon size={48} strokeWidth={1.5} className="relative z-10 drop-shadow-lg" />
-                <span className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] relative z-10 border border-white/20 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm">Logonuzu Yükleyin</span>
+             <div className="w-full h-32 rounded-[1.7rem] bg-gradient-to-r from-slate-900 to-slate-800 flex flex-col items-center justify-center text-white shadow-inner gap-2 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                <CurrentIcon size={36} strokeWidth={1.5} className="relative z-10" />
+                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest relative z-10">{state.schoolName}</span>
              </div>
          )}
-         <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-md p-2 rounded-full text-white/90 hover:bg-black/40 transition-colors z-20">
-             <Pencil size={16} />
+         <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-white/40 transition-colors z-20">
+             <Pencil size={14} />
          </div>
       </button>
 
-      {/* Otomatik Ders Bilgisi */}
-      {state.autoLessonProcessing && (
-          <div className="mb-4 bg-gradient-to-r from-indigo-50 to-white p-3 rounded-2xl border border-indigo-100 flex items-center gap-3 shadow-sm animate-in fade-in">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                  <Zap size={16} fill="currentColor" />
-              </div>
-              <div>
-                  <h4 className="text-xs font-black text-indigo-900">Otomatik Ders Sistemi Aktif</h4>
-                  <p className="text-[10px] text-indigo-700/80 font-medium">Bugün programda olan öğrencilerin dersleri otomatik olarak işlenir.</p>
-              </div>
-          </div>
-      )}
-
-      {/* Clean Stats Grid */}
-      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1">Eğitmen Özeti ({state.currentTeacher})</h3>
-      <div className="grid grid-cols-2 gap-3 mb-4 animate-slide-up">
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-1">
-             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl mb-1">
-                <GraduationCap size={20} />
-             </div>
-             <span className="text-2xl font-black text-slate-800">{currentTeacherStudentCount}</span>
-             <span className="text-[10px] font-bold text-slate-400 uppercase text-center">Aktif Öğrenciniz</span>
+      {/* 3. Stats Row (Colored Widgets) */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-indigo-50/50 p-4 rounded-3xl border border-indigo-100 flex flex-col items-start justify-center relative overflow-hidden">
+             <div className="absolute right-[-10px] top-[-10px] text-indigo-100 opacity-50"><Users size={60} /></div>
+             <span className="text-3xl font-black text-indigo-900 z-10">{currentTeacherStudentCount}</span>
+             <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide z-10">Öğrenciniz</span>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-1">
-             <div className="p-2 bg-orange-50 text-orange-500 rounded-xl mb-1">
-                <CalendarRange size={20} />
-             </div>
-             <span className="text-2xl font-black text-slate-800">{todayLessons}</span>
-             <span className="text-[10px] font-bold text-slate-400 uppercase text-center">Bugünkü Ders</span>
+          <div className="bg-purple-50/50 p-4 rounded-3xl border border-purple-100 flex flex-col items-start justify-center relative overflow-hidden">
+             <div className="absolute right-[-10px] top-[-10px] text-purple-100 opacity-50"><CalendarRange size={60} /></div>
+             <span className="text-3xl font-black text-purple-900 z-10">{todayLessons}</span>
+             <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide z-10">Bugünkü Ders</span>
           </div>
       </div>
 
-      {/* Main Action Buttons Grid */}
-      <div className="grid grid-cols-2 gap-3 animate-slide-up">
-        {/* HIZLI PROGRAM KARTI */}
+      {/* 4. MAIN ACTION: Schedule (Hero Widget) */}
+      <div className="mb-6">
+        <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1">Hızlı Erişim</h3>
         <button 
            onClick={() => onNavigate('SCHEDULE')}
-           className="col-span-2 relative overflow-hidden bg-white p-5 rounded-3xl shadow-sm border border-slate-100 group hover:border-indigo-300 hover:shadow-md transition-all active:scale-[0.99]"
+           className="w-full bg-white p-5 rounded-[2rem] shadow-lg shadow-slate-200/50 border border-slate-100 flex items-center justify-between group hover:border-indigo-200 transition-all active:scale-[0.98]"
         >
-             {/* Background Icon */}
-             <div className="absolute -right-4 -bottom-6 opacity-5 group-hover:opacity-10 transition-opacity">
-                <Calendar size={120} className="text-indigo-600" />
-             </div>
-
-             <div className="relative z-10 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Calendar size={24} />
-                    </div>
-                    <div className="text-left">
-                        <h4 className="font-black text-lg text-slate-800">Ders Programı</h4>
-                        <p className="text-xs text-slate-400 font-medium">Haftalık planı görüntüle</p>
-                    </div>
+            <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                    <Calendar size={28} />
                 </div>
-                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                    <ArrowRight size={16} />
+                <div className="text-left">
+                    <h4 className="font-black text-xl text-slate-800">Ders Programı</h4>
+                    <p className="text-xs text-slate-400 font-medium">Takvimi görüntüle ve düzenle</p>
                 </div>
-             </div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                <ChevronRight size={20} />
+            </div>
         </button>
+      </div>
 
-        {/* Eğitmen Listesi */}
+      {/* 5. Secondary Actions Grid */}
+      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1">Yönetim</h3>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Eğitmenler */}
         <button 
            onClick={() => setIsTeachersListOpen(true)} 
-           className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between h-32 group hover:border-slate-300 transition-all active:scale-[0.99]"
+           className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-start gap-3 hover:border-slate-300 transition-all active:scale-[0.98]"
         >
-             <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center group-hover:bg-slate-800 group-hover:text-white transition-colors">
-                <Users size={20} />
+             <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
+                <GraduationCap size={20} />
              </div>
              <div className="text-left">
                  <h4 className="font-bold text-slate-800 text-sm">Eğitmenler</h4>
-                 <p className="text-[10px] text-slate-400 font-medium mt-0.5">Yönetim Paneli</p>
+                 <p className="text-[10px] text-slate-400 font-medium">Hesap Geçişi</p>
              </div>
         </button>
 
-         {/* Diğer Kısayol (Örn: Öğrenci Ekle) */}
+         {/* Öğrenci Ekle */}
          <button 
            onClick={() => onNavigate('STUDENTS')} 
-           className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between h-32 group hover:border-slate-300 transition-all active:scale-[0.99]"
+           className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-start gap-3 hover:border-slate-300 transition-all active:scale-[0.98]"
         >
-             <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+             <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
                 <UserPlus size={20} />
              </div>
              <div className="text-left">
-                 <h4 className="font-bold text-slate-800 text-sm">Öğrenci Ekle</h4>
-                 <p className="text-[10px] text-slate-400 font-medium mt-0.5">Hızlı Kayıt</p>
+                 <h4 className="font-bold text-slate-800 text-sm">Öğrenciler</h4>
+                 <p className="text-[10px] text-slate-400 font-medium">Listeyi Düzenle</p>
              </div>
         </button>
       </div>
@@ -275,6 +240,17 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* Settings Modal */}
       <Dialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="Ayarlar">
         <div className="py-2 flex flex-col gap-4">
+             {/* Profile Info */}
+             <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center text-lg font-bold text-slate-700">
+                    {user?.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <h3 className="font-bold text-slate-900">{user?.name}</h3>
+                    <p className="text-xs text-slate-500">{user?.email}</p>
+                </div>
+             </div>
+
             {/* Otomatik Ders Toggle */}
             <button onClick={actions.toggleAutoProcessing} className={`p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 ${state.autoLessonProcessing ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
                 <div className="flex items-center gap-3">
@@ -290,19 +266,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                     <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${state.autoLessonProcessing ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </div>
             </button>
-
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2 text-emerald-600">
-                    <CheckCircle2 size={20} />
-                    <span className="font-bold text-sm">Akıllı Senkronizasyon</span>
-                </div>
-                <p className="text-xs text-emerald-700 leading-relaxed">
-                    Bağlantı kopsa bile verileriniz cihazda saklanır ve internet geldiğinde otomatik gönderilir.
-                </p>
-                <button onClick={() => window.location.reload()} className="mt-3 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold w-full hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
-                    <RefreshCw size={14} /> Bağlantıyı Yenile
-                </button>
-            </div>
+            
+            <button onClick={logout} className="p-4 rounded-2xl border border-red-100 bg-red-50 text-red-600 flex items-center justify-center gap-2 font-bold text-sm hover:bg-red-100 transition-colors">
+                <LogOut size={18} /> Çıkış Yap
+            </button>
         </div>
       </Dialog>
     </div>
