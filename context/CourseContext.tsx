@@ -161,19 +161,20 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const scheduleKey = `${currentState.currentTeacher}|${todayName}`;
         const todaysSlots = currentState.schedule[scheduleKey] || [];
 
-        const studentsToCharge: string[] = [];
+        const studentsToCharge: { id: string, label?: string }[] = [];
         
         todaysSlots.forEach(slot => {
             if (slot.studentId) {
                 const student = currentState.students[slot.studentId];
                 if (student) {
+                    // Bu öğrenciye bugün için herhangi bir işlem (ders/telafi/deneme) yapılmış mı?
                     const hasLessonToday = student.history.some(tx => 
-                        tx.isDebt && 
+                        // isDebt kontrolünü kaldırdım çünkü deneme dersi isDebt=false olabilir ama yine de bugün işlenmiş sayılmalı
                         new Date(tx.date).toLocaleDateString('tr-TR') === dateStr
                     );
 
                     if (!hasLessonToday) {
-                        studentsToCharge.push(student.id);
+                        studentsToCharge.push({ id: student.id, label: slot.label });
                     }
                 }
             }
@@ -183,24 +184,38 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setAppState(prev => {
                 const newStudents = { ...prev.students };
                 
-                studentsToCharge.forEach(studId => {
+                studentsToCharge.forEach(({ id: studId, label }) => {
                     const student = newStudents[studId];
                     if (student) {
                          const newHistory = [...student.history];
                          const transactionId = Math.random().toString(36).substr(2, 9);
                          
+                         let note = "Ders İşlendi (Otomatik)";
+                         let isDebt = true;
+                         let incrementCount = 1;
+
+                         if (label === 'TRIAL') {
+                             note = "Deneme Dersi (Ücretsiz)";
+                             isDebt = false;
+                             incrementCount = 0; // Deneme dersi sayacı artırmaz
+                         } else if (label === 'MAKEUP') {
+                             note = "Telafi Dersi (Otomatik)";
+                             isDebt = false; // Telafi dersi borç yazmaz (önceden yazılmıştır)
+                             incrementCount = 0; // Telafi dersi sayacı artırmaz (veya kullanıcı tercihine göre değişebilir ama genelde nötrdür)
+                         }
+                         
                          newHistory.unshift({
                              id: transactionId,
-                             note: "Ders İşlendi (Otomatik)",
+                             note: note,
                              date: new Date().toISOString(),
-                             isDebt: true,
+                             isDebt: isDebt,
                              amount: 0
                          });
                          newHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
                          newStudents[studId] = {
                              ...student,
-                             debtLessonCount: student.debtLessonCount + 1,
+                             debtLessonCount: student.debtLessonCount + incrementCount,
                              history: newHistory
                          };
                     }
@@ -285,7 +300,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     },
 
-    bookSlot: (day: any, slotId: string, studentId: string, label: 'REGULAR' | 'MAKEUP' = 'REGULAR') => {
+    bookSlot: (day: any, slotId: string, studentId: string, label: 'REGULAR' | 'MAKEUP' | 'TRIAL' = 'REGULAR') => {
       setAppState(prev => {
         const key = `${prev.currentTeacher}|${day}`;
         return { ...prev, schedule: { ...prev.schedule, [key]: (prev.schedule[key] || []).map(s => s.id === slotId ? { ...s, studentId, label } : s) } };

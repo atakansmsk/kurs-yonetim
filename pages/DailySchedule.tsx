@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
-import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2 } from 'lucide-react';
+import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2, Sparkles } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface DailyScheduleProps {
@@ -54,8 +54,8 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   const [bookFee, setBookFee] = useState("");
   const [existingStudentId, setExistingStudentId] = useState<string | null>(null);
   
-  // New: Makeup Toggle
-  const [isMakeupBook, setIsMakeupBook] = useState(false);
+  // Lesson Type Logic
+  const [lessonType, setLessonType] = useState<'REGULAR' | 'MAKEUP' | 'TRIAL'>('REGULAR');
 
   const rawSlots = state.schedule[`${state.currentTeacher}|${selectedDay}`] || [];
   const slots = [...rawSlots].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
@@ -78,17 +78,18 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
     if (!activeSlot) return;
     let studentId = existingStudentId;
     if (!studentId && bookName) {
-      studentId = actions.addStudent(bookName, bookPhone, parseFloat(bookFee) || 0);
+      const fee = lessonType === 'TRIAL' ? 0 : (parseFloat(bookFee) || 0);
+      studentId = actions.addStudent(bookName, bookPhone, fee);
     }
     if (studentId) {
-      actions.bookSlot(selectedDay, activeSlot.id, studentId, isMakeupBook ? 'MAKEUP' : 'REGULAR');
+      actions.bookSlot(selectedDay, activeSlot.id, studentId, lessonType);
       setIsBookModalOpen(false);
       resetBookForm();
     }
   };
 
   const resetBookForm = () => {
-    setBookName(""); setBookPhone(""); setBookFee(""); setExistingStudentId(null); setIsMakeupBook(false);
+    setBookName(""); setBookPhone(""); setBookFee(""); setExistingStudentId(null); setLessonType('REGULAR');
   };
 
   const openAddSlotModal = (start?: string, end?: string) => {
@@ -148,6 +149,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
               const isOccupied = !!slot.studentId;
               const student = slot.studentId ? state.students[slot.studentId] : null;
               const isMakeup = slot.label === 'MAKEUP';
+              const isTrial = slot.label === 'TRIAL';
               
               // Gap Calculation
               let gapElement = null;
@@ -189,22 +191,42 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                             onClick={() => isOccupied ? onOpenStudentProfile(slot.studentId!) : ((setActiveSlot(slot), resetBookForm(), setIsBookModalOpen(true)))}
                             className={`flex-1 relative overflow-hidden rounded-xl transition-all duration-200 min-h-[42px] ${
                                 isOccupied 
-                                ? (isMakeup ? 'bg-orange-50/50 shadow-sm border border-orange-200 active:scale-[0.99]' : 'bg-white shadow-sm border border-slate-100 active:scale-[0.99]')
+                                ? (isMakeup ? 'bg-orange-50/50 shadow-sm border border-orange-200 active:scale-[0.99]' 
+                                    : isTrial ? 'bg-purple-50/50 shadow-sm border border-purple-200 active:scale-[0.99]'
+                                    : 'bg-white shadow-sm border border-slate-100 active:scale-[0.99]')
                                 : 'bg-emerald-50/40 border border-emerald-100/50 hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer active:scale-[0.99]'
                             }`}
                         >
-                            {isOccupied && <div className={`absolute left-0 top-0 bottom-0 w-1 ${isMakeup ? 'bg-orange-500' : 'bg-indigo-500'}`}></div>}
+                            {isOccupied && (
+                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                                    isMakeup ? 'bg-orange-500' 
+                                    : isTrial ? 'bg-purple-500'
+                                    : 'bg-indigo-500'
+                                }`}></div>
+                            )}
 
                             <div className="px-3 py-1.5 flex items-center justify-between gap-2 h-full">
                                 {isOccupied ? (
                                     <>
                                         <div className="flex items-center gap-2.5 overflow-hidden">
-                                            <div className={`w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-[10px] shadow-sm shrink-0 ${isMakeup ? 'bg-orange-500' : 'bg-slate-800'}`}>
-                                                {isMakeup ? 'T' : student?.name.charAt(0).toUpperCase()}
+                                            <div className={`w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-[10px] shadow-sm shrink-0 ${
+                                                isMakeup ? 'bg-orange-500' 
+                                                : isTrial ? 'bg-purple-500'
+                                                : 'bg-slate-800'
+                                            }`}>
+                                                {isMakeup ? 'T' : isTrial ? 'D' : student?.name.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="min-w-0">
-                                                <h4 className={`font-bold truncate text-[13px] leading-tight ${isMakeup ? 'text-orange-900' : 'text-slate-700'}`}>{student?.name}</h4>
-                                                {isMakeup && <span className="text-[8px] font-bold text-orange-500 bg-orange-100 px-1 py-px rounded-sm">TELAFİ</span>}
+                                                <h4 className={`font-bold truncate text-[13px] leading-tight ${
+                                                    isMakeup ? 'text-orange-900' 
+                                                    : isTrial ? 'text-purple-900'
+                                                    : 'text-slate-700'
+                                                }`}>{student?.name}</h4>
+                                                
+                                                <div className="flex gap-1">
+                                                    {isMakeup && <span className="text-[8px] font-bold text-orange-500 bg-orange-100 px-1 py-px rounded-sm">TELAFİ</span>}
+                                                    {isTrial && <span className="text-[8px] font-bold text-purple-500 bg-purple-100 px-1 py-px rounded-sm">DENEME</span>}
+                                                </div>
                                             </div>
                                         </div>
                                         <ChevronRight size={14} className="text-slate-300" />
@@ -364,28 +386,42 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                 autoFocus
               />
           </div>
+          
           <div className="grid grid-cols-2 gap-3">
             <input type="tel" value={bookPhone} onChange={(e) => setBookPhone(e.target.value)} placeholder="Telefon" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-800 text-sm" />
-            <input type="number" value={bookFee} onChange={(e) => setBookFee(e.target.value)} placeholder="Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-800 text-sm" />
+            
+            {lessonType === 'TRIAL' ? (
+                <div className="w-full p-3 bg-purple-50 border border-purple-100 rounded-xl font-bold text-purple-600 text-sm flex items-center justify-center">
+                    Ücretsiz
+                </div>
+            ) : (
+                <input type="number" value={bookFee} onChange={(e) => setBookFee(e.target.value)} placeholder="Aylık Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-800 text-sm" />
+            )}
           </div>
 
-          {/* Makeup Toggle */}
-          <div 
-             onClick={() => setIsMakeupBook(!isMakeupBook)}
-             className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all active:scale-[0.98] ${isMakeupBook ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
-          >
-             <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isMakeupBook ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                    <Repeat size={16} strokeWidth={2.5} />
-                </div>
-                <div>
-                    <h4 className="font-bold text-sm">Telafi Dersi</h4>
-                    <p className="text-[10px] opacity-70 leading-none mt-0.5">{isMakeupBook ? 'Bu ders telafi olarak işlenecek.' : 'Normal program dersi.'}</p>
-                </div>
-             </div>
-             <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isMakeupBook ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-slate-300'}`}>
-                 {isMakeupBook && <CheckCircle2 size={12} />}
-             </div>
+          {/* Lesson Type Toggle */}
+          <div className="grid grid-cols-3 gap-2 mt-2">
+              <button 
+                onClick={() => setLessonType('REGULAR')}
+                className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+              >
+                  Normal
+              </button>
+              <button 
+                onClick={() => setLessonType('MAKEUP')}
+                className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+              >
+                  Telafi
+              </button>
+              <button 
+                onClick={() => setLessonType('TRIAL')}
+                className={`p-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1 ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+              >
+                  <div className="flex items-center gap-1">
+                      <Sparkles size={10} />
+                      Deneme
+                  </div>
+              </button>
           </div>
         </div>
       </Dialog>
