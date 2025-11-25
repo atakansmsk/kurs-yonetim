@@ -158,11 +158,11 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                   
                   if (diff > 0) {
                       gapElement = (
-                          <div className="flex items-center gap-3 my-1 animate-in fade-in zoom-in duration-300">
+                          <div className="flex items-center gap-3 my-0.5 animate-in fade-in zoom-in duration-300">
                               <div className="w-[48px] flex justify-center shrink-0"></div>
                               <button 
                                 onClick={() => openAddSlotModal(slot.end, slots[idx + 1].start)}
-                                className="flex-1 h-6 rounded-lg border border-dashed border-slate-200 flex items-center justify-center gap-1 text-[10px] font-bold text-slate-400 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-500 transition-all active:scale-95"
+                                className="flex-1 h-5 rounded-lg border border-dashed border-slate-200 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-300 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-500 transition-all active:scale-95"
                               >
                                   <span>+{diff} dk Boşluk</span>
                               </button>
@@ -173,21 +173,21 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
 
               return (
                 <React.Fragment key={slot.id}>
-                    <div className="flex gap-3 group animate-slide-up relative py-1" style={{ animationDelay: `${idx * 0.03}s` }}>
+                    <div className="flex gap-3 group animate-slide-up relative py-0.5" style={{ animationDelay: `${idx * 0.03}s` }}>
                         {/* Slim Time Column */}
                         <div className="flex flex-col items-center pt-1 shrink-0 w-[48px]">
                             <div className={`w-full py-1 rounded-md flex flex-col items-center justify-center border transition-colors bg-white ${
                                 isOccupied ? 'border-slate-100 text-slate-700' : 'border-emerald-100 text-emerald-600'
                             }`}>
-                                <span className="text-xs font-bold tracking-tight">{slot.start}</span>
-                                <span className="text-[8px] font-medium opacity-60">{slot.end}</span>
+                                <span className="text-[11px] font-bold tracking-tight leading-none">{slot.start}</span>
+                                <span className="text-[8px] font-medium opacity-60 leading-none mt-0.5">{slot.end}</span>
                             </div>
                         </div>
 
                         {/* Compact Slot Card */}
                         <div 
                             onClick={() => isOccupied ? onOpenStudentProfile(slot.studentId!) : ((setActiveSlot(slot), resetBookForm(), setIsBookModalOpen(true)))}
-                            className={`flex-1 relative overflow-hidden rounded-xl transition-all duration-200 min-h-[50px] ${
+                            className={`flex-1 relative overflow-hidden rounded-xl transition-all duration-200 min-h-[42px] ${
                                 isOccupied 
                                 ? (isMakeup ? 'bg-orange-50/50 shadow-sm border border-orange-200 active:scale-[0.99]' : 'bg-white shadow-sm border border-slate-100 active:scale-[0.99]')
                                 : 'bg-emerald-50/40 border border-emerald-100/50 hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer active:scale-[0.99]'
@@ -195,16 +195,16 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                         >
                             {isOccupied && <div className={`absolute left-0 top-0 bottom-0 w-1 ${isMakeup ? 'bg-orange-500' : 'bg-indigo-500'}`}></div>}
 
-                            <div className="px-3 py-2 flex items-center justify-between gap-2 h-full">
+                            <div className="px-3 py-1.5 flex items-center justify-between gap-2 h-full">
                                 {isOccupied ? (
                                     <>
                                         <div className="flex items-center gap-2.5 overflow-hidden">
-                                            <div className={`w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold text-xs shadow-sm shrink-0 ${isMakeup ? 'bg-orange-500' : 'bg-slate-800'}`}>
+                                            <div className={`w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-[10px] shadow-sm shrink-0 ${isMakeup ? 'bg-orange-500' : 'bg-slate-800'}`}>
                                                 {isMakeup ? 'T' : student?.name.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="min-w-0">
-                                                <h4 className={`font-bold truncate text-sm leading-tight ${isMakeup ? 'text-orange-900' : 'text-slate-700'}`}>{student?.name}</h4>
-                                                {isMakeup && <span className="text-[9px] font-bold text-orange-500 bg-orange-100 px-1.5 py-0.5 rounded-sm">TELAFİ</span>}
+                                                <h4 className={`font-bold truncate text-[13px] leading-tight ${isMakeup ? 'text-orange-900' : 'text-slate-700'}`}>{student?.name}</h4>
+                                                {isMakeup && <span className="text-[8px] font-bold text-orange-500 bg-orange-100 px-1 py-px rounded-sm">TELAFİ</span>}
                                             </div>
                                         </div>
                                         <ChevronRight size={14} className="text-slate-300" />
@@ -214,10 +214,10 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                                     <div className="flex items-center justify-between w-full">
                                         <div className="flex items-center gap-2">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                            <h4 className="font-bold text-emerald-600 text-xs tracking-wide">MÜSAİT</h4>
+                                            <h4 className="font-bold text-emerald-600 text-[10px] tracking-wide">MÜSAİT</h4>
                                         </div>
-                                        <div className="w-6 h-6 rounded-full bg-white text-emerald-500 border border-emerald-100 flex items-center justify-center shrink-0 shadow-sm">
-                                            <Plus size={14} strokeWidth={2.5} />
+                                        <div className="w-5 h-5 rounded-full bg-white text-emerald-500 border border-emerald-100 flex items-center justify-center shrink-0 shadow-sm">
+                                            <Plus size={12} strokeWidth={2.5} />
                                         </div>
                                     </div>
                                 )}
