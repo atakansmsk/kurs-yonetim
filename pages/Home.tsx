@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid } from 'lucide-react';
@@ -32,9 +32,32 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const isCustomLogo = state.schoolIcon.startsWith('data:');
   const CurrentIcon = !isCustomLogo ? (ICONS[state.schoolIcon] || Sparkles) : Sparkles;
   
-  const today = "Pazartesi"; // Gerçek gün entegrasyonu
-  const todayKey = `${state.currentTeacher}|${today}`;
-  const todayLessons = (state.schedule[todayKey] || []).filter(s => s.studentId).length;
+  // --- Dynamic Date Logic ---
+  const [todayData, setTodayData] = useState({ count: 0, label: "Bugün" });
+
+  useEffect(() => {
+    // JS getDay(): 0=Pazar, 1=Pazartesi ... 6=Cumartesi
+    // Map to App Keys used in schedule (defined in types.ts as DAYS)
+    const jsDayToAppKey: Record<number, string> = {
+        0: "Pazar",
+        1: "Pazartesi",
+        2: "Salı",
+        3: "Çarşamba",
+        4: "Perşembe",
+        5: "Cuma",
+        6: "Cmt"
+    };
+    
+    const today = new Date();
+    const dayIndex = today.getDay();
+    const appDayKey = jsDayToAppKey[dayIndex];
+    
+    const key = `${state.currentTeacher}|${appDayKey}`;
+    const count = (state.schedule[key] || []).filter(s => s.studentId).length;
+    
+    setTodayData({ count, label: appDayKey });
+  }, [state.schedule, state.currentTeacher]);
+  // --------------------------
   
   // HELPER: Belirli bir öğretmenin kaç farklı öğrencisi olduğunu hesapla
   const getStudentCountForTeacher = (teacherName: string) => {
@@ -119,8 +142,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
           <div className="bg-purple-50/50 p-4 rounded-3xl border border-purple-100 flex flex-col items-start justify-center relative overflow-hidden">
              <div className="absolute right-[-10px] top-[-10px] text-purple-100 opacity-50"><CalendarRange size={60} /></div>
-             <span className="text-3xl font-black text-purple-900 z-10">{todayLessons}</span>
-             <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide z-10">Bugünkü Ders</span>
+             <span className="text-3xl font-black text-purple-900 z-10">{todayData.count}</span>
+             <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide z-10">{todayData.label} Dersi</span>
           </div>
       </div>
 

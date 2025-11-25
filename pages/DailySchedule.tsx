@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
@@ -30,7 +29,14 @@ const WORK_END_MINUTES = 21 * 60;
 
 export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfile }) => {
   const { state, actions } = useCourse();
-  const [selectedDay, setSelectedDay] = useState<WeekDay>("Pazartesi");
+  
+  // Initialize with current day
+  const [selectedDay, setSelectedDay] = useState<WeekDay>(() => {
+    const jsDayToAppKey: Record<number, WeekDay> = {
+        0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
+    };
+    return jsDayToAppKey[new Date().getDay()] || "Pazartesi";
+  });
   
   // Modals state
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);

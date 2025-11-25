@@ -45,9 +45,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   
   const handleWhatsapp = () => {
       const phone = getPhoneClean();
+      // "Merhaba" mesajı ekleyerek uygulamanın tetiklenmesini kolaylaştırıyoruz.
+      // Bu link Android/iOS'ta yüklü WhatsApp veya WhatsApp Business'ı açmak için seçim sunar.
       const message = `Merhaba ${student.name},`;
-      // https://wa.me linki hem Kişisel hem de Business WhatsApp uygulamalarını destekler.
-      // Cihazda hangisi varsayılan ise o açılır. text parametresi eklemek deep-link tetiklemeyi güçlendirir.
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       window.open(url, '_blank');
   };
@@ -107,7 +107,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  <button onClick={handleCall} className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors" title="Ara">
                     <Phone size={18} />
                 </button>
-                <button onClick={handleWhatsapp} className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors" title="WhatsApp / WhatsApp Business">
+                <button onClick={handleWhatsapp} className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors" title="WhatsApp Mesaj Gönder">
                     <MessageCircle size={18} />
                 </button>
                 <button 
