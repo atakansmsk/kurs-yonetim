@@ -58,10 +58,10 @@ export const WeeklySummary: React.FC = () => {
                     return (
                         <div 
                             key={day} 
-                            className={`flex flex-col border border-slate-200 rounded-[4px] overflow-hidden bg-white ${isSunday ? 'col-span-3 flex-row items-start' : ''}`}
+                            className={`${isSunday ? 'col-span-3 flex flex-row items-stretch' : 'flex flex-col'} border border-slate-200 rounded-[4px] overflow-hidden bg-white`}
                         >
                             {/* Day Header */}
-                            <div className={`bg-slate-50 px-1.5 py-0.5 flex justify-between items-center border-b border-slate-100 ${isSunday ? 'w-16 flex-col justify-center h-full border-r border-b-0' : ''}`}>
+                            <div className={`bg-slate-50 px-1.5 py-0.5 flex justify-between items-center border-b border-slate-100 ${isSunday ? 'w-16 flex-col justify-center border-r border-b-0 shrink-0' : ''}`}>
                                 <span className="text-[8px] font-black text-slate-700 tracking-wider">
                                     {SHORT_DAYS[day]}
                                 </span>
@@ -69,9 +69,9 @@ export const WeeklySummary: React.FC = () => {
                             </div>
 
                             {/* Dense Lesson List */}
-                            <div className={`p-0.5 min-h-[30px] flex-1 ${isSunday ? 'flex flex-wrap gap-1 p-1' : ''}`}>
+                            <div className={`p-0.5 min-h-[30px] flex-1 ${isSunday ? 'flex flex-wrap gap-1 p-1 items-center' : ''}`}>
                                 {slots.length === 0 ? (
-                                    <div className="h-full flex items-center justify-center py-1">
+                                    <div className="h-full w-full flex items-center justify-center py-1">
                                         <span className="text-[7px] text-slate-300 font-medium italic">-</span>
                                     </div>
                                 ) : (
