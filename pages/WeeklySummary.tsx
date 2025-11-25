@@ -44,7 +44,7 @@ export const WeeklySummary: React.FC = () => {
         
         {/* 3-2-2 Grid Layout */}
         <div className="p-1 pb-20">
-            <div className="grid grid-cols-6 gap-1.5">
+            <div className="grid grid-cols-6 gap-1">
                 {DAYS.map((day, index) => {
                     const key = `${state.currentTeacher}|${day}`;
                     const rawSlots = state.schedule[key] || [];
@@ -61,21 +61,21 @@ export const WeeklySummary: React.FC = () => {
                     return (
                         <div 
                             key={day} 
-                            className={`${colSpan} flex flex-col border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm`}
+                            className={`${colSpan} flex flex-col border border-slate-200 rounded-[4px] overflow-hidden bg-white shadow-sm`}
                         >
-                            {/* Day Header */}
-                            <div className="bg-slate-50 px-2 py-1 flex justify-between items-center border-b border-slate-100">
-                                <span className="text-[9px] font-black text-slate-700 tracking-wider">
+                            {/* Day Header - Ultra Compact */}
+                            <div className="bg-slate-50 px-1.5 py-0.5 flex justify-between items-center border-b border-slate-100">
+                                <span className="text-[8px] font-black text-slate-700 tracking-wider">
                                     {SHORT_DAYS[day]}
                                 </span>
-                                {slots.length > 0 && <span className="text-[8px] font-bold text-slate-400">{slots.length}</span>}
+                                {slots.length > 0 && <span className="text-[7px] font-bold text-slate-400">{slots.length}</span>}
                             </div>
 
                             {/* Dense Lesson List */}
-                            <div className="p-0.5 min-h-[40px] flex-1">
+                            <div className="p-0.5 min-h-[30px] flex-1">
                                 {slots.length === 0 ? (
-                                    <div className="h-full w-full flex items-center justify-center py-2">
-                                        <span className="text-[8px] text-slate-300 font-medium italic">-</span>
+                                    <div className="h-full w-full flex items-center justify-center py-1">
+                                        <span className="text-[8px] text-slate-200 font-medium italic">-</span>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-px">
@@ -83,15 +83,14 @@ export const WeeklySummary: React.FC = () => {
                                             const student = state.students[slot.studentId!];
                                             const isMakeup = slot.label === 'MAKEUP';
                                             return (
-                                                <div key={slot.id} className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-[3px] ${isMakeup ? 'bg-orange-50' : (i % 2 === 0 ? 'bg-slate-50' : 'bg-white')}`}>
-                                                    <span className={`text-[7px] font-bold shrink-0 text-right tracking-tight w-6 ${isMakeup ? 'text-orange-600' : 'text-slate-500'}`}>
-                                                        {slot.start}
+                                                <div key={slot.id} className={`flex items-center gap-1 px-1 py-0.5 rounded-[2px] ${isMakeup ? 'bg-orange-50' : (i % 2 === 0 ? 'bg-slate-50' : 'bg-white')}`}>
+                                                    <span className={`text-[6px] font-black shrink-0 tracking-tighter w-auto ${isMakeup ? 'text-orange-600' : 'text-slate-400'}`}>
+                                                        {slot.start}-{slot.end}
                                                     </span>
-                                                    <div className="w-px h-2 bg-slate-200"></div>
-                                                    <span className={`text-[9px] font-bold truncate leading-tight flex-1 ${isMakeup ? 'text-orange-900' : 'text-slate-800'}`}>
+                                                    <span className={`text-[8px] font-bold truncate leading-tight flex-1 ${isMakeup ? 'text-orange-900' : 'text-slate-800'}`}>
                                                         {student?.name}
                                                     </span>
-                                                    {isMakeup && <span className="text-[6px] font-bold text-white bg-orange-400 px-1 rounded-[2px]">T</span>}
+                                                    {isMakeup && <span className="text-[6px] font-bold text-white bg-orange-400 px-0.5 rounded-[2px]">T</span>}
                                                 </div>
                                             );
                                         })}
