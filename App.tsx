@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CourseProvider, useCourse } from './context/CourseContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Home } from './pages/Home';
@@ -18,6 +18,50 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('HOME');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
+  // --- BACK BUTTON NAVIGATION LOGIC ---
+  useEffect(() => {
+    // Tarayıcı/Telefon "Geri" tuşunu dinle
+    const handlePopState = (event: PopStateEvent) => {
+      // 1. Eğer Öğrenci Profili açıksa, onu kapat
+      if (selectedStudentId) {
+        setSelectedStudentId(null);
+        return;
+      }
+      
+      // 2. Eğer Ana Sayfa dışında bir sekmedeysek, Ana Sayfaya dön
+      if (activeTab !== 'HOME') {
+        setActiveTab('HOME');
+        return;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedStudentId, activeTab]);
+
+  // Navigasyon Fonksiyonları (History Push Eklemeli)
+  const handleTabChange = (tab: Tab) => {
+    if (tab === activeTab) return;
+    
+    // Eğer Ana Sayfadan başka bir yere gidiyorsak geçmişe ekle
+    if (tab !== 'HOME') {
+       window.history.pushState({ view: 'tab', id: tab }, '');
+    }
+    setActiveTab(tab);
+  };
+
+  const handleOpenProfile = (id: string) => {
+    // Profil açarken geçmişe ekle
+    window.history.pushState({ view: 'profile', id: id }, '');
+    setSelectedStudentId(id);
+  };
+
+  const handleBackFromProfile = () => {
+    // UI'daki Geri tuşuna basınca tarayıcıyı geri al (popstate tetiklenir)
+    window.history.back();
+  };
+  // ------------------------------------
+
   // Giriş yapılmamışsa Login sayfasını göster
   if (!user) {
     return <Login />;
@@ -25,20 +69,20 @@ const AppContent: React.FC = () => {
   
   const renderContent = () => {
     if (selectedStudentId) {
-      return <StudentProfile studentId={selectedStudentId} onBack={() => setSelectedStudentId(null)} />;
+      return <StudentProfile studentId={selectedStudentId} onBack={handleBackFromProfile} />;
     }
 
     switch (activeTab) {
       case 'HOME':
-        return <Home onNavigate={(t) => setActiveTab(t)} />;
+        return <Home onNavigate={(t) => handleTabChange(t)} />;
       case 'SCHEDULE':
-        return <DailySchedule onOpenStudentProfile={setSelectedStudentId} />;
+        return <DailySchedule onOpenStudentProfile={handleOpenProfile} />;
       case 'WEEKLY':
         return <WeeklySummary />;
       case 'STUDENTS':
-        return <StudentList onSelect={setSelectedStudentId} />;
+        return <StudentList onSelect={handleOpenProfile} />;
       default:
-        return <Home onNavigate={(t) => setActiveTab(t)} />;
+        return <Home onNavigate={(t) => handleTabChange(t)} />;
     }
   };
 
@@ -49,7 +93,7 @@ const AppContent: React.FC = () => {
       {!selectedStudentId && activeTab !== 'HOME' && (
           <header className="bg-white/80 backdrop-blur-md px-6 py-4 sticky top-0 z-30 flex justify-between items-center animate-slide-up border-b border-slate-100/50">
             <button 
-                onClick={() => setActiveTab('HOME')}
+                onClick={() => handleTabChange('HOME')} // Changed to handler
                 className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-colors active:scale-95"
             >
                 <HomeIcon size={24} strokeWidth={2} />
@@ -98,19 +142,19 @@ const AppContent: React.FC = () => {
             <nav className="flex justify-around items-center h-16">
               <NavButton 
                 active={activeTab === 'SCHEDULE'} 
-                onClick={() => setActiveTab('SCHEDULE')} 
+                onClick={() => handleTabChange('SCHEDULE')} 
                 icon={CalendarRange} 
                 label="Program" 
               />
               <NavButton 
                 active={activeTab === 'WEEKLY'} 
-                onClick={() => setActiveTab('WEEKLY')} 
+                onClick={() => handleTabChange('WEEKLY')} 
                 icon={LayoutDashboard} 
                 label="Özet" 
               />
               <NavButton 
                 active={activeTab === 'STUDENTS'} 
-                onClick={() => setActiveTab('STUDENTS')} 
+                onClick={() => handleTabChange('STUDENTS')} 
                 icon={Users2} 
                 label="Kişiler" 
               />

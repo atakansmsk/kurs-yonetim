@@ -15,7 +15,7 @@ const SHORT_DAYS: Record<WeekDay, string> = {
   "Perşembe": "PER", 
   "Cuma": "CUM", 
   "Cmt": "CMT", 
-  "Pazar": "PAZAR"
+  "Pazar": "PAZ"
 };
 
 export const WeeklySummary: React.FC = () => {
@@ -42,9 +42,9 @@ export const WeeklySummary: React.FC = () => {
             </div>
         </div>
         
-        {/* Screenshot Optimized 3-Column Grid */}
+        {/* 3-2-2 Grid Layout */}
         <div className="p-1 pb-20">
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid grid-cols-6 gap-1.5">
                 {DAYS.map((day, index) => {
                     const key = `${state.currentTeacher}|${day}`;
                     const rawSlots = state.schedule[key] || [];
@@ -52,43 +52,46 @@ export const WeeklySummary: React.FC = () => {
                         .filter(s => s.studentId)
                         .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
-                    // Sunday is the last item (index 6), make it span full width
-                    const isSunday = index === 6; 
+                    // LOGIC: 
+                    // Index 0,1,2 (Pzt, Sal, Çar) -> col-span-2 (3 items per row)
+                    // Index 3,4,5,6 (Per, Cum, Cmt, Paz) -> col-span-3 (2 items per row)
+                    const isTopRow = index < 3;
+                    const colSpan = isTopRow ? 'col-span-2' : 'col-span-3';
 
                     return (
                         <div 
                             key={day} 
-                            className={`${isSunday ? 'col-span-3 flex flex-row items-stretch' : 'flex flex-col'} border border-slate-200 rounded-[4px] overflow-hidden bg-white`}
+                            className={`${colSpan} flex flex-col border border-slate-200 rounded-md overflow-hidden bg-white shadow-sm`}
                         >
                             {/* Day Header */}
-                            <div className={`bg-slate-50 px-1.5 py-0.5 flex justify-between items-center border-b border-slate-100 ${isSunday ? 'w-16 flex-col justify-center border-r border-b-0 shrink-0' : ''}`}>
-                                <span className="text-[8px] font-black text-slate-700 tracking-wider">
+                            <div className="bg-slate-50 px-2 py-1 flex justify-between items-center border-b border-slate-100">
+                                <span className="text-[9px] font-black text-slate-700 tracking-wider">
                                     {SHORT_DAYS[day]}
                                 </span>
-                                {slots.length > 0 && <span className="text-[7px] font-bold text-slate-400">{slots.length}</span>}
+                                {slots.length > 0 && <span className="text-[8px] font-bold text-slate-400">{slots.length}</span>}
                             </div>
 
                             {/* Dense Lesson List */}
-                            <div className={`p-0.5 min-h-[30px] flex-1 ${isSunday ? 'flex flex-wrap gap-1 p-1 items-center' : ''}`}>
+                            <div className="p-0.5 min-h-[40px] flex-1">
                                 {slots.length === 0 ? (
-                                    <div className="h-full w-full flex items-center justify-center py-1">
-                                        <span className="text-[7px] text-slate-300 font-medium italic">-</span>
+                                    <div className="h-full w-full flex items-center justify-center py-2">
+                                        <span className="text-[8px] text-slate-300 font-medium italic">-</span>
                                     </div>
                                 ) : (
-                                    <div className={`flex ${isSunday ? 'flex-row flex-wrap gap-2' : 'flex-col gap-px'}`}>
+                                    <div className="flex flex-col gap-px">
                                         {slots.map((slot, i) => {
                                             const student = state.students[slot.studentId!];
                                             const isMakeup = slot.label === 'MAKEUP';
                                             return (
-                                                <div key={slot.id} className={`flex items-center gap-1 px-1 py-px rounded-[2px] ${isMakeup ? 'bg-orange-50' : (i % 2 === 0 ? 'bg-slate-50' : 'bg-white')} ${isSunday ? 'border border-slate-100 pr-2' : ''}`}>
-                                                    <span className={`text-[6.5px] font-bold shrink-0 text-right tracking-tight ${isMakeup ? 'text-orange-600' : 'text-slate-500'}`}>
-                                                        {slot.start}-{slot.end}
+                                                <div key={slot.id} className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-[3px] ${isMakeup ? 'bg-orange-50' : (i % 2 === 0 ? 'bg-slate-50' : 'bg-white')}`}>
+                                                    <span className={`text-[7px] font-bold shrink-0 text-right tracking-tight w-6 ${isMakeup ? 'text-orange-600' : 'text-slate-500'}`}>
+                                                        {slot.start}
                                                     </span>
-                                                    {!isSunday && <div className="w-px h-1.5 bg-slate-200"></div>}
-                                                    <span className={`text-[8px] font-bold truncate leading-none flex-1 max-w-[70px] ${isMakeup ? 'text-orange-900' : 'text-slate-800'}`}>
+                                                    <div className="w-px h-2 bg-slate-200"></div>
+                                                    <span className={`text-[9px] font-bold truncate leading-tight flex-1 ${isMakeup ? 'text-orange-900' : 'text-slate-800'}`}>
                                                         {student?.name}
                                                     </span>
-                                                    {isMakeup && <span className="text-[5px] font-bold text-white bg-orange-400 px-0.5 rounded-[1px]">T</span>}
+                                                    {isMakeup && <span className="text-[6px] font-bold text-white bg-orange-400 px-1 rounded-[2px]">T</span>}
                                                 </div>
                                             );
                                         })}
@@ -101,8 +104,8 @@ export const WeeklySummary: React.FC = () => {
             </div>
             
             {/* Minimal Watermark */}
-            <div className="mt-1 text-center opacity-20">
-                 <span className="text-[6px] font-bold uppercase tracking-widest">Kurs Yönetim Pro</span>
+            <div className="mt-4 text-center opacity-20">
+                 <span className="text-[7px] font-bold uppercase tracking-widest">Kurs Yönetim Pro</span>
             </div>
         </div>
     </div>
