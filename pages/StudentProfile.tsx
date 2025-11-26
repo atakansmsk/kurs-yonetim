@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2 } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 
@@ -40,12 +40,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   // Helpers for Dates
   const getTodayString = () => new Date().toISOString().split('T')[0];
-  const getYesterdayString = () => {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      return d.toISOString().split('T')[0];
-  };
-
+  
   const formatDateFriendly = (dateStr: string) => {
       if (!dateStr) return "";
       return new Date(dateStr).toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -57,9 +52,22 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       if (!phone.startsWith('90') && phone.length === 10) phone = '90' + phone;
       return phone;
   }
+
+  // --- Date Shifter Helper (-7 / +7 Days) ---
+  const shiftDate = (dateStr: string, days: number) => {
+      const baseDate = dateStr ? new Date(dateStr) : new Date();
+      baseDate.setDate(baseDate.getDate() + days);
+      
+      const result = baseDate.toISOString().split('T')[0];
+      const today = getTodayString();
+      
+      // Gelecek tarihe geçmeyi engelle
+      return result > today ? today : result;
+  };
   
   const handleWhatsapp = () => {
       const phone = getPhoneClean();
+      // WhatsApp Business link formatı (Universal Link)
       const message = `Merhaba ${student.name},`;
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       window.open(url, '_blank');
@@ -242,7 +250,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      </button>
 
                      <button 
-                        onClick={() => setIsPastLessonModalOpen(true)}
+                        onClick={() => { setPastDate(getTodayString()); setIsPastLessonModalOpen(true); }}
                         className="bg-white border border-slate-200 text-slate-500 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 active:scale-95 transition-all shadow-sm"
                      >
                          <CalendarDays size={20} />
@@ -250,7 +258,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      </button>
 
                      <button 
-                        onClick={() => { setPastPaymentAmount(student.fee.toString()); setIsPastPaymentModalOpen(true); }}
+                        onClick={() => { setPastPaymentDate(getTodayString()); setPastPaymentAmount(student.fee.toString()); setIsPastPaymentModalOpen(true); }}
                         className="bg-white border border-slate-200 text-slate-500 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-100 active:scale-95 transition-all shadow-sm"
                      >
                          <History size={20} />
@@ -373,13 +381,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         }
       >
          <div className="py-2 flex flex-col gap-3">
-             <p className="text-xs text-slate-500">Hangi tarihte ders yapıldı?</p>
-             <div className="flex gap-2 mb-1">
-                <button onClick={() => setPastDate(getTodayString())} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition-colors">Bugün</button>
-                <button onClick={() => setPastDate(getYesterdayString())} className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold border border-slate-100 hover:bg-slate-100 transition-colors">Dün</button>
+             <div className="flex justify-between items-center">
+                 <p className="text-xs text-slate-500">Tarih Seçin</p>
+                 <button onClick={() => setPastDate(getTodayString())} className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold">Bugün</button>
              </div>
-             <input type="date" max={getTodayString()} value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500" />
-             {pastDate && <p className="text-[10px] text-indigo-600 font-bold ml-1">{formatDateFriendly(pastDate)}</p>}
+             
+             {/* Date Shifter Input */}
+             <div className="flex items-center gap-2">
+                 <button onClick={() => setPastDate(shiftDate(pastDate, -7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
+                 <input type="date" max={getTodayString()} value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500 text-center" />
+                 <button onClick={() => setPastDate(shiftDate(pastDate, 7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
+             </div>
+
+             {pastDate && <p className="text-[10px] text-indigo-600 font-bold ml-1 text-center bg-indigo-50 py-1 rounded-lg">{formatDateFriendly(pastDate)}</p>}
          </div>
       </Dialog>
       
@@ -394,13 +408,18 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       >
          <div className="py-2 flex flex-col gap-3">
              <div>
-                <p className="text-xs text-slate-500 mb-1">Ödeme Tarihi</p>
-                <div className="flex gap-2 mb-2">
-                    <button onClick={() => setPastPaymentDate(getTodayString())} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors">Bugün</button>
-                    <button onClick={() => setPastPaymentDate(getYesterdayString())} className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold border border-slate-100 hover:bg-slate-100 transition-colors">Dün</button>
+                <div className="flex justify-between items-center mb-1">
+                    <p className="text-xs text-slate-500">Ödeme Tarihi</p>
+                    <button onClick={() => setPastPaymentDate(getTodayString())} className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold">Bugün</button>
                 </div>
-                <input type="date" max={getTodayString()} value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500" />
-                {pastPaymentDate && <p className="text-[10px] text-emerald-600 font-bold ml-1 mt-1">{formatDateFriendly(pastPaymentDate)}</p>}
+
+                {/* Date Shifter Input */}
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, -7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
+                    <input type="date" max={getTodayString()} value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
+                    <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, 7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
+                </div>
+                {pastPaymentDate && <p className="text-[10px] text-emerald-600 font-bold ml-1 mt-1 text-center bg-emerald-50 py-1 rounded-lg">{formatDateFriendly(pastPaymentDate)}</p>}
              </div>
              <div>
                 <p className="text-xs text-slate-500 mb-1">Tutar (TL)</p>
@@ -419,13 +438,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
          }
       >
          <div className="py-2 flex flex-col gap-3">
-             <p className="text-sm text-slate-600 font-medium">Bu telafi dersi hangi tarihte yapıldı?</p>
-             <div className="flex gap-2">
-                <button onClick={() => setMakeupCompleteDate(getTodayString())} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors">Bugün</button>
-                <button onClick={() => setMakeupCompleteDate(getYesterdayString())} className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold border border-slate-100 hover:bg-slate-100 transition-colors">Dün</button>
+             <div className="flex justify-between items-center">
+                 <p className="text-sm text-slate-600 font-medium">Hangi tarihte yapıldı?</p>
+                 <button onClick={() => setMakeupCompleteDate(getTodayString())} className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold">Bugün</button>
              </div>
-             <input type="date" max={getTodayString()} value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500" />
-             {makeupCompleteDate && <p className="text-[10px] text-emerald-600 font-bold ml-1">{formatDateFriendly(makeupCompleteDate)}</p>}
+             
+             {/* Date Shifter Input */}
+             <div className="flex items-center gap-2">
+                 <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, -7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
+                 <input type="date" max={getTodayString()} value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
+                 <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, 7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
+             </div>
+
+             {makeupCompleteDate && <p className="text-[10px] text-emerald-600 font-bold ml-1 text-center bg-emerald-50 py-1 rounded-lg">{formatDateFriendly(makeupCompleteDate)}</p>}
              
              <p className="text-[10px] text-slate-400 ml-1 mt-1">Kumbara: <span className="text-slate-600 font-bold">-1 Telafi Hakkı</span> düşülecek.</p>
          </div>
