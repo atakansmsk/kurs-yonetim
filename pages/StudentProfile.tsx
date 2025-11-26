@@ -123,7 +123,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#FEF2F2] animate-slide-up">
+    <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
       
       <div className="bg-white px-5 pt-4 pb-2 z-20 sticky top-0">
         <div className="flex items-center justify-between mb-4">
@@ -185,7 +185,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-6 bg-[#FEF2F2]">
+      <div className="flex-1 overflow-y-auto px-5 py-6 bg-[#F8FAFC]">
         {activeTab === 'STATUS' ? (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 

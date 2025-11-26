@@ -38,7 +38,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#FEF2F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#F8FAFC] flex flex-col items-center justify-center p-6 relative overflow-hidden">
       
       <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[60%] bg-red-500/10 rounded-full blur-[100px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-orange-500/10 rounded-full blur-[100px] pointer-events-none"></div>

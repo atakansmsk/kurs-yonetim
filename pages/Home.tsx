@@ -87,7 +87,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#FEF2F2] overflow-y-auto px-5 pt-8 pb-32">
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-5 pt-8 pb-32">
       
       {/* 1. Header Section */}
       <div className="flex items-center justify-between mb-6">

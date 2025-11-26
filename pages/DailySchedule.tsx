@@ -136,7 +136,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#FEF2F2]">
+    <div className="flex flex-col h-full bg-[#F8FAFC]">
       <div className="bg-white/90 backdrop-blur-md pt-2 pb-2 px-2 z-20 sticky top-0 border-b border-slate-100 shadow-sm">
         <div className="flex justify-between items-center bg-slate-50 p-1 rounded-xl">
           {DAYS.map(day => (
@@ -349,7 +349,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
              if(match) { setExistingStudentId(match.id); setBookPhone(match.phone); setBookFee(match.fee.toString()); match.makeupCredit > 0 ? (setStudentCredit(match.makeupCredit), setLessonType('MAKEUP')) : setStudentCredit(0); } 
              else { setExistingStudentId(null); setStudentCredit(0); }
           }} placeholder="Öğrenci Adı..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" autoFocus />
-          {studentCredit > 0 && <div className="p-2 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg flex items-center gap-1"><Layers size={12}/> {studentCredit} Telafi hakkı var</div>}
+          {studentCredit > 0 && <div className="p-2 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg flex items-center gap-1"><Layers size={12}/> {studentCredit} Telafi Hakkı</div>}
           <div className="grid grid-cols-2 gap-3">
             <input type="tel" value={bookPhone} onChange={e=>setBookPhone(e.target.value)} placeholder="Tel" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
             {lessonType !== 'TRIAL' && <input type="number" value={bookFee} onChange={e=>setBookFee(e.target.value)} placeholder="Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />}

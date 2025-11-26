@@ -10,7 +10,7 @@ export default {
         primary: '#DC2626', // Red 600
         primaryDark: '#B91C1C', // Red 700
         secondary: '#E11D48', // Rose 600
-        background: '#FEF2F2', // Red 50 (Very light)
+        background: '#F8FAFC', // Changed to Slate-50 (Clean Neutral)
         surface: '#FFFFFF',
         success: '#10B981', // Emerald
         error: '#EF4444', // Red

@@ -32,7 +32,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#FEF2F2] p-4 pb-24">
+    <div className="flex flex-col h-full bg-[#F8FAFC] p-4 pb-24">
       
       <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">Öğrenciler</h2>

@@ -116,7 +116,7 @@ const AppContent: React.FC = () => {
           </header>
       )}
 
-      <main className="flex-1 overflow-hidden relative bg-[#FEF2F2]">
+      <main className="flex-1 overflow-hidden relative bg-[#F8FAFC]">
         {renderContent()}
       </main>
 
