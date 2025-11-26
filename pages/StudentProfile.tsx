@@ -53,7 +53,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return phone;
   }
 
-  // --- Date Shifter Helper (-7 / +7 Days) ---
+  // --- Date Shifter Helper (-1 / +1 Days) ---
   const shiftDate = (dateStr: string, days: number) => {
       const baseDate = dateStr ? new Date(dateStr) : new Date();
       baseDate.setDate(baseDate.getDate() + days);
@@ -291,11 +291,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         <div className="relative border-l-2 border-slate-100 ml-4 space-y-6 py-2">
                             {student.history
                                 .filter(tx => tx.isDebt) 
-                                // DİKKAT: Sadece borcu olanları filtrelersek, telafi bekleyenler listeden kaybolabilir çünkü isDebt=true ama biz onu sayaçtan düştük.
-                                // Yine de veritabanında "Lesson" tipli işlemler isDebt=true olarak kalmalı.
-                                // Logic: "Telafi Bekliyor" notuna sahip işlem hala isDebt=true'dur ancak debtLessonCount'tan düşülmüştür.
-                                // Bu yüzden burada bir slice yerine filter mantığı daha doğru olabilir, ama basitlik için tüm isDebt=true'ları gösterelim.
-                                .slice(0, student.debtLessonCount + (student.makeupCredit || 0)) // Gösterilen liste sayısı = Yapılan Ders + Bekleyen Telafi
+                                .slice(0, student.debtLessonCount + (student.makeupCredit || 0)) // Gösterilen liste sayısı
                                 .map((tx, i, arr) => {
                                     const lessonNum = arr.length - i;
                                     const dateObj = new Date(tx.date);
@@ -394,16 +390,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         }
       >
          <div className="py-2 flex flex-col gap-3">
-             <div className="flex justify-between items-center">
+             <div className="flex justify-between items-center mb-1">
                  <p className="text-xs text-slate-500">Tarih Seçin</p>
-                 <button onClick={() => setPastDate(getTodayString())} className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold">Bugün</button>
+                 <div className="flex gap-2">
+                     <button onClick={() => setPastDate(shiftDate(pastDate, -7))} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">-1 Hafta</button>
+                     <button onClick={() => setPastDate(getTodayString())} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">Bugün</button>
+                 </div>
              </div>
              
              {/* Date Shifter Input */}
              <div className="flex items-center gap-2">
-                 <button onClick={() => setPastDate(shiftDate(pastDate, -7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
+                 <button onClick={() => setPastDate(shiftDate(pastDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
                  <input type="date" max={getTodayString()} value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500 text-center" />
-                 <button onClick={() => setPastDate(shiftDate(pastDate, 7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
+                 <button onClick={() => setPastDate(shiftDate(pastDate, 1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
              </div>
 
              {pastDate && <p className="text-[10px] text-indigo-600 font-bold ml-1 text-center bg-indigo-50 py-1 rounded-lg">{formatDateFriendly(pastDate)}</p>}
@@ -423,14 +422,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
              <div>
                 <div className="flex justify-between items-center mb-1">
                     <p className="text-xs text-slate-500">Ödeme Tarihi</p>
-                    <button onClick={() => setPastPaymentDate(getTodayString())} className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold">Bugün</button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, -7))} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">-1 Hafta</button>
+                        <button onClick={() => setPastPaymentDate(getTodayString())} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">Bugün</button>
+                    </div>
                 </div>
 
                 {/* Date Shifter Input */}
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, -7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
+                    <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
                     <input type="date" max={getTodayString()} value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
-                    <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, 7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
+                    <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, 1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
                 </div>
                 {pastPaymentDate && <p className="text-[10px] text-emerald-600 font-bold ml-1 mt-1 text-center bg-emerald-50 py-1 rounded-lg">{formatDateFriendly(pastPaymentDate)}</p>}
              </div>
@@ -451,16 +453,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
          }
       >
          <div className="py-2 flex flex-col gap-3">
-             <div className="flex justify-between items-center">
+             <div className="flex justify-between items-center mb-1">
                  <p className="text-sm text-slate-600 font-medium">Hangi tarihte yapıldı?</p>
-                 <button onClick={() => setMakeupCompleteDate(getTodayString())} className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold">Bugün</button>
+                 <div className="flex gap-2">
+                     <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, -7))} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">-1 Hafta</button>
+                     <button onClick={() => setMakeupCompleteDate(getTodayString())} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">Bugün</button>
+                 </div>
              </div>
              
              {/* Date Shifter Input */}
              <div className="flex items-center gap-2">
-                 <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, -7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
+                 <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
                  <input type="date" max={getTodayString()} value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
-                 <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, 7))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
+                 <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, 1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
              </div>
 
              {makeupCompleteDate && <p className="text-[10px] text-emerald-600 font-bold ml-1 text-center bg-emerald-50 py-1 rounded-lg">{formatDateFriendly(makeupCompleteDate)}</p>}
