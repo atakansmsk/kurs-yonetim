@@ -83,7 +83,7 @@ export const WeeklySummary: React.FC = () => {
                          <div key={day} className="flex flex-col border-r border-b border-slate-200 min-w-[45px]">
                              {/* Day Header */}
                              <div className="bg-red-50/50 py-1.5 text-center border-b border-red-100">
-                                 <span className="text-[9px] font-black text-red-600 block leading-tight writing-mode-vertical sm:writing-mode-horizontal">{SHORT_DAYS[day].slice(0,3)}</span>
+                                 <span className="text-[9px] font-black text-red-600 block leading-tight writing-mode-vertical sm:writing-mode-horizontal">{SHORT_DAYS[day]}</span>
                              </div>
 
                              {/* Lessons Container */}
