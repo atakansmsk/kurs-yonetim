@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
-import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2, Sparkles, Layers, Search, Sun, Sunset } from 'lucide-react';
+import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, CheckCircle2, Sparkles, Layers, Sun } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface DailyScheduleProps {
@@ -24,19 +24,13 @@ const minutesToTime = (minutes: number) => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
-const WORK_START_TIME = "09:00";
-const WORK_END_TIME = "21:00";
-const WORK_START_MINUTES = 9 * 60;
 const WORK_END_MINUTES = 21 * 60;
-const DEFAULT_LESSON_DURATION = 40; // User specified 40 mins
-
-// Start scanning from 15:00 as requested
+const DEFAULT_LESSON_DURATION = 40;
 const SCAN_START_MINUTES = 15 * 60; 
 
 export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfile }) => {
   const { state, actions } = useCourse();
   
-  // Initialize with current day
   const [selectedDay, setSelectedDay] = useState<WeekDay>(() => {
     const jsDayToAppKey: Record<number, WeekDay> = {
         0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
@@ -44,17 +38,13 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
     return jsDayToAppKey[new Date().getDay()] || "Pazartesi";
   });
   
-  // Modals state
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isSlotOptionsOpen, setIsSlotOptionsOpen] = useState(false);
   const [isFindGapModalOpen, setIsFindGapModalOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState<LessonSlot | null>(null);
-
-  // Suggested Slots
   const [suggestedGaps, setSuggestedGaps] = useState<string[]>([]);
 
-  // Form state
   const [newTimeStart, setNewTimeStart] = useState("12:00");
   const [newTimeEnd, setNewTimeEnd] = useState("12:40");
   const [duration, setDuration] = useState(DEFAULT_LESSON_DURATION); 
@@ -63,37 +53,29 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   const [bookPhone, setBookPhone] = useState("");
   const [bookFee, setBookFee] = useState("");
   const [existingStudentId, setExistingStudentId] = useState<string | null>(null);
-  
-  // Lesson Type Logic
   const [lessonType, setLessonType] = useState<'REGULAR' | 'MAKEUP' | 'TRIAL'>('REGULAR');
   const [studentCredit, setStudentCredit] = useState(0);
 
   const rawSlots = state.schedule[`${state.currentTeacher}|${selectedDay}`] || [];
   const slots = [...rawSlots].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
-  // Find Gaps Logic (Updated to start from 15:00)
   const handleFindGaps = () => {
       const foundGaps: string[] = [];
-      let currentPointer = SCAN_START_MINUTES; // Start at 15:00
+      let currentPointer = SCAN_START_MINUTES;
 
-      // 1. Check existing slots
       slots.forEach(slot => {
           const slotStart = timeToMinutes(slot.start);
           const slotEnd = timeToMinutes(slot.end);
 
-          // Only consider slots that are relevant to our scan time
           if (slotEnd > currentPointer) {
-               // Check gap before this slot
                while (currentPointer + DEFAULT_LESSON_DURATION <= slotStart) {
                   foundGaps.push(minutesToTime(currentPointer));
                   currentPointer += DEFAULT_LESSON_DURATION; 
-                  // Add 10 mins buffer maybe? keeping tight for now.
                }
                currentPointer = Math.max(currentPointer, slotEnd);
           }
       });
 
-      // 2. Check gap after last slot until Work End
       while (currentPointer + DEFAULT_LESSON_DURATION <= WORK_END_MINUTES) {
           foundGaps.push(minutesToTime(currentPointer));
           currentPointer += DEFAULT_LESSON_DURATION;
@@ -103,14 +85,12 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
       setIsFindGapModalOpen(true);
   };
 
-  // Recalculate end time when duration changes
   const handleDurationChange = (mins: number) => {
     setDuration(mins);
     const startMins = timeToMinutes(newTimeStart);
     setNewTimeEnd(minutesToTime(startMins + mins));
   };
 
-  // Recalculate end time when start time changes
   const handleStartTimeChange = (val: string) => {
     setNewTimeStart(val);
     const startMins = timeToMinutes(val);
@@ -148,7 +128,6 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
             setDuration(DEFAULT_LESSON_DURATION);
         }
     } else {
-        // Default to next available slot logic logic roughly or just current time
         setNewTimeStart("12:00");
         setNewTimeEnd(`12:${DEFAULT_LESSON_DURATION}`);
         setDuration(DEFAULT_LESSON_DURATION);
@@ -158,7 +137,6 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
-      {/* Compact Day Selector */}
       <div className="bg-white/90 backdrop-blur-md pt-2 pb-2 px-2 z-20 sticky top-0 border-b border-slate-100 shadow-sm">
         <div className="flex justify-between items-center bg-slate-50 p-1 rounded-xl">
           {DAYS.map(day => (
@@ -174,39 +152,31 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
           ))}
         </div>
         
-        {/* Magic Finder Bar */}
         <div className="mt-2 flex justify-end px-1">
              <button 
                 onClick={handleFindGaps}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wide border border-indigo-100 hover:bg-indigo-100 active:scale-95 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 active:scale-95 transition-all"
              >
                  <Sparkles size={12} />
-                 <span>40dk Boşluk Bul (15:00+)</span>
+                 <span>Boşluk Bul</span>
              </button>
         </div>
       </div>
 
-      {/* Timeline Content */}
       <div className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
         {slots.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[50vh] text-center animate-scale-in">
+          <div className="flex flex-col items-center justify-center h-[50vh] text-center">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-slate-50">
                  <CalendarDays size={28} className="text-slate-300" strokeWidth={1.5} />
             </div>
             <p className="text-slate-800 font-bold text-lg mb-1">Program Boş</p>
-            <p className="text-slate-400 text-xs font-medium mb-6">Bugün için ders kaydı yok.</p>
-            <div className="flex flex-col gap-3 w-full max-w-xs px-4">
-                <button onClick={() => openAddSlotModal("09:00")} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-95 flex items-center justify-center gap-2">
-                    <Plus size={16} /> İlk Saati Ekle
-                </button>
-                <button onClick={handleFindGaps} className="px-6 py-3 bg-white text-indigo-600 border border-indigo-100 rounded-xl font-bold text-xs hover:bg-indigo-50 transition-all active:scale-95 flex items-center justify-center gap-2">
-                    <Sparkles size={16} /> Sihirli Boşluk Bul
-                </button>
-            </div>
+            <button onClick={() => openAddSlotModal("09:00")} className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95 flex items-center justify-center gap-2">
+                <Plus size={16} /> İlk Saati Ekle
+            </button>
           </div>
         ) : (
           <div className="relative space-y-0">
-            {/* Thin Timeline Line */}
+            {/* Soft Timeline Line */}
             <div className="absolute left-[24px] top-2 bottom-2 w-px bg-slate-100 -z-10"></div>
 
             {slots.map((slot, idx) => {
@@ -215,7 +185,6 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
               const isMakeup = slot.label === 'MAKEUP';
               const isTrial = slot.label === 'TRIAL';
               
-              // Gap Calculation
               let gapElement = null;
               if (idx < slots.length - 1) {
                   const currentEnd = timeToMinutes(slot.end);
@@ -224,13 +193,13 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                   
                   if (diff > 0) {
                       gapElement = (
-                          <div className="flex items-center gap-3 my-0.5 animate-in fade-in zoom-in duration-300">
+                          <div className="flex items-center gap-3 my-0.5 opacity-50 hover:opacity-100 transition-opacity">
                               <div className="w-[48px] flex justify-center shrink-0"></div>
                               <button 
                                 onClick={() => openAddSlotModal(slot.end, slots[idx + 1].start)}
-                                className="flex-1 h-5 rounded-lg border border-dashed border-slate-200 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-300 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-500 transition-all active:scale-95"
+                                className="flex-1 h-5 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-300 hover:text-indigo-500"
                               >
-                                  <span>+{diff} dk Boşluk</span>
+                                  <span>+ {diff} dk</span>
                               </button>
                           </div>
                       );
@@ -239,80 +208,62 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
 
               return (
                 <React.Fragment key={slot.id}>
-                    <div className="flex gap-3 group animate-slide-up relative py-0.5" style={{ animationDelay: `${idx * 0.03}s` }}>
-                        {/* Slim Time Column */}
+                    <div className="flex gap-3 relative py-0.5">
                         <div className="flex flex-col items-center pt-1 shrink-0 w-[48px]">
-                            <div className={`w-full py-1 rounded-md flex flex-col items-center justify-center border transition-colors bg-white ${
-                                isOccupied ? 'border-slate-100 text-slate-700' : 'border-emerald-100 text-emerald-600'
-                            }`}>
-                                <span className="text-[11px] font-bold tracking-tight leading-none">{slot.start}</span>
-                                <span className="text-[8px] font-medium opacity-60 leading-none mt-0.5">{slot.end}</span>
+                            <div className="w-full text-center">
+                                <span className="text-[11px] font-bold text-slate-600 tracking-tight block">{slot.start}</span>
+                                <span className="text-[8px] font-medium text-slate-300 block -mt-0.5">{slot.end}</span>
                             </div>
                         </div>
 
-                        {/* Compact Slot Card */}
+                        {/* Soft Pastel Card */}
                         <div 
                             onClick={() => isOccupied ? onOpenStudentProfile(slot.studentId!) : ((setActiveSlot(slot), resetBookForm(), setIsBookModalOpen(true)))}
-                            className={`flex-1 relative overflow-hidden rounded-xl transition-all duration-200 min-h-[42px] ${
+                            className={`flex-1 relative overflow-hidden rounded-xl transition-all duration-200 min-h-[46px] border-l-[3px] shadow-sm ${
                                 isOccupied 
-                                ? (isMakeup ? 'bg-orange-50/50 shadow-sm border border-orange-200 active:scale-[0.99]' 
-                                    : isTrial ? 'bg-purple-50/50 shadow-sm border border-purple-200 active:scale-[0.99]'
-                                    : 'bg-white shadow-sm border border-slate-100 active:scale-[0.99]')
-                                : 'bg-emerald-50/40 border border-emerald-100/50 hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer active:scale-[0.99]'
+                                ? (isMakeup ? 'bg-orange-50 border-orange-400 active:scale-[0.99]' 
+                                    : isTrial ? 'bg-purple-50 border-purple-400 active:scale-[0.99]'
+                                    : 'bg-indigo-50 border-indigo-500 active:scale-[0.99]')
+                                : 'bg-white border-slate-200 cursor-pointer active:scale-[0.99]'
                             }`}
                         >
-                            {isOccupied && (
-                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-                                    isMakeup ? 'bg-orange-500' 
-                                    : isTrial ? 'bg-purple-500'
-                                    : 'bg-indigo-500'
-                                }`}></div>
-                            )}
-
                             <div className="px-3 py-1.5 flex items-center justify-between gap-2 h-full">
                                 {isOccupied ? (
                                     <>
                                         <div className="flex items-center gap-2.5 overflow-hidden">
-                                            <div className={`w-7 h-7 rounded-lg text-white flex items-center justify-center font-bold text-[10px] shadow-sm shrink-0 ${
-                                                isMakeup ? 'bg-orange-500' 
-                                                : isTrial ? 'bg-purple-500'
-                                                : 'bg-slate-800'
-                                            }`}>
-                                                {isMakeup ? 'T' : isTrial ? 'D' : student?.name.charAt(0).toUpperCase()}
-                                            </div>
                                             <div className="min-w-0">
                                                 <h4 className={`font-bold truncate text-[13px] leading-tight ${
                                                     isMakeup ? 'text-orange-900' 
                                                     : isTrial ? 'text-purple-900'
-                                                    : 'text-slate-700'
+                                                    : 'text-indigo-900'
                                                 }`}>{student?.name}</h4>
                                                 
                                                 <div className="flex gap-1">
-                                                    {isMakeup && <span className="text-[8px] font-bold text-orange-500 bg-orange-100 px-1 py-px rounded-sm">TELAFİ</span>}
-                                                    {isTrial && <span className="text-[8px] font-bold text-purple-500 bg-purple-100 px-1 py-px rounded-sm">DENEME</span>}
+                                                    {isMakeup && <span className="text-[8px] font-bold text-orange-600 opacity-80">TELAFİ</span>}
+                                                    {isTrial && <span className="text-[8px] font-bold text-purple-600 opacity-80">DENEME</span>}
                                                 </div>
                                             </div>
                                         </div>
-                                        <ChevronRight size={14} className="text-slate-300" />
+                                        <ChevronRight size={14} className={
+                                             isMakeup ? 'text-orange-200' 
+                                            : isTrial ? 'text-purple-200'
+                                            : 'text-indigo-200'
+                                        } />
                                     </>
                                 ) : (
-                                    /* Minimal Available State */
                                     <div className="flex items-center justify-between w-full">
                                         <div className="flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                            <h4 className="font-bold text-emerald-600 text-[10px] tracking-wide">MÜSAİT</h4>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                                            <h4 className="font-bold text-slate-400 text-[10px] tracking-wide">MÜSAİT</h4>
                                         </div>
-                                        <div className="w-5 h-5 rounded-full bg-white text-emerald-500 border border-emerald-100 flex items-center justify-center shrink-0 shadow-sm">
-                                            <Plus size={12} strokeWidth={2.5} />
-                                        </div>
+                                        <Plus size={14} className="text-slate-300" />
                                     </div>
                                 )}
                             </div>
 
-                            {/* Options Button */}
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setActiveSlot(slot); setIsSlotOptionsOpen(true); }}
-                                className={`absolute top-1 right-1 p-1 z-20 transition-colors rounded-md ${isOccupied ? 'text-slate-300 hover:text-slate-500' : 'text-emerald-300 hover:text-emerald-600'}`}
+                                className={`absolute top-1 right-1 p-1 z-20 transition-colors rounded-md ${isOccupied ? 'opacity-0' : 'text-slate-300 hover:text-slate-500'}`}
                             >
                                 <MoreHorizontal size={14} />
                             </button>
@@ -322,147 +273,59 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                 </React.Fragment>
               );
             })}
-
-            {/* End of Day Gap */}
-            {(() => {
-                const lastSlot = slots[slots.length - 1];
-                const lastEndMin = timeToMinutes(lastSlot.end);
-                if (lastEndMin < WORK_END_MINUTES) {
-                    return (
-                        <div className="flex gap-3 animate-in fade-in duration-500 pt-1 opacity-60 hover:opacity-100 transition-opacity">
-                            <div className="flex flex-col items-center shrink-0 w-[48px]">
-                                <div className="w-full py-1 text-center text-[9px] font-bold text-slate-400 bg-slate-50 rounded-md border border-dashed border-slate-200">
-                                    {lastSlot.end}
-                                </div>
-                            </div>
-                            <button 
-                                onClick={() => openAddSlotModal(lastSlot.end)}
-                                className="flex-1 border border-dashed border-slate-200 rounded-xl flex items-center justify-center gap-2 text-slate-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/30 transition-all py-2 min-h-[40px]"
-                            >
-                                <Moon size={12} />
-                                <span className="text-[10px] font-bold">Kapanışa kadar boş</span>
-                                <Plus size={12} />
-                            </button>
-                        </div>
-                    )
-                }
-                return null;
-            })()}
           </div>
         )}
       </div>
 
-      {/* Compact FAB */}
       <button
         onClick={() => openAddSlotModal()}
-        className="fixed bottom-20 right-5 w-12 h-12 bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-400/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-30 border-2 border-white/10 backdrop-blur-sm"
+        className="fixed bottom-20 right-5 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-400/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-30"
       >
         <Plus size={24} strokeWidth={2} />
       </button>
 
-      {/* IMPROVED Add Time Modal */}
-      <Dialog
-        isOpen={isTimeModalOpen}
-        onClose={() => setIsTimeModalOpen(false)}
-        title="Saat Ekle"
-        actions={
+      {/* Add Time Modal */}
+      <Dialog isOpen={isTimeModalOpen} onClose={() => setIsTimeModalOpen(false)} title="Saat Ekle" actions={
           <>
-            <button onClick={() => setIsTimeModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-            <button onClick={() => { actions.addSlot(selectedDay, newTimeStart, newTimeEnd); setIsTimeModalOpen(false); }} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-md shadow-slate-300 active:scale-95">Ekle</button>
+            <button onClick={() => setIsTimeModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
+            <button onClick={() => { actions.addSlot(selectedDay, newTimeStart, newTimeEnd); setIsTimeModalOpen(false); }} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Ekle</button>
           </>
         }
       >
         <div className="flex flex-col gap-4 py-2">
-            {/* Time Inputs Display */}
             <div className="flex items-center justify-center gap-3">
-                 {/* Start Time */}
                  <div className="flex-1">
-                    <label className="text-[10px] font-black text-indigo-400 uppercase block mb-1 text-center">BAŞLANGIÇ</label>
-                    <div className="relative bg-slate-50 border-2 border-indigo-100 rounded-2xl overflow-hidden">
-                        <input 
-                            type="time" 
-                            value={newTimeStart}
-                            onChange={(e) => handleStartTimeChange(e.target.value)}
-                            className="w-full text-3xl font-black text-slate-800 bg-transparent outline-none text-center py-3 z-10 relative"
-                        />
-                    </div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 text-center">BAŞLANGIÇ</label>
+                    <input type="time" value={newTimeStart} onChange={(e) => handleStartTimeChange(e.target.value)} className="w-full text-2xl font-bold text-slate-800 bg-slate-50 rounded-xl p-2 text-center outline-none" />
                  </div>
-
-                 <div className="pt-5 text-slate-300"><ArrowRight size={24} /></div>
-
-                 {/* End Time */}
+                 <ArrowRight size={20} className="text-slate-300 mt-5" />
                  <div className="flex-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 text-center">BİTİŞ</label>
-                    <div className="relative bg-slate-50 border-2 border-slate-100 rounded-2xl overflow-hidden">
-                        <input 
-                            type="time" 
-                            value={newTimeEnd}
-                            onChange={(e) => { setNewTimeEnd(e.target.value); setDuration(0); /* Manual override clears duration preset visual */ }} 
-                            className="w-full text-3xl font-black text-slate-800 bg-transparent outline-none text-center py-3" 
-                        />
-                    </div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 text-center">BİTİŞ</label>
+                    <input type="time" value={newTimeEnd} onChange={(e) => { setNewTimeEnd(e.target.value); setDuration(0); }} className="w-full text-2xl font-bold text-slate-800 bg-slate-50 rounded-xl p-2 text-center outline-none" />
                  </div>
             </div>
-
-            {/* Quick Duration Chips */}
             <div className="flex justify-center gap-2">
                 {[20, 40, 50].map(mins => (
-                    <button 
-                        key={mins}
-                        onClick={() => handleDurationChange(mins)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                            duration === mins 
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200' 
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
-                        }`}
-                    >
-                        {mins} dk
-                    </button>
+                    <button key={mins} onClick={() => handleDurationChange(mins)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${duration === mins ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'}`}>{mins} dk</button>
                 ))}
             </div>
         </div>
       </Dialog>
 
-      {/* FIND GAP RESULTS MODAL */}
-      <Dialog 
-        isOpen={isFindGapModalOpen} 
-        onClose={() => setIsFindGapModalOpen(false)} 
-        title="Uygun Saatler"
-      >
+      {/* Find Gap Modal */}
+      <Dialog isOpen={isFindGapModalOpen} onClose={() => setIsFindGapModalOpen(false)} title="Boş Saatler">
         <div className="py-2">
-            <p className="text-xs text-slate-500 mb-4 px-1">
-                <span className="font-bold text-slate-800">{selectedDay}</span> günü, <span className="font-bold text-indigo-600">15:00'dan sonra</span>:
-            </p>
-            
             {suggestedGaps.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-slate-300 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
-                    <Clock size={32} className="mb-2" />
-                    <p className="text-xs font-bold">15:00 sonrasında boşluk yok.</p>
-                </div>
+                <p className="text-center text-slate-400 text-sm">Uygun boşluk bulunamadı.</p>
             ) : (
-                <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto">
                     {suggestedGaps.map(startTime => {
                         const endMins = timeToMinutes(startTime) + 40;
                         const endTime = minutesToTime(endMins);
-                        const isEvening = timeToMinutes(startTime) >= 18 * 60;
-
                         return (
-                            <button 
-                                key={startTime}
-                                onClick={() => {
-                                    openAddSlotModal(startTime, endTime);
-                                    setIsFindGapModalOpen(false);
-                                }}
-                                className={`flex flex-col items-start p-3 border rounded-xl transition-all active:scale-95 shadow-sm group ${isEvening ? 'bg-indigo-900 border-indigo-800 text-white hover:bg-indigo-800' : 'bg-white border-slate-200 hover:border-indigo-500 hover:bg-indigo-50'}`}
-                            >
-                                <div className="flex items-center gap-2 mb-1">
-                                    {isEvening ? <Moon size={12} className="text-indigo-300" /> : <Sun size={12} className="text-orange-400" />}
-                                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isEvening ? 'text-indigo-300' : 'text-slate-400'}`}>{isEvening ? 'Akşam' : 'Öğleden Sonra'}</span>
-                                </div>
-                                <div className="flex items-baseline gap-1">
-                                    <span className="text-lg font-black">{startTime}</span>
-                                    <span className={`text-xs font-medium ${isEvening ? 'text-indigo-300' : 'text-slate-400'}`}>- {endTime}</span>
-                                </div>
+                            <button key={startTime} onClick={() => { openAddSlotModal(startTime, endTime); setIsFindGapModalOpen(false); }} className="p-3 border border-slate-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-colors text-center">
+                                <span className="text-lg font-bold text-slate-700 block">{startTime}</span>
+                                <span className="text-xs text-slate-400">{endTime}</span>
                             </button>
                         );
                     })}
@@ -472,108 +335,39 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
       </Dialog>
 
       {/* Book Modal */}
-      <Dialog
-        isOpen={isBookModalOpen}
-        onClose={() => setIsBookModalOpen(false)}
-        title="Ders Kaydı"
-        actions={
+      <Dialog isOpen={isBookModalOpen} onClose={() => setIsBookModalOpen(false)} title="Ders Kaydı" actions={
           <>
-            <button onClick={() => setIsBookModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-            <button onClick={handleBookStudent} disabled={!existingStudentId && !bookName} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
+            <button onClick={() => setIsBookModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
+            <button onClick={handleBookStudent} disabled={!existingStudentId && !bookName} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button>
           </>
         }
       >
         <div className="space-y-3 pt-1">
-          <div>
-            <input 
-                type="text"
-                value={bookName}
-                onChange={(e) => {
-                   setBookName(e.target.value);
-                   const match = (Object.values(state.students) as Student[]).find(s => s.name.toLowerCase() === e.target.value.toLowerCase());
-                   if(match) { 
-                       setExistingStudentId(match.id); 
-                       setBookPhone(match.phone); 
-                       setBookFee(match.fee.toString());
-                       // Kredi kontrolü
-                       if (match.makeupCredit > 0) {
-                           setStudentCredit(match.makeupCredit);
-                           setLessonType('MAKEUP'); // Otomatik telafi seç
-                       } else {
-                           setStudentCredit(0);
-                       }
-                   } else { 
-                       setExistingStudentId(null); 
-                       setStudentCredit(0);
-                   }
-                }}
-                placeholder="Öğrenci Adı..."
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-800"
-                autoFocus
-              />
-              {studentCredit > 0 && (
-                  <div className="mt-2 flex items-center gap-2 p-2 bg-orange-50 border border-orange-100 rounded-lg animate-in slide-in-from-top-2">
-                      <Layers size={14} className="text-orange-500" />
-                      <p className="text-[10px] font-bold text-orange-700">Bu öğrencinin {studentCredit} telafi hakkı var!</p>
-                  </div>
-              )}
-          </div>
-          
+          <input type="text" value={bookName} onChange={(e) => {
+             setBookName(e.target.value);
+             const match = (Object.values(state.students) as Student[]).find(s => s.name.toLowerCase() === e.target.value.toLowerCase());
+             if(match) { setExistingStudentId(match.id); setBookPhone(match.phone); setBookFee(match.fee.toString()); match.makeupCredit > 0 ? (setStudentCredit(match.makeupCredit), setLessonType('MAKEUP')) : setStudentCredit(0); } 
+             else { setExistingStudentId(null); setStudentCredit(0); }
+          }} placeholder="Öğrenci Adı..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" autoFocus />
+          {studentCredit > 0 && <div className="p-2 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg flex items-center gap-1"><Layers size={12}/> {studentCredit} Telafi hakkı var</div>}
           <div className="grid grid-cols-2 gap-3">
-            <input type="tel" value={bookPhone} onChange={(e) => setBookPhone(e.target.value)} placeholder="Telefon" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-800 text-sm" />
-            
-            {lessonType === 'TRIAL' ? (
-                <div className="w-full p-3 bg-purple-50 border border-purple-100 rounded-xl font-bold text-purple-600 text-sm flex items-center justify-center">
-                    Ücretsiz
-                </div>
-            ) : (
-                <input type="number" value={bookFee} onChange={(e) => setBookFee(e.target.value)} placeholder="Aylık Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-800 text-sm" />
-            )}
+            <input type="tel" value={bookPhone} onChange={e=>setBookPhone(e.target.value)} placeholder="Tel" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+            {lessonType !== 'TRIAL' && <input type="number" value={bookFee} onChange={e=>setBookFee(e.target.value)} placeholder="Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />}
           </div>
-
-          {/* Lesson Type Toggle */}
           <div className="grid grid-cols-3 gap-2 mt-2">
-              <button 
-                onClick={() => setLessonType('REGULAR')}
-                className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
-              >
-                  Normal
-              </button>
-              <button 
-                onClick={() => setLessonType('MAKEUP')}
-                className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
-              >
-                  Telafi
-              </button>
-              <button 
-                onClick={() => setLessonType('TRIAL')}
-                className={`p-2 rounded-xl border text-xs font-bold transition-all flex flex-col items-center justify-center gap-1 ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700 shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
-              >
-                  <div className="flex items-center gap-1">
-                      <Sparkles size={10} />
-                      Deneme
-                  </div>
-              </button>
+              <button onClick={() => setLessonType('REGULAR')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Normal</button>
+              <button onClick={() => setLessonType('MAKEUP')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Telafi</button>
+              <button onClick={() => setLessonType('TRIAL')} className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Deneme</button>
           </div>
         </div>
       </Dialog>
 
-      {/* Slot Options */}
       <Dialog isOpen={isSlotOptionsOpen} onClose={() => setIsSlotOptionsOpen(false)} title="İşlemler">
         <div className="flex flex-col gap-2 pt-1">
           {activeSlot?.studentId && (
-            <button onClick={() => { if(activeSlot) actions.cancelSlot(selectedDay, activeSlot.id); setIsSlotOptionsOpen(false); }} className="flex items-center gap-3 p-3 rounded-xl bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors w-full text-left border border-orange-100">
-              <div className="p-1.5 bg-white rounded-lg text-orange-500 shadow-sm"><UserX size={18} /></div>
-              <div>
-                <div className="font-bold text-sm">Dersi İptal Et</div>
-                {activeSlot.label === 'MAKEUP' && <div className="text-[10px] opacity-70">Telafi kredisi iade edilir.</div>}
-              </div>
-            </button>
+            <button onClick={() => { if(activeSlot) actions.cancelSlot(selectedDay, activeSlot.id); setIsSlotOptionsOpen(false); }} className="p-3 rounded-xl bg-orange-50 text-orange-700 font-bold text-sm flex items-center gap-2"><UserX size={16}/> Dersi İptal Et</button>
           )}
-          <button onClick={() => { if(activeSlot) actions.deleteSlot(selectedDay, activeSlot.id); setIsSlotOptionsOpen(false); }} className="flex items-center gap-3 p-3 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 transition-colors w-full text-left border border-red-100">
-            <div className="p-1.5 bg-white rounded-lg text-red-500 shadow-sm"><Trash2 size={18} /></div>
-            <div><div className="font-bold text-sm">Saati Sil</div></div>
-          </button>
+          <button onClick={() => { if(activeSlot) actions.deleteSlot(selectedDay, activeSlot.id); setIsSlotOptionsOpen(false); }} className="p-3 rounded-xl bg-red-50 text-red-700 font-bold text-sm flex items-center gap-2"><Trash2 size={16}/> Saati Sil</button>
         </div>
       </Dialog>
     </div>
