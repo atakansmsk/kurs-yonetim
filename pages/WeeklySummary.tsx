@@ -94,7 +94,7 @@ export const WeeklySummary: React.FC = () => {
         <div className={`flex flex-col border-b border-slate-100 bg-white ${isScreenshotMode ? 'px-4 py-2' : 'px-6 py-4 sticky top-0 z-20 shadow-sm'}`}>
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-200">
+                    <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-200">
                         <CalendarCheck size={16} />
                     </div>
                     <div>
@@ -127,18 +127,18 @@ export const WeeklySummary: React.FC = () => {
             {/* Stats Badges - Minimal */}
             <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-slate-800"></div>
+                    <div className="w-2 h-2 rounded-full bg-red-600"></div>
                     <span className="text-[10px] font-bold text-slate-600">{totalLessons} Ders</span>
                 </div>
                 {totalTrial > 0 && (
                     <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
                         <span className="text-[10px] font-bold text-slate-600">{totalTrial} Deneme</span>
                     </div>
                 )}
                 {totalMakeup > 0 && (
                     <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                        <div className="w-2 h-2 rounded-full bg-rose-500"></div>
                         <span className="text-[10px] font-bold text-slate-600">{totalMakeup} Telafi</span>
                     </div>
                 )}
@@ -168,17 +168,16 @@ export const WeeklySummary: React.FC = () => {
                     const isToday = day === currentDayName;
                     
                     return (
-                        <div key={day} className={`flex-1 flex flex-col min-w-0 rounded-2xl overflow-hidden ${isToday && !isScreenshotMode ? 'bg-blue-50/50 ring-1 ring-blue-100' : 'bg-transparent'}`}>
+                        <div key={day} className={`flex-1 flex flex-col min-w-0 rounded-2xl overflow-hidden ${isToday && !isScreenshotMode ? 'bg-red-50/40 ring-1 ring-red-100' : 'bg-transparent'}`}>
                             
                             {/* Header */}
-                            <div className={`text-center py-1.5 mb-1 flex flex-col items-center justify-center shrink-0 ${isToday ? 'text-blue-600' : 'text-slate-400'}`}>
+                            <div className={`text-center py-1.5 mb-1 flex flex-col items-center justify-center shrink-0 ${isToday ? 'text-red-600' : 'text-slate-400'}`}>
                                 <span className={`font-black ${isScreenshotMode ? 'text-[7px]' : 'text-[9px]'}`}>{SHORT_DAYS[day]}</span>
-                                {isToday && <div className="w-1 h-1 rounded-full bg-blue-500 mt-0.5"></div>}
+                                {isToday && <div className="w-1 h-1 rounded-full bg-red-500 mt-0.5"></div>}
                             </div>
 
                             {/* Timeline Track */}
                             <div className="flex-1 flex flex-col w-full relative">
-                                {/* Grid lines background (Optional, kept clean for now) */}
                                 
                                 {blocks.map((block, idx) => {
                                     if (block.type === 'GAP') {
@@ -197,14 +196,14 @@ export const WeeklySummary: React.FC = () => {
                                             >
                                                 <div className={`w-full h-full rounded-lg shadow-sm flex flex-col justify-center px-1 relative overflow-hidden transition-all hover:scale-[1.05] hover:z-10 cursor-default ${
                                                     isMakeup 
-                                                        ? 'bg-orange-50 text-orange-800' 
+                                                        ? 'bg-rose-50 text-rose-800' 
                                                     : isTrial 
-                                                        ? 'bg-purple-50 text-purple-800' 
-                                                    : 'bg-indigo-50 text-indigo-800'
+                                                        ? 'bg-amber-50 text-amber-800' 
+                                                    : 'bg-red-50 text-red-900'
                                                 }`}>
                                                     {/* Color Bar */}
                                                     <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${
-                                                        isMakeup ? 'bg-orange-400' : isTrial ? 'bg-purple-400' : 'bg-indigo-400'
+                                                        isMakeup ? 'bg-rose-400' : isTrial ? 'bg-amber-400' : 'bg-red-500'
                                                     }`}></div>
 
                                                     <div className={`font-bold leading-none truncate pl-1 ${isScreenshotMode ? 'text-[6px]' : 'text-[8px]'}`}>
@@ -217,8 +216,8 @@ export const WeeklySummary: React.FC = () => {
                                                     </div>
 
                                                     {/* Icons */}
-                                                    {isTrial && <div className="absolute top-0.5 right-0.5"><Star size={6} className="text-purple-400" fill="currentColor"/></div>}
-                                                    {isMakeup && <div className="absolute top-0.5 right-0.5"><RefreshCcw size={6} className="text-orange-400"/></div>}
+                                                    {isTrial && <div className="absolute top-0.5 right-0.5"><Star size={6} className="text-amber-500" fill="currentColor"/></div>}
+                                                    {isMakeup && <div className="absolute top-0.5 right-0.5"><RefreshCcw size={6} className="text-rose-400"/></div>}
                                                 </div>
                                             </div>
                                         );
