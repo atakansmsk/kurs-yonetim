@@ -193,6 +193,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                          let note = "Ders İşlendi (Otomatik)";
                          let isDebt = true;
                          let incrementCount = 1;
+                         let newMakeupCredit = student.makeupCredit || 0;
 
                          if (label === 'TRIAL') {
                              note = "Deneme Dersi (Ücretsiz)";
@@ -201,7 +202,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                          } else if (label === 'MAKEUP') {
                              note = "Telafi Dersi (Otomatik)";
                              isDebt = false; // Telafi dersi borç yazmaz (önceden yazılmıştır)
-                             incrementCount = 0; // Telafi dersi sayacı artırmaz (veya kullanıcı tercihine göre değişebilir ama genelde nötrdür)
+                             incrementCount = 0; // Telafi dersi sayacı artırmaz
+                             // Otomatik işlenen telafi dersi krediden düşülmeli mi? 
+                             // Genelde planlarken düşeriz ama otomatikte de garantiye alalım:
+                             if (newMakeupCredit > 0) newMakeupCredit -= 1;
                          }
                          
                          newHistory.unshift({
@@ -216,6 +220,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                          newStudents[studId] = {
                              ...student,
                              debtLessonCount: student.debtLessonCount + incrementCount,
+                             makeupCredit: newMakeupCredit,
                              history: newHistory
                          };
                     }
@@ -254,7 +259,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const id = generateId();
       setAppState(prev => ({
         ...prev,
-        students: { ...prev.students, [id]: { id, name, phone, fee, registrationDate: new Date().toISOString(), debtLessonCount: 0, history: [] } }
+        students: { ...prev.students, [id]: { id, name, phone, fee, registrationDate: new Date().toISOString(), debtLessonCount: 0, makeupCredit: 0, history: [] } }
       }));
       return id;
     },
@@ -303,14 +308,47 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     bookSlot: (day: any, slotId: string, studentId: string, label: 'REGULAR' | 'MAKEUP' | 'TRIAL' = 'REGULAR') => {
       setAppState(prev => {
         const key = `${prev.currentTeacher}|${day}`;
-        return { ...prev, schedule: { ...prev.schedule, [key]: (prev.schedule[key] || []).map(s => s.id === slotId ? { ...s, studentId, label } : s) } };
+        const student = prev.students[studentId];
+        
+        let newStudents = { ...prev.students };
+        
+        // TELAFİ DERSİ İŞLENİYORSA: Krediden Düş
+        if (student && label === 'MAKEUP') {
+            const currentCredit = student.makeupCredit || 0;
+            // Kredi negatif olmasın diye kontrol edebiliriz ama bazen borç telafi de olabilir, şimdilik 0 altına indirmeyelim
+            const newCredit = Math.max(0, currentCredit - 1);
+            newStudents[studentId] = { ...student, makeupCredit: newCredit };
+        }
+
+        return { 
+            ...prev, 
+            students: newStudents,
+            schedule: { ...prev.schedule, [key]: (prev.schedule[key] || []).map(s => s.id === slotId ? { ...s, studentId, label } : s) } 
+        };
       });
     },
 
     cancelSlot: (day: any, slotId: string) => {
       setAppState(prev => {
         const key = `${prev.currentTeacher}|${day}`;
-        return { ...prev, schedule: { ...prev.schedule, [key]: (prev.schedule[key] || []).map(s => s.id === slotId ? { ...s, studentId: null, label: undefined } : s) } };
+        const slots = prev.schedule[key] || [];
+        const slot = slots.find(s => s.id === slotId);
+        
+        let newStudents = { ...prev.students };
+
+        // İPTAL EDİLEN DERS TELAFİ İSE: Krediyi İade Et
+        if (slot && slot.studentId && slot.label === 'MAKEUP') {
+            const student = newStudents[slot.studentId];
+            if (student) {
+                newStudents[slot.studentId] = { ...student, makeupCredit: (student.makeupCredit || 0) + 1 };
+            }
+        }
+
+        return { 
+            ...prev, 
+            students: newStudents,
+            schedule: { ...prev.schedule, [key]: slots.map(s => s.id === slotId ? { ...s, studentId: null, label: undefined } : s) } 
+        };
       });
     },
 
@@ -365,8 +403,20 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const s = prev.students[studentId];
             if (!s) return prev;
             
+            let makeupChange = 0;
+
             const newHistory = s.history.map(tx => {
                 if (tx.id === transactionId) {
+                    // Eğer not "Telafi Bekliyor" olarak değişiyorsa kredi ekle
+                    // (Basit mantık: aynı işlemi tekrar yapmamak için eski notu kontrol etmek gerekebilir ama şimdilik doğrudan ekleyelim)
+                    if (note === "Telafi Bekliyor" && tx.note !== "Telafi Bekliyor") {
+                        makeupChange = 1;
+                    }
+                    // Eğer not değişiyor ve eskiden "Telafi Bekliyor" ise krediyi geri al (iptal durumu)
+                    else if (tx.note === "Telafi Bekliyor" && note !== "Telafi Bekliyor") {
+                         makeupChange = -1;
+                    }
+
                     return { ...tx, note };
                 }
                 return tx;
@@ -376,7 +426,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 ...prev, 
                 students: { 
                     ...prev.students, 
-                    [studentId]: { ...s, history: newHistory } 
+                    [studentId]: { 
+                        ...s, 
+                        history: newHistory,
+                        makeupCredit: Math.max(0, (s.makeupCredit || 0) + makeupChange)
+                    } 
                 } 
             };
         });
@@ -388,14 +442,16 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const tx = s.history.find(t => t.id === txId); if(!tx) return prev;
             const nh = s.history.filter(t => t.id !== txId);
             let nc = s.debtLessonCount;
+            let mc = s.makeupCredit || 0;
+
             if(tx.isDebt) nc = Math.max(0, nc - 1);
-            else { 
-                // Eğer dönem kapatma ödemesiyse (normal ödeme), silindiğinde dersleri geri yüklemek gerekir mi?
-                // Basitlik için: Normal "Dönem Kapatıldı" ödemesi silindiğinde ders sayısı geri gelmez (çünkü o dersler hangi derslerdi bilmiyoruz artık)
-                // Ama "Geçmiş Ödeme" silindiğinde zaten sayaç etkilenmiyor.
-                // Kullanıcı isteğine göre: Şimdilik sadece ders silince sayaç düşsün.
+            
+            // Eğer silinen kayıt "Telafi Bekliyor" ise krediyi de sil
+            if (tx.note === "Telafi Bekliyor") {
+                mc = Math.max(0, mc - 1);
             }
-            return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: nc, history: nh } } }
+
+            return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: nc, history: nh, makeupCredit: mc } } }
         });
     },
 

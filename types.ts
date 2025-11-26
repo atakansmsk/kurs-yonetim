@@ -1,5 +1,6 @@
 
 
+
 export interface Transaction {
   id: string;
   note: string;
@@ -15,6 +16,7 @@ export interface Student {
   fee: number;
   registrationDate: string;
   debtLessonCount: number;
+  makeupCredit: number; // Telafi hakkı bakiyesi
   history: Transaction[];
 }
 

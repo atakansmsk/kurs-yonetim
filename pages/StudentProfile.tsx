@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 
@@ -87,6 +87,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       } else if (action === 'ABSENT') {
           actions.updateTransaction(studentId, selectedTx.id, "Gelmedi (Habersiz)");
       } else if (action === 'MAKEUP') {
+          // Bu işlem context tarafında telafi kredisini artırır
           actions.updateTransaction(studentId, selectedTx.id, "Telafi Bekliyor");
       }
       setIsLessonOptionsOpen(false);
@@ -135,6 +136,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
                         Aylık {student.fee} ₺
                     </span>
+                    {(student.makeupCredit || 0) > 0 && (
+                        <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100 flex items-center gap-1">
+                            <Layers size={10} />
+                            {student.makeupCredit} Telafi Hakkı
+                        </span>
+                    )}
                 </div>
             </div>
         </div>
@@ -362,7 +369,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                 <Trash2 size={18} />
                 <div className="text-left">
                     <div className="font-bold text-sm">Dersi İptal Et (Sil)</div>
-                    <div className="text-[10px] opacity-70">Yanlışlıkla işlendiyse silin.</div>
+                    <div className="text-left text-[10px] opacity-70">Yanlışlıkla işlendiyse silin.</div>
                 </div>
             </button>
             
@@ -378,7 +385,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  <div className="w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs">T</div>
                 <div className="text-left">
                     <div className="font-bold text-sm">Telafi Yapılacak</div>
-                    <div className="text-[10px] text-slate-500">Daha sonra telafi edilecek.</div>
+                    <div className="text-[10px] text-slate-500">Kumbara: <span className="text-orange-600 font-bold">+1 Telafi Hakkı</span> eklenir.</div>
                 </div>
             </button>
          </div>

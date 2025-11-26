@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
-import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2, Sparkles } from 'lucide-react';
+import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2, Sparkles, Layers } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface DailyScheduleProps {
@@ -56,6 +56,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   
   // Lesson Type Logic
   const [lessonType, setLessonType] = useState<'REGULAR' | 'MAKEUP' | 'TRIAL'>('REGULAR');
+  const [studentCredit, setStudentCredit] = useState(0);
 
   const rawSlots = state.schedule[`${state.currentTeacher}|${selectedDay}`] || [];
   const slots = [...rawSlots].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
@@ -89,7 +90,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   };
 
   const resetBookForm = () => {
-    setBookName(""); setBookPhone(""); setBookFee(""); setExistingStudentId(null); setLessonType('REGULAR');
+    setBookName(""); setBookPhone(""); setBookFee(""); setExistingStudentId(null); setLessonType('REGULAR'); setStudentCredit(0);
   };
 
   const openAddSlotModal = (start?: string, end?: string) => {
@@ -379,12 +380,32 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                 onChange={(e) => {
                    setBookName(e.target.value);
                    const match = (Object.values(state.students) as Student[]).find(s => s.name.toLowerCase() === e.target.value.toLowerCase());
-                   if(match) { setExistingStudentId(match.id); setBookPhone(match.phone); setBookFee(match.fee.toString()); } else { setExistingStudentId(null); }
+                   if(match) { 
+                       setExistingStudentId(match.id); 
+                       setBookPhone(match.phone); 
+                       setBookFee(match.fee.toString());
+                       // Kredi kontrolü
+                       if (match.makeupCredit > 0) {
+                           setStudentCredit(match.makeupCredit);
+                           setLessonType('MAKEUP'); // Otomatik telafi seç
+                       } else {
+                           setStudentCredit(0);
+                       }
+                   } else { 
+                       setExistingStudentId(null); 
+                       setStudentCredit(0);
+                   }
                 }}
                 placeholder="Öğrenci Adı..."
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition-all font-bold text-slate-800"
                 autoFocus
               />
+              {studentCredit > 0 && (
+                  <div className="mt-2 flex items-center gap-2 p-2 bg-orange-50 border border-orange-100 rounded-lg animate-in slide-in-from-top-2">
+                      <Layers size={14} className="text-orange-500" />
+                      <p className="text-[10px] font-bold text-orange-700">Bu öğrencinin {studentCredit} telafi hakkı var!</p>
+                  </div>
+              )}
           </div>
           
           <div className="grid grid-cols-2 gap-3">
@@ -432,7 +453,10 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
           {activeSlot?.studentId && (
             <button onClick={() => { if(activeSlot) actions.cancelSlot(selectedDay, activeSlot.id); setIsSlotOptionsOpen(false); }} className="flex items-center gap-3 p-3 rounded-xl bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors w-full text-left border border-orange-100">
               <div className="p-1.5 bg-white rounded-lg text-orange-500 shadow-sm"><UserX size={18} /></div>
-              <div><div className="font-bold text-sm">Dersi İptal Et</div></div>
+              <div>
+                <div className="font-bold text-sm">Dersi İptal Et</div>
+                {activeSlot.label === 'MAKEUP' && <div className="text-[10px] opacity-70">Telafi kredisi iade edilir.</div>}
+              </div>
             </button>
           )}
           <button onClick={() => { if(activeSlot) actions.deleteSlot(selectedDay, activeSlot.id); setIsSlotOptionsOpen(false); }} className="flex items-center gap-3 p-3 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 transition-colors w-full text-left border border-red-100">
