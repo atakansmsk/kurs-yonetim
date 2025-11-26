@@ -414,20 +414,21 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const isResolved = note.includes("Telafi Edildi");
 
             // Durum 1: "Normal" -> "Telafi Bekliyor"
-            // Yapılan ders sayısını azalt, Telafi kredisini artır.
+            // Yapılan ders sayısını azalt (-1), Telafi kredisini artır (+1).
             if (!wasPending && isNowPending) {
                 makeupChange = 1;
-                debtCountChange = -1;
+                debtCountChange = -1; 
             }
             // Durum 2: "Telafi Bekliyor" -> "Normal" (veya Telafi Edildi)
-            // Yapılan ders sayısını artır (EĞER normal ise), Telafi kredisini azalt.
             else if (wasPending && !isNowPending) {
                 makeupChange = -1;
-                // FIX: Eğer "Telafi Edildi" ise sayacı artırma (ders o gün yapılmadı, telafisi başka gün yapıldı/yapılacak)
+                
+                // Eğer "Telafi Edildi" olduysa: Ders sayısını ARTIRMA (0).
+                // Çünkü telafi başka bir gün yapılmış olmalı.
                 if (isResolved) {
                     debtCountChange = 0;
                 } else {
-                    // Eğer "Ders İşlendi" gibi normal bir nota dönüyorsa sayacı geri ekle
+                    // Eğer not "Ders İşlendi"ye geri döndüyse sayacı geri ekle (+1).
                     debtCountChange = 1;
                 }
             }
@@ -464,6 +465,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             // Eğer silinen kayıt bir ders ise ve "Telafi Bekliyor" değilse, sayacı düş.
             // Ayrıca "Telafi Edildi" ise de sayaca dokunma (çünkü o artırmamıştı).
+            // NOT: "Telafi Bekliyor" silinince zaten debtLessonCount üzerinde etkisi yoktu, o yüzden azaltmıyoruz.
             if(tx.isDebt && tx.note !== "Telafi Bekliyor" && !tx.note.includes("Telafi Edildi")) {
                  nc = Math.max(0, nc - 1);
             }

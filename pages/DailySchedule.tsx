@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
-import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2, Sparkles, Layers, Search } from 'lucide-react';
+import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2, Sparkles, Layers, Search, Sun, Sunset } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface DailyScheduleProps {
@@ -29,6 +29,9 @@ const WORK_END_TIME = "21:00";
 const WORK_START_MINUTES = 9 * 60;
 const WORK_END_MINUTES = 21 * 60;
 const DEFAULT_LESSON_DURATION = 40; // User specified 40 mins
+
+// Start scanning from 15:00 as requested
+const SCAN_START_MINUTES = 15 * 60; 
 
 export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfile }) => {
   const { state, actions } = useCourse();
@@ -68,26 +71,26 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   const rawSlots = state.schedule[`${state.currentTeacher}|${selectedDay}`] || [];
   const slots = [...rawSlots].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
-  // Find Gaps Logic
+  // Find Gaps Logic (Updated to start from 15:00)
   const handleFindGaps = () => {
       const foundGaps: string[] = [];
-      let currentPointer = WORK_START_MINUTES;
+      let currentPointer = SCAN_START_MINUTES; // Start at 15:00
 
       // 1. Check existing slots
       slots.forEach(slot => {
           const slotStart = timeToMinutes(slot.start);
           const slotEnd = timeToMinutes(slot.end);
 
-          // Check gap before this slot
-          while (currentPointer + DEFAULT_LESSON_DURATION <= slotStart) {
-              foundGaps.push(minutesToTime(currentPointer));
-              currentPointer += DEFAULT_LESSON_DURATION; // Move by 40 mins blocks
-              // Optional: Add some buffer? No, keep it tight.
+          // Only consider slots that are relevant to our scan time
+          if (slotEnd > currentPointer) {
+               // Check gap before this slot
+               while (currentPointer + DEFAULT_LESSON_DURATION <= slotStart) {
+                  foundGaps.push(minutesToTime(currentPointer));
+                  currentPointer += DEFAULT_LESSON_DURATION; 
+                  // Add 10 mins buffer maybe? keeping tight for now.
+               }
+               currentPointer = Math.max(currentPointer, slotEnd);
           }
-
-          // Move pointer to end of this slot
-          // Ensure we don't go backwards if overlaps exist (though they shouldn't)
-          currentPointer = Math.max(currentPointer, slotEnd);
       });
 
       // 2. Check gap after last slot until Work End
@@ -178,7 +181,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wide border border-indigo-100 hover:bg-indigo-100 active:scale-95 transition-all"
              >
                  <Sparkles size={12} />
-                 <span>40dk Boşluk Bul</span>
+                 <span>40dk Boşluk Bul (15:00+)</span>
              </button>
         </div>
       </div>
@@ -197,7 +200,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                     <Plus size={16} /> İlk Saati Ekle
                 </button>
                 <button onClick={handleFindGaps} className="px-6 py-3 bg-white text-indigo-600 border border-indigo-100 rounded-xl font-bold text-xs hover:bg-indigo-50 transition-all active:scale-95 flex items-center justify-center gap-2">
-                    <Sparkles size={16} /> Taslak Oluştur
+                    <Sparkles size={16} /> Sihirli Boşluk Bul
                 </button>
             </div>
           </div>
@@ -428,19 +431,21 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
       >
         <div className="py-2">
             <p className="text-xs text-slate-500 mb-4 px-1">
-                <span className="font-bold text-slate-800">{selectedDay}</span> günü için <span className="font-bold text-indigo-600">40 dakikalık</span> boşluklar:
+                <span className="font-bold text-slate-800">{selectedDay}</span> günü, <span className="font-bold text-indigo-600">15:00'dan sonra</span>:
             </p>
             
             {suggestedGaps.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-slate-300 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
                     <Clock size={32} className="mb-2" />
-                    <p className="text-xs font-bold">Uygun boşluk bulunamadı.</p>
+                    <p className="text-xs font-bold">15:00 sonrasında boşluk yok.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-3 gap-2 max-h-[40vh] overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto pr-1">
                     {suggestedGaps.map(startTime => {
                         const endMins = timeToMinutes(startTime) + 40;
                         const endTime = minutesToTime(endMins);
+                        const isEvening = timeToMinutes(startTime) >= 18 * 60;
+
                         return (
                             <button 
                                 key={startTime}
@@ -448,10 +453,16 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                                     openAddSlotModal(startTime, endTime);
                                     setIsFindGapModalOpen(false);
                                 }}
-                                className="flex flex-col items-center justify-center p-2 bg-white border border-slate-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 transition-all active:scale-95 shadow-sm"
+                                className={`flex flex-col items-start p-3 border rounded-xl transition-all active:scale-95 shadow-sm group ${isEvening ? 'bg-indigo-900 border-indigo-800 text-white hover:bg-indigo-800' : 'bg-white border-slate-200 hover:border-indigo-500 hover:bg-indigo-50'}`}
                             >
-                                <span className="text-sm font-black">{startTime}</span>
-                                <span className="text-[9px] text-slate-400 font-medium">Bitiş: {endTime}</span>
+                                <div className="flex items-center gap-2 mb-1">
+                                    {isEvening ? <Moon size={12} className="text-indigo-300" /> : <Sun size={12} className="text-orange-400" />}
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isEvening ? 'text-indigo-300' : 'text-slate-400'}`}>{isEvening ? 'Akşam' : 'Öğleden Sonra'}</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-lg font-black">{startTime}</span>
+                                    <span className={`text-xs font-medium ${isEvening ? 'text-indigo-300' : 'text-slate-400'}`}>- {endTime}</span>
+                                </div>
                             </button>
                         );
                     })}
