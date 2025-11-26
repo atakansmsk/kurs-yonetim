@@ -2,22 +2,32 @@
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay } from '../types';
-import { CalendarRange, Maximize2, X, Minimize2, Share } from 'lucide-react';
+import { CalendarRange, Maximize2, X } from 'lucide-react';
 
 const timeToMinutes = (time: string) => {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 };
 
-const FULL_DAYS: Record<WeekDay, string> = {
-  "Pazartesi": "PAZARTESİ", 
-  "Salı": "SALI", 
-  "Çarşamba": "ÇARŞAMBA", 
-  "Perşembe": "PERŞEMBE", 
-  "Cuma": "CUMA", 
-  "Cmt": "CUMARTESİ", 
-  "Pazar": "PAZAR"
+const minutesToTime = (minutes: number) => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
+
+// Gün İsimleri (Kısa)
+const SHORT_DAYS: Record<WeekDay, string> = {
+  "Pazartesi": "PZT", 
+  "Salı": "SAL", 
+  "Çarşamba": "ÇAR", 
+  "Perşembe": "PER", 
+  "Cuma": "CUM", 
+  "Cmt": "CMT", 
+  "Pazar": "PAZ"
+};
+
+const WORK_START = "09:00";
+const WORK_END = "22:00";
 
 export const WeeklySummary: React.FC = () => {
   const { state } = useCourse();
@@ -30,23 +40,68 @@ export const WeeklySummary: React.FC = () => {
     return acc + count;
   }, 0);
 
+  // Günü dolduran (Dersler + Boşluklar) listeyi oluşturan fonksiyon
+  const getFullDaySchedule = (day: WeekDay) => {
+      const key = `${state.currentTeacher}|${day}`;
+      const lessons = (state.schedule[key] || [])
+          .filter(s => s.studentId) // Sadece dolu dersleri al
+          .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+      const blocks: { type: 'LESSON' | 'EMPTY', start: string, end: string, data?: any }[] = [];
+      let currentPointer = timeToMinutes(WORK_START);
+      const endOfDay = timeToMinutes(WORK_END);
+
+      lessons.forEach(lesson => {
+          const lStart = timeToMinutes(lesson.start);
+          const lEnd = timeToMinutes(lesson.end);
+
+          // Eğer dersten önce boşluk varsa ekle
+          if (lStart > currentPointer) {
+              blocks.push({
+                  type: 'EMPTY',
+                  start: minutesToTime(currentPointer),
+                  end: minutesToTime(lStart)
+              });
+          }
+
+          // Dersi ekle
+          blocks.push({
+              type: 'LESSON',
+              start: lesson.start,
+              end: lesson.end,
+              data: lesson
+          });
+
+          currentPointer = Math.max(currentPointer, lEnd);
+      });
+
+      // Gün sonuna kadar boşluk varsa ekle
+      if (currentPointer < endOfDay) {
+          blocks.push({
+              type: 'EMPTY',
+              start: minutesToTime(currentPointer),
+              end: WORK_END
+          });
+      }
+
+      return blocks;
+  };
+
   return (
     <div className={`flex flex-col h-full bg-white ${isScreenshotMode ? 'fixed inset-0 z-[100] w-full h-full overflow-hidden' : 'overflow-y-auto no-scrollbar'}`}>
         {/* Header */}
-        <div className={`flex items-center justify-between border-b border-slate-100 bg-white ${isScreenshotMode ? 'px-3 py-2 h-12 shadow-sm' : 'px-6 py-5 sticky top-0 z-10'}`}>
+        <div className={`flex items-center justify-between border-b border-slate-100 bg-white ${isScreenshotMode ? 'px-2 py-2 h-10 shadow-sm' : 'px-6 py-5 sticky top-0 z-10'}`}>
             <div>
-                <span className={`font-bold text-indigo-500 tracking-widest uppercase block ${isScreenshotMode ? 'text-[8px] mb-0' : 'text-[10px] mb-1'}`}>PROGRAM</span>
-                <h2 className={`font-black text-slate-900 leading-none tracking-tight ${isScreenshotMode ? 'text-sm' : 'text-xl'}`}>{state.currentTeacher}</h2>
+                <span className={`font-bold text-indigo-500 tracking-widest uppercase block ${isScreenshotMode ? 'text-[6px] mb-0' : 'text-[10px] mb-1'}`}>PROGRAM</span>
+                <h2 className={`font-black text-slate-900 leading-none tracking-tight ${isScreenshotMode ? 'text-xs' : 'text-xl'}`}>{state.currentTeacher}</h2>
             </div>
             
             <div className="flex items-center gap-3">
-                {/* Total Counter (Small in screenshot mode) */}
-                <div className={`text-right ${isScreenshotMode ? 'mr-2' : ''}`}>
+                <div className={`text-right ${isScreenshotMode ? 'mr-1' : ''}`}>
                     <div className="flex items-center gap-1 justify-end">
-                        <span className={`font-black text-slate-900 leading-none ${isScreenshotMode ? 'text-sm' : 'text-2xl'}`}>{totalLessons}</span>
+                        <span className={`font-black text-slate-900 leading-none ${isScreenshotMode ? 'text-xs' : 'text-2xl'}`}>{totalLessons}</span>
                         {!isScreenshotMode && <CalendarRange size={18} className="text-slate-300" />}
                     </div>
-                    {!isScreenshotMode && <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">TOPLAM</span>}
                 </div>
 
                 {!isScreenshotMode ? (
@@ -60,124 +115,94 @@ export const WeeklySummary: React.FC = () => {
                 ) : (
                     <button 
                         onClick={() => setIsScreenshotMode(false)}
-                        className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors print:hidden"
+                        className="p-1 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors print:hidden"
                         title="Kapat"
                     >
-                        <X size={18} />
+                        <X size={14} />
                     </button>
                 )}
             </div>
         </div>
         
-        {/* Grid Layout */}
-        <div className={`bg-white ${isScreenshotMode ? 'flex-1 p-1 overflow-hidden flex flex-col' : 'p-4 pb-24'}`}>
-            {/* 
-                Screenshot Mode: 
-                - Force 3 columns
-                - Rows determined by flex-1 to fill screen
-                - Sunday spans full bottom
-            */}
-            <div className={`grid gap-2 ${isScreenshotMode ? 'gap-1 h-full grid-cols-3 grid-rows-3' : 'grid-cols-2 gap-3'}`}>
-                {DAYS.map((day, index) => {
-                    const key = `${state.currentTeacher}|${day}`;
-                    const rawSlots = state.schedule[key] || [];
-                    const slots = rawSlots
-                        .filter(s => s.studentId)
-                        .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-
-                    // Layout Logic
-                    // Index 0,1,2 (Mon,Tue,Wed) -> Row 1
-                    // Index 3,4,5 (Thu,Fri,Sat) -> Row 2
-                    // Index 6 (Sun) -> Row 3 (Col Span 3)
+        {/* 7-Column Timeline Layout */}
+        <div className={`flex-1 flex flex-col ${isScreenshotMode ? 'p-1' : 'p-4 pb-24'}`}>
+            <div className="flex-1 flex gap-0.5 border-t border-slate-100">
+                {DAYS.map((day) => {
+                    const blocks = getFullDaySchedule(day);
                     
-                    let className = "flex flex-col rounded-lg border";
-                    if (isScreenshotMode) {
-                        className += " border-slate-200 bg-white overflow-hidden"; // Daha temiz beyaz
-                        if (index === 6) className += " col-span-3 flex-row gap-4 items-start px-2"; // Pazar yatay
-                    } else {
-                        className += " bg-slate-50 border-slate-100 p-2 min-h-[120px]";
-                        if (index === 6) className += " col-span-2"; // Pazar normal modda 2 sütun
-                    }
-
-                    // Pazar Günü Özel Stili (Screenshot Modu)
-                    const isSundayScreenshot = isScreenshotMode && index === 6;
-
-                    // Ders yoksa
-                    const isEmpty = slots.length === 0;
-
                     return (
-                        <div key={day} className={className}>
-                            {/* Day Header */}
-                            <div className={`${isSundayScreenshot ? 'w-24 shrink-0 border-r border-slate-100 py-2' : 'flex justify-between items-center mb-1 px-1 py-0.5 bg-slate-50/50'}`}>
-                                <span className={`font-black tracking-tight text-slate-600 uppercase ${isScreenshotMode ? 'text-[8px]' : 'text-[10px]'} ${isEmpty && !isScreenshotMode ? 'opacity-50' : ''}`}>
-                                    {FULL_DAYS[day]}
-                                </span>
-                                {!isSundayScreenshot && !isEmpty && (
-                                    <span className={`text-slate-400 font-bold ${isScreenshotMode ? 'text-[6px]' : 'text-[8px]'}`}>
-                                        ({slots.length})
-                                    </span>
-                                )}
+                        <div key={day} className="flex-1 flex flex-col min-w-0 border-r border-slate-100 last:border-r-0">
+                            {/* Gün Başlığı */}
+                            <div className={`text-center font-black text-slate-700 bg-slate-50 border-b border-slate-100 ${isScreenshotMode ? 'text-[6px] py-1' : 'text-[10px] py-2'}`}>
+                                {SHORT_DAYS[day]}
                             </div>
 
-                            {/* Lesson List */}
-                            <div className={`flex flex-col w-full ${isSundayScreenshot ? 'flex-row flex-wrap gap-2 py-2' : 'gap-0.5'}`}>
-                                {isEmpty ? (
-                                    !isScreenshotMode && (
-                                        <div className="flex-1 flex items-center justify-center py-1">
-                                            <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest opacity-50">-</span>
-                                        </div>
-                                    )
-                                ) : (
-                                    slots.map((slot) => {
+                            {/* Bloklar */}
+                            <div className="flex-1 flex flex-col">
+                                {blocks.map((block, idx) => {
+                                    // Yükseklik hesabı (Süreye göre orantılı)
+                                    const startMin = timeToMinutes(block.start);
+                                    const endMin = timeToMinutes(block.end);
+                                    const duration = endMin - startMin;
+                                    
+                                    // Flex-grow kullanarak orantılı yükseklik sağlıyoruz
+                                    
+                                    if (block.type === 'EMPTY') {
+                                        return (
+                                            <div 
+                                                key={idx} 
+                                                style={{ flexGrow: duration }}
+                                                className="w-full bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] bg-white opacity-40 flex items-center justify-center border-b border-slate-50 min-h-[10px]"
+                                            >
+                                                {/* Boşluklarda saat yazmasın, çok kalabalık olur */}
+                                            </div>
+                                        );
+                                    } else {
+                                        const slot = block.data;
                                         const student = state.students[slot.studentId!];
                                         const isMakeup = slot.label === 'MAKEUP';
                                         const isTrial = slot.label === 'TRIAL';
 
                                         return (
-                                            <div key={slot.id} className={`relative flex items-center gap-1.5 px-1.5 rounded border border-slate-100 ${isScreenshotMode ? 'py-0.5 min-h-[18px]' : 'py-1 min-h-[26px] bg-white shadow-sm'}`}>
-                                                {/* Color Indicator */}
-                                                <div className={`w-0.5 rounded-full ${isScreenshotMode ? 'h-2.5' : 'h-3'} ${
-                                                    isMakeup ? 'bg-orange-400' : 
-                                                    isTrial ? 'bg-purple-400' : 
-                                                    'bg-indigo-500'
-                                                }`}></div>
-
-                                                {/* Time */}
-                                                <span className={`font-black tracking-tighter tabular-nums ${
-                                                    isMakeup ? 'text-orange-400' : 
-                                                    isTrial ? 'text-purple-400' : 
-                                                    'text-indigo-500'
-                                                } ${isScreenshotMode ? 'text-[6px]' : 'text-[8px]'}`}>
-                                                    {slot.start}-{slot.end}
-                                                </span>
-                                                
-                                                {/* Name */}
-                                                <span className={`font-bold text-slate-700 truncate leading-none ${isScreenshotMode ? 'text-[7px]' : 'text-[10px]'}`}>
-                                                    {student?.name}
-                                                </span>
-
-                                                {/* Labels (Small) */}
+                                            <div 
+                                                key={idx} 
+                                                style={{ flexGrow: duration }}
+                                                className={`w-full flex flex-col justify-center px-0.5 py-0.5 border-b border-white relative overflow-hidden min-h-[20px] ${
+                                                    isMakeup ? 'bg-orange-400 text-white' : 
+                                                    isTrial ? 'bg-purple-500 text-white' : 
+                                                    'bg-indigo-600 text-white'
+                                                }`}
+                                            >
+                                                <div className={`font-bold leading-none truncate ${isScreenshotMode ? 'text-[5px]' : 'text-[8px]'}`}>
+                                                    {block.start}
+                                                </div>
+                                                <div className={`font-bold leading-tight truncate mt-px opacity-90 ${isScreenshotMode ? 'text-[6px]' : 'text-[9px]'}`}>
+                                                    {student?.name.split(' ')[0]}
+                                                </div>
                                                 {(isMakeup || isTrial) && (
-                                                    <span className={`ml-auto text-[5px] font-bold px-0.5 rounded ${
-                                                        isMakeup ? 'bg-orange-50 text-orange-500' : 'bg-purple-50 text-purple-500'
-                                                    }`}>
+                                                    <div className={`absolute top-0 right-0 text-[4px] font-bold px-0.5 bg-black/20`}>
                                                         {isMakeup ? 'T' : 'D'}
-                                                    </span>
+                                                    </div>
                                                 )}
                                             </div>
                                         );
-                                    })
-                                )}
+                                    }
+                                })}
                             </div>
                         </div>
                     );
                 })}
             </div>
-
-            {/* Footer Watermark (Only visible if space permits or at very bottom) */}
+            
+            {/* Alt Bilgi */}
             {isScreenshotMode && (
-                <div className="mt-auto pt-1 text-center">
-                     <span className="text-[6px] font-bold text-slate-300 uppercase tracking-[0.2em]">KURS YÖNETİM PRO</span>
+                <div className="mt-1 flex justify-between items-center px-2">
+                     <span className="text-[6px] font-bold text-slate-300 uppercase tracking-widest">KURS YÖNETİM PRO</span>
+                     <div className="flex gap-2 text-[6px] font-bold text-slate-400 uppercase">
+                        <span className="flex items-center gap-0.5"><div className="w-1.5 h-1.5 bg-indigo-600 rounded-sm"></div> NORMAL</span>
+                        <span className="flex items-center gap-0.5"><div className="w-1.5 h-1.5 bg-orange-400 rounded-sm"></div> TELAFİ</span>
+                        <span className="flex items-center gap-0.5"><div className="w-1.5 h-1.5 bg-purple-500 rounded-sm"></div> DENEME</span>
+                     </div>
                 </div>
             )}
         </div>
