@@ -411,6 +411,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             const wasPending = oldTx.note === "Telafi Bekliyor";
             const isNowPending = note === "Telafi Bekliyor";
+            const isResolved = note.includes("Telafi Edildi");
 
             // Durum 1: "Normal" -> "Telafi Bekliyor"
             // Yapılan ders sayısını azalt, Telafi kredisini artır.
@@ -419,10 +420,16 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 debtCountChange = -1;
             }
             // Durum 2: "Telafi Bekliyor" -> "Normal" (veya Telafi Edildi)
-            // Yapılan ders sayısını artır, Telafi kredisini azalt.
+            // Yapılan ders sayısını artır (EĞER normal ise), Telafi kredisini azalt.
             else if (wasPending && !isNowPending) {
                 makeupChange = -1;
-                debtCountChange = 1;
+                // FIX: Eğer "Telafi Edildi" ise sayacı artırma (ders o gün yapılmadı, telafisi başka gün yapıldı/yapılacak)
+                if (isResolved) {
+                    debtCountChange = 0;
+                } else {
+                    // Eğer "Ders İşlendi" gibi normal bir nota dönüyorsa sayacı geri ekle
+                    debtCountChange = 1;
+                }
             }
 
             const newHistory = s.history.map(tx => {
@@ -456,13 +463,19 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             let mc = s.makeupCredit || 0;
 
             // Eğer silinen kayıt bir ders ise ve "Telafi Bekliyor" değilse, sayacı düş.
-            if(tx.isDebt && tx.note !== "Telafi Bekliyor") {
+            // Ayrıca "Telafi Edildi" ise de sayaca dokunma (çünkü o artırmamıştı).
+            if(tx.isDebt && tx.note !== "Telafi Bekliyor" && !tx.note.includes("Telafi Edildi")) {
                  nc = Math.max(0, nc - 1);
             }
             
             // Eğer silinen kayıt "Telafi Bekliyor" ise krediyi de sil (Çünkü ders hiç olmamış gibi oluyor)
             if (tx.note === "Telafi Bekliyor") {
                 mc = Math.max(0, mc - 1);
+            }
+
+            // Eğer silinen kayıt "Telafi Edildi" ise krediyi geri ver (İşlemi geri alıyoruz)
+            if (tx.note.includes("Telafi Edildi")) {
+                mc = mc + 1;
             }
 
             return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: nc, history: nh, makeupCredit: mc } } }
