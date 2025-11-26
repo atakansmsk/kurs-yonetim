@@ -403,20 +403,30 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const s = prev.students[studentId];
             if (!s) return prev;
             
+            const oldTx = s.history.find(t => t.id === transactionId);
+            if (!oldTx) return prev;
+
             let makeupChange = 0;
+            let debtCountChange = 0;
+
+            const wasPending = oldTx.note === "Telafi Bekliyor";
+            const isNowPending = note === "Telafi Bekliyor";
+
+            // Durum 1: "Normal" -> "Telafi Bekliyor"
+            // Yapılan ders sayısını azalt, Telafi kredisini artır.
+            if (!wasPending && isNowPending) {
+                makeupChange = 1;
+                debtCountChange = -1;
+            }
+            // Durum 2: "Telafi Bekliyor" -> "Normal" (veya Telafi Edildi)
+            // Yapılan ders sayısını artır, Telafi kredisini azalt.
+            else if (wasPending && !isNowPending) {
+                makeupChange = -1;
+                debtCountChange = 1;
+            }
 
             const newHistory = s.history.map(tx => {
                 if (tx.id === transactionId) {
-                    // Eğer not "Telafi Bekliyor" olarak değişiyorsa kredi ekle
-                    // (Basit mantık: aynı işlemi tekrar yapmamak için eski notu kontrol etmek gerekebilir ama şimdilik doğrudan ekleyelim)
-                    if (note === "Telafi Bekliyor" && tx.note !== "Telafi Bekliyor") {
-                        makeupChange = 1;
-                    }
-                    // Eğer not değişiyor ve eskiden "Telafi Bekliyor" ise krediyi geri al (iptal durumu)
-                    else if (tx.note === "Telafi Bekliyor" && note !== "Telafi Bekliyor") {
-                         makeupChange = -1;
-                    }
-
                     return { ...tx, note };
                 }
                 return tx;
@@ -429,7 +439,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     [studentId]: { 
                         ...s, 
                         history: newHistory,
-                        makeupCredit: Math.max(0, (s.makeupCredit || 0) + makeupChange)
+                        makeupCredit: Math.max(0, (s.makeupCredit || 0) + makeupChange),
+                        debtLessonCount: Math.max(0, s.debtLessonCount + debtCountChange)
                     } 
                 } 
             };
@@ -444,9 +455,12 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             let nc = s.debtLessonCount;
             let mc = s.makeupCredit || 0;
 
-            if(tx.isDebt) nc = Math.max(0, nc - 1);
+            // Eğer silinen kayıt bir ders ise ve "Telafi Bekliyor" değilse, sayacı düş.
+            if(tx.isDebt && tx.note !== "Telafi Bekliyor") {
+                 nc = Math.max(0, nc - 1);
+            }
             
-            // Eğer silinen kayıt "Telafi Bekliyor" ise krediyi de sil
+            // Eğer silinen kayıt "Telafi Bekliyor" ise krediyi de sil (Çünkü ders hiç olmamış gibi oluyor)
             if (tx.note === "Telafi Bekliyor") {
                 mc = Math.max(0, mc - 1);
             }

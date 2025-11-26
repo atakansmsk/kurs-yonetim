@@ -216,10 +216,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      <div className="relative z-10 flex justify-between items-end mb-6">
                         <div>
                             <p className="text-slate-400 text-[10px] font-black tracking-widest uppercase mb-1">BU AY YAPILAN</p>
-                            <h2 className="text-6xl font-black tracking-tighter flex items-baseline gap-2">
-                                {student.debtLessonCount}
+                            <div className="flex items-baseline gap-2">
+                                <h2 className="text-6xl font-black tracking-tighter">
+                                    {student.debtLessonCount}
+                                </h2>
                                 <span className="text-xl font-bold text-slate-500 tracking-normal">Ders</span>
-                            </h2>
+                            </div>
+                            
+                            {(student.makeupCredit || 0) > 0 && (
+                                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-200">
+                                    <Layers size={12} />
+                                    <span className="text-[10px] font-bold">+{student.makeupCredit} Telafi Bekliyor</span>
+                                </div>
+                            )}
                         </div>
                         <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/5 text-right">
                             <p className="text-[10px] text-slate-400 font-bold uppercase mb-0.5">AYLIK ÜCRET</p>
@@ -282,7 +291,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         <div className="relative border-l-2 border-slate-100 ml-4 space-y-6 py-2">
                             {student.history
                                 .filter(tx => tx.isDebt) 
-                                .slice(0, student.debtLessonCount) 
+                                // DİKKAT: Sadece borcu olanları filtrelersek, telafi bekleyenler listeden kaybolabilir çünkü isDebt=true ama biz onu sayaçtan düştük.
+                                // Yine de veritabanında "Lesson" tipli işlemler isDebt=true olarak kalmalı.
+                                // Logic: "Telafi Bekliyor" notuna sahip işlem hala isDebt=true'dur ancak debtLessonCount'tan düşülmüştür.
+                                // Bu yüzden burada bir slice yerine filter mantığı daha doğru olabilir, ama basitlik için tüm isDebt=true'ları gösterelim.
+                                .slice(0, student.debtLessonCount + (student.makeupCredit || 0)) // Gösterilen liste sayısı = Yapılan Ders + Bekleyen Telafi
                                 .map((tx, i, arr) => {
                                     const lessonNum = arr.length - i;
                                     const dateObj = new Date(tx.date);
