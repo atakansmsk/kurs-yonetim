@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
-import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2, Sparkles, Layers } from 'lucide-react';
+import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, Repeat, CheckCircle2, Sparkles, Layers, Search } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface DailyScheduleProps {
@@ -24,8 +24,11 @@ const minutesToTime = (minutes: number) => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
+const WORK_START_TIME = "09:00";
 const WORK_END_TIME = "21:00";
+const WORK_START_MINUTES = 9 * 60;
 const WORK_END_MINUTES = 21 * 60;
+const DEFAULT_LESSON_DURATION = 40; // User specified 40 mins
 
 export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfile }) => {
   const { state, actions } = useCourse();
@@ -42,12 +45,16 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isSlotOptionsOpen, setIsSlotOptionsOpen] = useState(false);
+  const [isFindGapModalOpen, setIsFindGapModalOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState<LessonSlot | null>(null);
+
+  // Suggested Slots
+  const [suggestedGaps, setSuggestedGaps] = useState<string[]>([]);
 
   // Form state
   const [newTimeStart, setNewTimeStart] = useState("12:00");
-  const [newTimeEnd, setNewTimeEnd] = useState("12:50");
-  const [duration, setDuration] = useState(50); // Default 50 mins
+  const [newTimeEnd, setNewTimeEnd] = useState("12:40");
+  const [duration, setDuration] = useState(DEFAULT_LESSON_DURATION); 
   
   const [bookName, setBookName] = useState("");
   const [bookPhone, setBookPhone] = useState("");
@@ -60,6 +67,38 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
 
   const rawSlots = state.schedule[`${state.currentTeacher}|${selectedDay}`] || [];
   const slots = [...rawSlots].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+  // Find Gaps Logic
+  const handleFindGaps = () => {
+      const foundGaps: string[] = [];
+      let currentPointer = WORK_START_MINUTES;
+
+      // 1. Check existing slots
+      slots.forEach(slot => {
+          const slotStart = timeToMinutes(slot.start);
+          const slotEnd = timeToMinutes(slot.end);
+
+          // Check gap before this slot
+          while (currentPointer + DEFAULT_LESSON_DURATION <= slotStart) {
+              foundGaps.push(minutesToTime(currentPointer));
+              currentPointer += DEFAULT_LESSON_DURATION; // Move by 40 mins blocks
+              // Optional: Add some buffer? No, keep it tight.
+          }
+
+          // Move pointer to end of this slot
+          // Ensure we don't go backwards if overlaps exist (though they shouldn't)
+          currentPointer = Math.max(currentPointer, slotEnd);
+      });
+
+      // 2. Check gap after last slot until Work End
+      while (currentPointer + DEFAULT_LESSON_DURATION <= WORK_END_MINUTES) {
+          foundGaps.push(minutesToTime(currentPointer));
+          currentPointer += DEFAULT_LESSON_DURATION;
+      }
+
+      setSuggestedGaps(foundGaps);
+      setIsFindGapModalOpen(true);
+  };
 
   // Recalculate end time when duration changes
   const handleDurationChange = (mins: number) => {
@@ -99,12 +138,17 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
         if (end) {
             setNewTimeEnd(end);
             const diff = timeToMinutes(end) - timeToMinutes(start);
-            setDuration(diff > 0 ? diff : 50);
+            setDuration(diff > 0 ? diff : DEFAULT_LESSON_DURATION);
         } else {
             const startMins = timeToMinutes(start);
-            setNewTimeEnd(minutesToTime(startMins + 50));
-            setDuration(50);
+            setNewTimeEnd(minutesToTime(startMins + DEFAULT_LESSON_DURATION));
+            setDuration(DEFAULT_LESSON_DURATION);
         }
+    } else {
+        // Default to next available slot logic logic roughly or just current time
+        setNewTimeStart("12:00");
+        setNewTimeEnd(`12:${DEFAULT_LESSON_DURATION}`);
+        setDuration(DEFAULT_LESSON_DURATION);
     }
     setIsTimeModalOpen(true);
   };
@@ -126,6 +170,17 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
             </button>
           ))}
         </div>
+        
+        {/* Magic Finder Bar */}
+        <div className="mt-2 flex justify-end px-1">
+             <button 
+                onClick={handleFindGaps}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wide border border-indigo-100 hover:bg-indigo-100 active:scale-95 transition-all"
+             >
+                 <Sparkles size={12} />
+                 <span>40dk Boşluk Bul</span>
+             </button>
+        </div>
       </div>
 
       {/* Timeline Content */}
@@ -137,9 +192,14 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
             </div>
             <p className="text-slate-800 font-bold text-lg mb-1">Program Boş</p>
             <p className="text-slate-400 text-xs font-medium mb-6">Bugün için ders kaydı yok.</p>
-            <button onClick={() => openAddSlotModal("09:00")} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-95 flex items-center gap-2">
-                <Plus size={16} /> İlk Saati Ekle
-            </button>
+            <div className="flex flex-col gap-3 w-full max-w-xs px-4">
+                <button onClick={() => openAddSlotModal("09:00")} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <Plus size={16} /> İlk Saati Ekle
+                </button>
+                <button onClick={handleFindGaps} className="px-6 py-3 bg-white text-indigo-600 border border-indigo-100 rounded-xl font-bold text-xs hover:bg-indigo-50 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <Sparkles size={16} /> Taslak Oluştur
+                </button>
+            </div>
           </div>
         ) : (
           <div className="relative space-y-0">
@@ -357,6 +417,46 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                     </button>
                 ))}
             </div>
+        </div>
+      </Dialog>
+
+      {/* FIND GAP RESULTS MODAL */}
+      <Dialog 
+        isOpen={isFindGapModalOpen} 
+        onClose={() => setIsFindGapModalOpen(false)} 
+        title="Uygun Saatler"
+      >
+        <div className="py-2">
+            <p className="text-xs text-slate-500 mb-4 px-1">
+                <span className="font-bold text-slate-800">{selectedDay}</span> günü için <span className="font-bold text-indigo-600">40 dakikalık</span> boşluklar:
+            </p>
+            
+            {suggestedGaps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-slate-300 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
+                    <Clock size={32} className="mb-2" />
+                    <p className="text-xs font-bold">Uygun boşluk bulunamadı.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-3 gap-2 max-h-[40vh] overflow-y-auto pr-1">
+                    {suggestedGaps.map(startTime => {
+                        const endMins = timeToMinutes(startTime) + 40;
+                        const endTime = minutesToTime(endMins);
+                        return (
+                            <button 
+                                key={startTime}
+                                onClick={() => {
+                                    openAddSlotModal(startTime, endTime);
+                                    setIsFindGapModalOpen(false);
+                                }}
+                                className="flex flex-col items-center justify-center p-2 bg-white border border-slate-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 transition-all active:scale-95 shadow-sm"
+                            >
+                                <span className="text-sm font-black">{startTime}</span>
+                                <span className="text-[9px] text-slate-400 font-medium">Bitiş: {endTime}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
         </div>
       </Dialog>
 
