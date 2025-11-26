@@ -2,6 +2,7 @@
 import React from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay } from '../types';
+import { CalendarRange, Clock } from 'lucide-react';
 
 const timeToMinutes = (time: string) => {
   const [h, m] = time.split(':').map(Number);
@@ -9,13 +10,13 @@ const timeToMinutes = (time: string) => {
 };
 
 const SHORT_DAYS: Record<WeekDay, string> = {
-  "Pazartesi": "PZT", 
-  "Salı": "SAL", 
-  "Çarşamba": "ÇAR", 
-  "Perşembe": "PER", 
-  "Cuma": "CUM", 
-  "Cmt": "CMT", 
-  "Pazar": "PAZ"
+  "Pazartesi": "PAZARTESİ", 
+  "Salı": "SALI", 
+  "Çarşamba": "ÇARŞAMBA", 
+  "Perşembe": "PERŞEMBE", 
+  "Cuma": "CUMA", 
+  "Cmt": "CUMARTESİ", 
+  "Pazar": "PAZAR"
 };
 
 export const WeeklySummary: React.FC = () => {
@@ -30,21 +31,24 @@ export const WeeklySummary: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-white overflow-y-auto no-scrollbar">
-        {/* Ultra Compact Header */}
-        <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
-            <div className="flex items-baseline gap-2">
-                <h2 className="text-xs font-black text-slate-900 uppercase tracking-tight">{state.currentTeacher}</h2>
-                <span className="text-[9px] font-medium text-slate-400">Haftalık</span>
+        {/* Premium Header */}
+        <div className="px-6 py-5 bg-white sticky top-0 z-10 border-b border-slate-50 flex items-end justify-between">
+            <div>
+                <span className="text-[10px] font-bold text-indigo-500 tracking-widest uppercase mb-1 block">EĞİTMEN</span>
+                <h2 className="text-xl font-black text-slate-900 leading-none tracking-tight">{state.currentTeacher}</h2>
             </div>
-            <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                <span className="text-[10px] font-black text-slate-800">{totalLessons}</span>
-                <span className="text-[8px] font-bold text-slate-400 uppercase">Ders</span>
+            <div className="text-right">
+                <div className="flex items-center gap-1.5 justify-end">
+                    <span className="text-2xl font-black text-slate-900 leading-none">{totalLessons}</span>
+                    <CalendarRange size={18} className="text-slate-300" />
+                </div>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">TOPLAM DERS</span>
             </div>
         </div>
         
-        {/* 3-2-2 Grid Layout */}
-        <div className="p-1 pb-20">
-            <div className="grid grid-cols-6 gap-1">
+        {/* Modern Masonry-like Grid */}
+        <div className="p-4 pb-24 bg-white">
+            <div className="grid grid-cols-2 gap-4">
                 {DAYS.map((day, index) => {
                     const key = `${state.currentTeacher}|${day}`;
                     const rawSlots = state.schedule[key] || [];
@@ -52,77 +56,82 @@ export const WeeklySummary: React.FC = () => {
                         .filter(s => s.studentId)
                         .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
-                    // LOGIC: 
-                    // Index 0,1,2 (Pzt, Sal, Çar) -> col-span-2 (3 items per row)
-                    // Index 3,4,5 (Per, Cum) -> col-span-3 (2 items per row)
-                    // Index 6,7 (Cmt, Paz) -> col-span-3 (2 items per row) - but highlighted
-                    
-                    // index 0-2: Row 1
-                    // index 3-4: Row 2
-                    // index 5-6: Row 3 (Weekend)
-                    const isTopRow = index < 3;
-                    const isWeekend = index > 4; // Cmt(5), Paz(6)
-                    const colSpan = isTopRow ? 'col-span-2' : 'col-span-3';
+                    // Pazar günü (Index 6) tam genişlikte olsun
+                    const isSunday = index === 6;
+                    const colSpan = isSunday ? 'col-span-2' : 'col-span-1';
+
+                    // Ders yoksa gösterme (veya soluk göster) - Şimdilik boşsa da gösterelim ama minimal
+                    const isEmpty = slots.length === 0;
 
                     return (
                         <div 
                             key={day} 
-                            className={`${colSpan} flex flex-col border rounded-[6px] overflow-hidden shadow-sm transition-all ${
-                                isWeekend 
-                                ? 'bg-indigo-50/30 border-indigo-100' 
-                                : 'bg-white border-slate-200'
-                            }`}
+                            className={`${colSpan} flex flex-col rounded-3xl p-3 transition-all ${isEmpty ? 'bg-slate-50/50 border border-dashed border-slate-100' : 'bg-slate-50 border border-slate-100'}`}
                         >
-                            {/* Day Header - Ultra Compact */}
-                            <div className={`px-2 py-1 flex justify-between items-center border-b ${
-                                isWeekend ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-slate-100'
-                            }`}>
-                                <span className={`text-[9px] font-black tracking-wider ${isWeekend ? 'text-indigo-900' : 'text-slate-700'}`}>
+                            {/* Day Header */}
+                            <div className="flex justify-between items-center mb-3 px-1">
+                                <span className={`text-[10px] font-black tracking-wider ${isEmpty ? 'text-slate-300' : 'text-slate-400'}`}>
                                     {SHORT_DAYS[day]}
                                 </span>
-                                {slots.length > 0 && (
-                                    <span className={`text-[8px] font-bold ${isWeekend ? 'text-indigo-400' : 'text-slate-400'}`}>
+                                {!isEmpty && (
+                                    <span className="bg-white text-slate-800 text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border border-slate-100">
                                         {slots.length}
                                     </span>
                                 )}
                             </div>
 
-                            {/* Dense Lesson List */}
-                            <div className="p-0.5 min-h-[40px] flex-1">
-                                {slots.length === 0 ? (
-                                    <div className="h-full w-full flex items-center justify-center py-1">
-                                        <span className="text-[8px] text-slate-300 font-medium opacity-50">-</span>
+                            {/* Lesson List */}
+                            <div className="flex flex-col gap-2 h-full">
+                                {isEmpty ? (
+                                    <div className="flex-1 flex items-center justify-center py-2">
+                                        <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest opacity-50">BOŞ</span>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col gap-px">
-                                        {slots.map((slot, i) => {
-                                            const student = state.students[slot.studentId!];
-                                            const isMakeup = slot.label === 'MAKEUP';
-                                            return (
-                                                <div key={slot.id} className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-[3px] ${
-                                                    isMakeup ? 'bg-orange-50' : (isWeekend ? 'bg-white' : (i % 2 === 0 ? 'bg-slate-50' : 'bg-white'))
-                                                }`}>
-                                                    <span className={`text-[7px] font-black shrink-0 tracking-tighter ${isMakeup ? 'text-orange-600' : 'text-slate-400'}`}>
+                                    slots.map((slot) => {
+                                        const student = state.students[slot.studentId!];
+                                        const isMakeup = slot.label === 'MAKEUP';
+                                        const isTrial = slot.label === 'TRIAL';
+
+                                        return (
+                                            <div key={slot.id} className="relative bg-white p-2 rounded-xl shadow-sm border border-slate-100/50 flex flex-col gap-0.5 overflow-hidden group">
+                                                {/* Left Color Strip */}
+                                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                                                    isMakeup ? 'bg-orange-400' : 
+                                                    isTrial ? 'bg-purple-400' : 
+                                                    'bg-indigo-500'
+                                                }`}></div>
+
+                                                <div className="flex items-center justify-between pl-2">
+                                                    <span className={`text-[9px] font-black tracking-tight ${
+                                                        isMakeup ? 'text-orange-400' : 
+                                                        isTrial ? 'text-purple-400' : 
+                                                        'text-indigo-500'
+                                                    }`}>
                                                         {slot.start}-{slot.end}
                                                     </span>
-                                                    <span className={`text-[8px] font-bold truncate leading-tight flex-1 ${isMakeup ? 'text-orange-900' : 'text-slate-700'}`}>
-                                                        {student?.name}
-                                                    </span>
-                                                    {isMakeup && <span className="text-[6px] font-bold text-white bg-orange-400 px-0.5 rounded-[2px]">T</span>}
+                                                    
+                                                    {isMakeup && <span className="text-[6px] font-bold text-orange-500 bg-orange-50 px-1 rounded">TELAFİ</span>}
+                                                    {isTrial && <span className="text-[6px] font-bold text-purple-500 bg-purple-50 px-1 rounded">DENEME</span>}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
+                                                
+                                                <span className="pl-2 text-[10px] font-bold text-slate-700 truncate leading-tight">
+                                                    {student?.name}
+                                                </span>
+                                            </div>
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
                     );
                 })}
             </div>
-            
-            {/* Minimal Watermark */}
-            <div className="mt-6 text-center opacity-20">
-                 <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-900">Kurs Yönetim Pro</span>
+
+            {/* Footer Watermark */}
+            <div className="mt-8 mb-4 text-center">
+                 <div className="inline-flex items-center gap-1.5 opacity-30 grayscale">
+                    <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-slate-900">KURS YÖNETİM PRO</span>
+                 </div>
             </div>
         </div>
     </div>
