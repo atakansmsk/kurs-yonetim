@@ -128,10 +128,10 @@ export const WeeklySummary: React.FC = () => {
         )}
 
         {/* Timeline Layout */}
-        <div className={`flex-1 flex relative ${isScreenshotMode ? 'bg-white p-4' : 'px-2 pb-20'}`}>
+        <div className={`flex-1 flex relative ${isScreenshotMode ? 'bg-white p-2' : 'px-1 pb-20'}`}>
              
              {/* Time Ruler (Left Sidebar) */}
-             <div className="flex flex-col pt-10 pr-2 gap-[calc(6vh)] sm:gap-16 text-[9px] font-bold text-slate-300 text-right select-none min-w-[30px] border-r border-slate-100/50">
+             <div className="flex flex-col pt-10 pr-1 gap-[calc(6vh)] sm:gap-16 text-[8px] font-bold text-slate-300 text-right select-none min-w-[24px] border-r border-slate-100/50">
                  <span>09:00</span>
                  <span>12:00</span>
                  <span>15:00</span>
@@ -154,9 +154,9 @@ export const WeeklySummary: React.FC = () => {
                              {/* Header */}
                              <button 
                                 onClick={() => handleFindGaps(day)}
-                                className={`py-4 text-center mb-2 transition-colors relative group/btn w-full ${isToday ? '' : 'hover:bg-slate-50'}`}
+                                className={`py-3 text-center mb-1 transition-colors relative group/btn w-full ${isToday ? '' : 'hover:bg-slate-50'}`}
                              >
-                                 <span className={`text-[10px] font-black block leading-none mb-1 ${isToday ? 'text-red-600' : 'text-slate-400 group-hover/btn:text-slate-600'}`}>
+                                 <span className={`text-[9px] font-black block leading-none break-words px-0.5 ${isToday ? 'text-red-600' : 'text-slate-400 group-hover/btn:text-slate-600'}`}>
                                      {SHORT_DAYS[day]}
                                  </span>
                                  {/* Hover Hint */}
@@ -166,7 +166,7 @@ export const WeeklySummary: React.FC = () => {
                              </button>
 
                              {/* Lessons Container */}
-                             <div className="flex-1 px-0.5 space-y-1.5">
+                             <div className="flex-1 px-0.5 space-y-1">
                                  {lessons.map((slot) => {
                                      const student = state.students[slot.studentId!];
                                      const isMakeup = slot.label === 'MAKEUP';
@@ -174,7 +174,7 @@ export const WeeklySummary: React.FC = () => {
 
                                      return (
                                          <div key={slot.id} className={`
-                                            relative z-10 p-1.5 rounded-lg border-l-[3px] shadow-sm cursor-default transition-transform hover:scale-[1.05] hover:z-20
+                                            relative z-10 p-1 rounded-md border-l-[2px] shadow-sm cursor-default transition-transform hover:scale-[1.05] hover:z-20
                                             ${isMakeup 
                                                 ? 'bg-orange-50 border-orange-400 shadow-orange-100' 
                                                 : isTrial 
@@ -183,16 +183,16 @@ export const WeeklySummary: React.FC = () => {
                                             }
                                          `}>
                                              <div className="flex flex-col min-w-0">
-                                                <div className="flex items-center gap-0.5 min-w-0 mb-0.5">
-                                                    {isMakeup && <RefreshCcw size={8} className="text-orange-500 shrink-0" />}
-                                                    {isTrial && <Star size={8} className="text-purple-500 shrink-0" />}
-                                                    <span className={`text-[8px] font-black truncate leading-tight ${
+                                                <div className="flex items-start gap-0.5 min-w-0 mb-0.5">
+                                                    {isMakeup && <RefreshCcw size={6} className="text-orange-500 shrink-0 mt-0.5" />}
+                                                    {isTrial && <Star size={6} className="text-purple-500 shrink-0 mt-0.5" />}
+                                                    <span className={`text-[7px] font-black leading-tight whitespace-normal break-words ${
                                                         isMakeup ? 'text-orange-900' : isTrial ? 'text-purple-900' : 'text-slate-700'
                                                     }`}>
                                                         {student?.name.split(' ')[0]}
                                                     </span>
                                                 </div>
-                                                <span className={`text-[6px] font-bold leading-none block ${isMakeup ? 'text-orange-400' : isTrial ? 'text-purple-400' : 'text-slate-400'}`}>
+                                                <span className={`text-[5px] font-bold leading-none block ${isMakeup ? 'text-orange-400' : isTrial ? 'text-purple-400' : 'text-slate-400'}`}>
                                                     {slot.start}-{slot.end}
                                                 </span>
                                              </div>

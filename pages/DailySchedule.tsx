@@ -232,7 +232,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                                     <>
                                         <div className="flex items-center gap-2.5 overflow-hidden">
                                             <div className="min-w-0">
-                                                <h4 className={`font-bold truncate text-[13px] leading-tight ${
+                                                <h4 className={`font-bold text-[13px] leading-tight line-clamp-2 ${
                                                     isMakeup ? 'text-orange-900' 
                                                     : isTrial ? 'text-purple-900'
                                                     : 'text-red-900'
