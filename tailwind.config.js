@@ -7,24 +7,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#4F46E5', // Modern Indigo
-        primaryDark: '#3730A3',
-        secondary: '#8B5CF6', // Violet
-        background: '#F8FAFC', // Slate 50
+        primary: '#DC2626', // Red 600
+        primaryDark: '#B91C1C', // Red 700
+        secondary: '#E11D48', // Rose 600
+        background: '#FEF2F2', // Red 50 (Very light)
         surface: '#FFFFFF',
         success: '#10B981', // Emerald
         error: '#EF4444', // Red
-        textMain: '#0F172A', // Slate 900 (Darker for contrast)
+        textMain: '#0F172A', // Slate 900
         textMuted: '#64748B', // Slate 500
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        'soft': '0 10px 40px -10px rgba(0,0,0,0.05)',
+        'soft': '0 10px 40px -10px rgba(220, 38, 38, 0.05)',
         'card': '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
-        'glow': '0 0 20px rgba(79, 70, 229, 0.15)',
-        'glow-colored': '0 8px 20px -6px var(--tw-shadow-color)',
+        'glow': '0 0 20px rgba(220, 38, 38, 0.15)',
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',

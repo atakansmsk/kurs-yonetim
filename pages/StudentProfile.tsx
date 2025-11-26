@@ -15,7 +15,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const student = state.students[studentId];
   const [activeTab, setActiveTab] = useState<'STATUS' | 'HISTORY'>('STATUS');
   
-  // Modals
   const [deleteTxId, setDeleteTxId] = useState<string | null>(null);
   const [isPastLessonModalOpen, setIsPastLessonModalOpen] = useState(false);
   const [isPastPaymentModalOpen, setIsPastPaymentModalOpen] = useState(false);
@@ -23,10 +22,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isLessonOptionsOpen, setIsLessonOptionsOpen] = useState(false);
   const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
   
-  // Selection
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
-  // Form Data
   const [pastDate, setPastDate] = useState("");
   const [pastPaymentDate, setPastPaymentDate] = useState("");
   const [pastPaymentAmount, setPastPaymentAmount] = useState("");
@@ -38,7 +35,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   if (!student) return null;
 
-  // Helpers for Dates
   const getTodayString = () => new Date().toISOString().split('T')[0];
   
   const formatDateFriendly = (dateStr: string) => {
@@ -53,21 +49,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return phone;
   }
 
-  // --- Date Shifter Helper (-1 / +1 Days) ---
   const shiftDate = (dateStr: string, days: number) => {
       const baseDate = dateStr ? new Date(dateStr) : new Date();
       baseDate.setDate(baseDate.getDate() + days);
-      
       const result = baseDate.toISOString().split('T')[0];
       const today = getTodayString();
-      
-      // Gelecek tarihe geçmeyi engelle
       return result > today ? today : result;
   };
   
   const handleWhatsapp = () => {
       const phone = getPhoneClean();
-      // WhatsApp Business link formatı (Universal Link)
       const message = `Merhaba ${student.name},`;
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       window.open(url, '_blank');
@@ -112,7 +103,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       } else if (action === 'MAKEUP_DONE') {
           setIsLessonOptionsOpen(false);
           setIsMakeupCompleteModalOpen(true);
-          // Don't clear selectedTx yet
           return; 
       }
       setIsLessonOptionsOpen(false);
@@ -124,23 +114,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       
       const dateObj = new Date(makeupCompleteDate);
       const dateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-      
-      // Notu güncelle: "Telafi Edildi (29 Kasım)"
       const newNote = `Telafi Edildi (${dateStr})`;
       
-      // Bu işlem Context tarafında "Telafi Bekliyor" notunu değiştirdiği için
-      // otomatik olarak telafi kredisini 1 düşürecektir.
       actions.updateTransaction(studentId, selectedTx.id, newNote);
-      
       setIsMakeupCompleteModalOpen(false);
       setMakeupCompleteDate("");
       setSelectedTx(null);
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
+    <div className="flex flex-col h-full bg-[#FEF2F2] animate-slide-up">
       
-      {/* 1. Compact Header */}
       <div className="bg-white px-5 pt-4 pb-2 z-20 sticky top-0">
         <div className="flex items-center justify-between mb-4">
             <button onClick={onBack} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-600 transition-colors">
@@ -161,7 +145,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         setEditFee(student.fee.toString());
                         setIsEditModalOpen(true);
                     }}
-                    className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                    className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors"
                     title="Düzenle"
                 >
                     <Pencil size={18} />
@@ -189,7 +173,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
             </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-6 border-b border-slate-100 mt-4">
               <button onClick={() => setActiveTab('STATUS')} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === 'STATUS' ? 'text-slate-800' : 'text-slate-400'}`}>
                   Abonelik Durumu
@@ -202,15 +185,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-6 bg-[#F8FAFC]">
+      <div className="flex-1 overflow-y-auto px-5 py-6 bg-[#FEF2F2]">
         {activeTab === 'STATUS' ? (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 
-                {/* 2. Lesson Count Focused Card (Subscription Model) */}
                 <div className="relative overflow-hidden rounded-[2rem] bg-slate-900 p-6 text-white shadow-xl shadow-slate-300">
-                     {/* Background Decor */}
-                     <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                     <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -ml-10 -mb-10"></div>
 
                      <div className="relative z-10 flex justify-between items-end mb-6">
@@ -242,7 +222,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      </div>
                 </div>
 
-                {/* 3. Actions */}
                 <div className="grid grid-cols-2 gap-3">
                      <button 
                         onClick={() => { if (student.debtLessonCount > 0) actions.addTransaction(student.id, 'PAYMENT'); }} 
@@ -260,7 +239,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
                      <button 
                         onClick={() => { setPastDate(getTodayString()); setIsPastLessonModalOpen(true); }}
-                        className="bg-white border border-slate-200 text-slate-500 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 active:scale-95 transition-all shadow-sm"
+                        className="bg-white border border-slate-200 text-slate-500 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:bg-red-50 hover:text-red-600 hover:border-red-100 active:scale-95 transition-all shadow-sm"
                      >
                          <CalendarDays size={20} />
                          <span className="text-[10px] font-bold">Geçmiş Ders</span>
@@ -275,7 +254,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      </button>
                 </div>
 
-                {/* 4. Lesson History List */}
                 <div>
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1 flex items-center justify-between">
                         <span>BU DÖNEMKİ DERSLER</span>
@@ -291,7 +269,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         <div className="relative border-l-2 border-slate-100 ml-4 space-y-6 py-2">
                             {student.history
                                 .filter(tx => tx.isDebt) 
-                                .slice(0, student.debtLessonCount + (student.makeupCredit || 0)) // Gösterilen liste sayısı
+                                .slice(0, student.debtLessonCount + (student.makeupCredit || 0))
                                 .map((tx, i, arr) => {
                                     const lessonNum = arr.length - i;
                                     const dateObj = new Date(tx.date);
@@ -304,8 +282,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                     
                                     return (
                                         <div key={tx.id} className="relative pl-6 group">
-                                            {/* Timeline Dot */}
-                                            <div className={`absolute -left-[9px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-4 border-white shadow-sm z-10 ${isAbsent ? 'bg-red-500' : isMakeupWait ? 'bg-orange-400' : isMakeupDone ? 'bg-emerald-400' : 'bg-indigo-500'}`}></div>
+                                            <div className={`absolute -left-[9px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-4 border-white shadow-sm z-10 ${isAbsent ? 'bg-red-500' : isMakeupWait ? 'bg-orange-400' : isMakeupDone ? 'bg-emerald-400' : 'bg-red-500'}`}></div>
                                             
                                             <div 
                                                 onClick={() => { setSelectedTx(tx); setIsLessonOptionsOpen(true); }}
@@ -313,7 +290,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                                     isAbsent ? 'bg-red-50 border-red-100' :
                                                     isMakeupWait ? 'bg-orange-50 border-orange-100' :
                                                     isMakeupDone ? 'bg-emerald-50 border-emerald-100' :
-                                                    'bg-white border-slate-100 hover:border-indigo-100'
+                                                    'bg-white border-slate-100 hover:border-red-100'
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-4">
@@ -324,7 +301,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                                     <div>
                                                         <div className={`font-bold text-sm flex items-center gap-2 ${isAbsent ? 'text-red-700' : isMakeupWait ? 'text-orange-700' : isMakeupDone ? 'text-emerald-700' : 'text-slate-800'}`}>
                                                             {isAbsent ? 'Habersiz Gelmedi' : isMakeupWait ? 'Telafi Bekliyor' : isMakeupDone ? 'Telafi Edildi' : `${lessonNum}. Ders İşlendi`}
-                                                            {tx.note.includes("Otomatik") && !isAbsent && !isMakeupWait && !isMakeupDone && <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">OTO</span>}
+                                                            {tx.note.includes("Otomatik") && !isAbsent && !isMakeupWait && !isMakeupDone && <span className="text-[9px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded">OTO</span>}
                                                         </div>
                                                         <div className="text-[10px] text-slate-400 font-medium mt-0.5">
                                                             {isMakeupDone ? tx.note.split('(')[1]?.replace(')', '') || 'Tamamlandı' : `${new Date(tx.date).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`} - Düzenle
@@ -342,7 +319,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                 </div>
             </div>
         ) : (
-            /* History Tab (Payments mostly) */
             <div className="space-y-3 animate-in fade-in duration-300">
                 {student.history.length === 0 ? (
                      <div className="flex flex-col items-center justify-center mt-10 text-slate-300 opacity-50"><Clock size={48} className="mb-4" /><p className="font-bold">İşlem yok.</p></div>
@@ -369,7 +345,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         )}
       </div>
       
-      {/* Dialogs */}
       <Dialog isOpen={!!deleteTxId} onClose={() => setDeleteTxId(null)} title="İşlemi Sil" actions={
             <>
              <button onClick={() => setDeleteTxId(null)} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-50 rounded-xl text-sm">Vazgeç</button>
@@ -380,12 +355,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         <p className="text-slate-600 text-sm font-medium">Bu kayıt kalıcı olarak silinecek.</p>
       </Dialog>
 
-      {/* Geçmiş Ders Modal */}
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle"
         actions={
             <>
                  <button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-                 <button onClick={handleAddPastLesson} disabled={!pastDate} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95 transition-all">Ekle</button>
+                 <button onClick={handleAddPastLesson} disabled={!pastDate} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-sm shadow-md shadow-red-200 disabled:opacity-50 active:scale-95 transition-all">Ekle</button>
             </>
         }
       >
@@ -398,18 +372,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  </div>
              </div>
              
-             {/* Date Shifter Input */}
              <div className="flex items-center gap-2">
                  <button onClick={() => setPastDate(shiftDate(pastDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
-                 <input type="date" max={getTodayString()} value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500 text-center" />
+                 <input type="date" max={getTodayString()} value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-red-500 text-center" />
                  <button onClick={() => setPastDate(shiftDate(pastDate, 1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
              </div>
 
-             {pastDate && <p className="text-[10px] text-indigo-600 font-bold ml-1 text-center bg-indigo-50 py-1 rounded-lg">{formatDateFriendly(pastDate)}</p>}
+             {pastDate && <p className="text-[10px] text-red-600 font-bold ml-1 text-center bg-red-50 py-1 rounded-lg">{formatDateFriendly(pastDate)}</p>}
          </div>
       </Dialog>
       
-      {/* Geçmiş Ödeme Modal */}
       <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Geçmiş Ödeme"
         actions={
             <>
@@ -428,7 +400,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     </div>
                 </div>
 
-                {/* Date Shifter Input */}
                 <div className="flex items-center gap-2">
                     <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
                     <input type="date" max={getTodayString()} value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
@@ -443,7 +414,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
          </div>
       </Dialog>
 
-      {/* Telafi Tamamlama Modal (Tarih Seçimi) */}
       <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Yapıldı"
          actions={
              <>
@@ -461,7 +431,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  </div>
              </div>
              
-             {/* Date Shifter Input */}
              <div className="flex items-center gap-2">
                  <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
                  <input type="date" max={getTodayString()} value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
@@ -474,11 +443,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
          </div>
       </Dialog>
 
-      {/* Ders Durum Opsiyonları Modal */}
       <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="Ders Durumu">
          <div className="flex flex-col gap-2 py-2">
             
-            {/* Özel Durum: Eğer seçili işlem "Telafi Bekliyor" ise, "Telafi Yapıldı" butonunu göster */}
             {selectedTx?.note === "Telafi Bekliyor" && (
                 <button onClick={() => handleLessonAction('MAKEUP_DONE')} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 text-emerald-800 hover:bg-emerald-100 transition-colors mb-2 shadow-sm">
                     <div className="w-6 h-6 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-sm"><CheckCircle2 size={16} /></div>
