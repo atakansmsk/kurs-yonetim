@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 
@@ -21,6 +21,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isPastPaymentModalOpen, setIsPastPaymentModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLessonOptionsOpen, setIsLessonOptionsOpen] = useState(false);
+  const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
   
   // Selection
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
@@ -29,6 +30,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [pastDate, setPastDate] = useState("");
   const [pastPaymentDate, setPastPaymentDate] = useState("");
   const [pastPaymentAmount, setPastPaymentAmount] = useState("");
+  const [makeupCompleteDate, setMakeupCompleteDate] = useState("");
 
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -45,8 +47,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   
   const handleWhatsapp = () => {
       const phone = getPhoneClean();
-      // "Merhaba" mesajı ekleyerek uygulamanın tetiklenmesini kolaylaştırıyoruz.
-      // Bu link Android/iOS'ta yüklü WhatsApp veya WhatsApp Business'ı açmak için seçim sunar.
       const message = `Merhaba ${student.name},`;
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       window.open(url, '_blank');
@@ -79,7 +79,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       }
   };
 
-  const handleLessonAction = (action: 'ABSENT' | 'MAKEUP' | 'DELETE') => {
+  const handleLessonAction = (action: 'ABSENT' | 'MAKEUP' | 'DELETE' | 'MAKEUP_DONE') => {
       if (!selectedTx) return;
 
       if (action === 'DELETE') {
@@ -87,10 +87,32 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       } else if (action === 'ABSENT') {
           actions.updateTransaction(studentId, selectedTx.id, "Gelmedi (Habersiz)");
       } else if (action === 'MAKEUP') {
-          // Bu işlem context tarafında telafi kredisini artırır
           actions.updateTransaction(studentId, selectedTx.id, "Telafi Bekliyor");
+      } else if (action === 'MAKEUP_DONE') {
+          setIsLessonOptionsOpen(false);
+          setIsMakeupCompleteModalOpen(true);
+          // Don't clear selectedTx yet
+          return; 
       }
       setIsLessonOptionsOpen(false);
+      setSelectedTx(null);
+  };
+
+  const handleMakeupComplete = () => {
+      if (!selectedTx || !makeupCompleteDate) return;
+      
+      const dateObj = new Date(makeupCompleteDate);
+      const dateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+      
+      // Notu güncelle: "Telafi Edildi (29 Kasım)"
+      const newNote = `Telafi Edildi (${dateStr})`;
+      
+      // Bu işlem Context tarafında "Telafi Bekliyor" notunu değiştirdiği için
+      // otomatik olarak telafi kredisini 1 düşürecektir.
+      actions.updateTransaction(studentId, selectedTx.id, newNote);
+      
+      setIsMakeupCompleteModalOpen(false);
+      setMakeupCompleteDate("");
       setSelectedTx(null);
   };
 
@@ -247,33 +269,35 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                     const month = dateObj.toLocaleDateString('tr-TR', { month: 'long' });
                                     
                                     const isAbsent = tx.note.includes("Habersiz");
-                                    const isMakeup = tx.note.includes("Telafi");
+                                    const isMakeupWait = tx.note.includes("Telafi Bekliyor");
+                                    const isMakeupDone = tx.note.includes("Telafi Edildi");
                                     
                                     return (
                                         <div key={tx.id} className="relative pl-6 group">
                                             {/* Timeline Dot */}
-                                            <div className={`absolute -left-[9px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-4 border-white shadow-sm z-10 ${isAbsent ? 'bg-red-500' : isMakeup ? 'bg-orange-400' : 'bg-indigo-500'}`}></div>
+                                            <div className={`absolute -left-[9px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-4 border-white shadow-sm z-10 ${isAbsent ? 'bg-red-500' : isMakeupWait ? 'bg-orange-400' : isMakeupDone ? 'bg-emerald-400' : 'bg-indigo-500'}`}></div>
                                             
                                             <div 
                                                 onClick={() => { setSelectedTx(tx); setIsLessonOptionsOpen(true); }}
                                                 className={`p-3 rounded-xl border shadow-sm flex items-center justify-between active:scale-[0.99] transition-all cursor-pointer ${
                                                     isAbsent ? 'bg-red-50 border-red-100' :
-                                                    isMakeup ? 'bg-orange-50 border-orange-100' :
+                                                    isMakeupWait ? 'bg-orange-50 border-orange-100' :
+                                                    isMakeupDone ? 'bg-emerald-50 border-emerald-100' :
                                                     'bg-white border-slate-100 hover:border-indigo-100'
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg border text-slate-700 ${isAbsent ? 'bg-white border-red-100' : isMakeup ? 'bg-white border-orange-100' : 'bg-slate-50 border-slate-100'}`}>
+                                                    <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg border text-slate-700 ${isAbsent ? 'bg-white border-red-100' : isMakeupWait ? 'bg-white border-orange-100' : isMakeupDone ? 'bg-white border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
                                                         <span className="text-lg font-black leading-none">{day}</span>
                                                         <span className="text-[8px] font-bold uppercase">{month.slice(0,3)}</span>
                                                     </div>
                                                     <div>
-                                                        <div className={`font-bold text-sm flex items-center gap-2 ${isAbsent ? 'text-red-700' : isMakeup ? 'text-orange-700' : 'text-slate-800'}`}>
-                                                            {isAbsent ? 'Habersiz Gelmedi' : isMakeup ? 'Telafi Bekliyor' : `${lessonNum}. Ders İşlendi`}
-                                                            {tx.note.includes("Otomatik") && !isAbsent && !isMakeup && <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">OTO</span>}
+                                                        <div className={`font-bold text-sm flex items-center gap-2 ${isAbsent ? 'text-red-700' : isMakeupWait ? 'text-orange-700' : isMakeupDone ? 'text-emerald-700' : 'text-slate-800'}`}>
+                                                            {isAbsent ? 'Habersiz Gelmedi' : isMakeupWait ? 'Telafi Bekliyor' : isMakeupDone ? 'Telafi Edildi' : `${lessonNum}. Ders İşlendi`}
+                                                            {tx.note.includes("Otomatik") && !isAbsent && !isMakeupWait && !isMakeupDone && <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">OTO</span>}
                                                         </div>
                                                         <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                                            {new Date(tx.date).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})} - İşlem yapmak için tıklayın
+                                                            {isMakeupDone ? tx.note.split('(')[1]?.replace(')', '') || 'Tamamlandı' : `${new Date(tx.date).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`} - Düzenle
                                                         </div>
                                                     </div>
                                                 </div>
@@ -362,9 +386,37 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
          </div>
       </Dialog>
 
+      {/* Telafi Tamamlama Modal (Tarih Seçimi) */}
+      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Yapıldı"
+         actions={
+             <>
+                <button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
+                <button onClick={handleMakeupComplete} disabled={!makeupCompleteDate} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
+             </>
+         }
+      >
+         <div className="py-2 flex flex-col gap-3">
+             <p className="text-sm text-slate-600 font-medium">Bu telafi dersi hangi tarihte yapıldı?</p>
+             <input type="date" value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500" />
+             <p className="text-[10px] text-slate-400 ml-1">Kumbara: <span className="text-slate-600 font-bold">-1 Telafi Hakkı</span> düşülecek.</p>
+         </div>
+      </Dialog>
+
       {/* Ders Durum Opsiyonları Modal */}
       <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="Ders Durumu">
          <div className="flex flex-col gap-2 py-2">
+            
+            {/* Özel Durum: Eğer seçili işlem "Telafi Bekliyor" ise, "Telafi Yapıldı" butonunu göster */}
+            {selectedTx?.note === "Telafi Bekliyor" && (
+                <button onClick={() => handleLessonAction('MAKEUP_DONE')} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 text-emerald-800 hover:bg-emerald-100 transition-colors mb-2 shadow-sm">
+                    <div className="w-6 h-6 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-sm"><CheckCircle2 size={16} /></div>
+                    <div className="text-left">
+                        <div className="font-bold text-sm">Telafisi Yapıldı</div>
+                        <div className="text-[10px] text-emerald-600 opacity-80">Tarih girerek tamamlandı işaretle.</div>
+                    </div>
+                </button>
+            )}
+
             <button onClick={() => handleLessonAction('DELETE')} className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-red-600 hover:bg-red-50 transition-colors">
                 <Trash2 size={18} />
                 <div className="text-left">
