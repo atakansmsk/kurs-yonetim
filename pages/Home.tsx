@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +26,9 @@ const THEMES = [
   { id: 'emerald', color: 'bg-emerald-600', label: 'Doğa' },
   { id: 'orange', color: 'bg-orange-600', label: 'Güneş' },
   { id: 'rose', color: 'bg-rose-600', label: 'Şeker' },
+  { id: 'gray', color: 'bg-gray-600', label: 'Gri' },
+  { id: 'zinc', color: 'bg-zinc-600', label: 'Antrasit' },
+  { id: 'neutral', color: 'bg-neutral-900', label: 'Siyah' },
 ];
 
 export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
