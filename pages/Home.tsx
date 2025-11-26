@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid } from 'lucide-react';
+import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid, Check } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface HomeProps {
@@ -17,6 +16,16 @@ const ICONS: Record<string, React.ElementType> = {
   'trophy': Trophy,
   'activity': Activity
 };
+
+const THEMES = [
+  { id: 'red', color: 'bg-red-600', label: 'Klasik' },
+  { id: 'blue', color: 'bg-blue-600', label: 'Okyanus' },
+  { id: 'indigo', color: 'bg-indigo-600', label: 'Gece' },
+  { id: 'violet', color: 'bg-violet-600', label: 'Menekşe' },
+  { id: 'emerald', color: 'bg-emerald-600', label: 'Doğa' },
+  { id: 'orange', color: 'bg-orange-600', label: 'Güneş' },
+  { id: 'rose', color: 'bg-rose-600', label: 'Şeker' },
+];
 
 export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const { state, actions } = useCourse();
@@ -263,6 +272,23 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                     <p className="text-xs text-slate-500">{user?.email}</p>
                 </div>
              </div>
+
+            {/* Tema Rengi Seçici */}
+            <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 ml-1">Tema Rengi</h4>
+                <div className="flex flex-wrap gap-3">
+                    {THEMES.map(theme => (
+                        <button
+                            key={theme.id}
+                            onClick={() => actions.updateTheme(theme.id)}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${theme.color} ${state.themeColor === theme.id ? 'ring-2 ring-offset-2 ring-slate-400 scale-110 shadow-md' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
+                            title={theme.label}
+                        >
+                            {state.themeColor === theme.id && <Check size={16} className="text-white" strokeWidth={3} />}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             {/* Otomatik Ders Toggle */}
             <button onClick={actions.toggleAutoProcessing} className={`p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 ${state.autoLessonProcessing ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}>
