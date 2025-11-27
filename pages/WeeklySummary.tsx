@@ -210,7 +210,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                 </div>
 
                                                 {/* NAME - Large at Bottom */}
-                                                <div className={`text-[9px] font-black leading-tight break-words`}>
+                                                <div className={`text-[8px] font-black leading-tight break-words`}>
                                                     {firstName}
                                                 </div>
                                             </div>
