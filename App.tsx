@@ -7,13 +7,32 @@ import { WeeklySummary } from './pages/WeeklySummary';
 import { StudentList } from './pages/StudentList';
 import { StudentProfile } from './pages/StudentProfile';
 import { Login } from './pages/Login';
-import { CalendarRange, LayoutDashboard, Users2, ChevronDown, Home as HomeIcon, Check, Sparkles } from 'lucide-react';
+import { CalendarRange, LayoutDashboard, Users2, ChevronDown, Home as HomeIcon, Check, Sparkles, Palette, Music, BookOpen, Trophy, Activity } from 'lucide-react';
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
 
+// Logo Mapping (Same as Home.tsx)
+const ICONS: Record<string, React.ElementType> = {
+  'sparkles': Sparkles,
+  'palette': Palette,
+  'music': Music,
+  'book': BookOpen,
+  'trophy': Trophy,
+  'activity': Activity
+};
+
 // --- SPLASH SCREEN COMPONENT ---
-const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
+interface SplashScreenProps {
+  onFinish: () => void;
+  logoStr: string;
+}
+
+const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
   const [isExiting, setIsExiting] = useState(false);
+
+  // Logo Logic
+  const isCustomLogo = logoStr.startsWith('data:');
+  const IconComponent = !isCustomLogo ? (ICONS[logoStr] || Sparkles) : Sparkles;
 
   useEffect(() => {
     // 1.5 saniye bekle, sonra çıkış animasyonunu başlat
@@ -28,11 +47,18 @@ const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
   }, [onFinish]);
 
   return (
-    <div className={`fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center ${isExiting ? 'animate-slide-out' : ''}`}>
+    <div 
+        onClick={() => { setIsExiting(true); setTimeout(onFinish, 500); }} // Dokunarak geçme (Failsafe)
+        className={`fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center cursor-pointer ${isExiting ? 'animate-slide-out' : ''}`}
+    >
         <div className="relative">
             <div className="absolute inset-0 bg-indigo-500/30 blur-3xl rounded-full animate-pulse-slow"></div>
-            <div className="relative bg-white/10 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 shadow-2xl animate-pulse-slow">
-                <Sparkles size={48} className="text-white" strokeWidth={1.5} />
+            <div className="relative bg-white/10 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 shadow-2xl animate-pulse-slow flex items-center justify-center overflow-hidden w-32 h-32">
+                {isCustomLogo ? (
+                   <img src={logoStr} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                   <IconComponent size={48} className="text-white" strokeWidth={1.5} />
+                )}
             </div>
         </div>
         <div className="mt-6 text-center animate-pulse-slow">
@@ -123,7 +149,7 @@ const AppContent: React.FC = () => {
   return (
     <>
       {/* SPLASH SCREEN OVERLAY */}
-      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      {showSplash && <SplashScreen logoStr={state.schoolIcon} onFinish={() => setShowSplash(false)} />}
 
       <div className="flex flex-col h-[100dvh] w-full max-w-md bg-[#F8FAFC] shadow-2xl overflow-hidden relative mx-auto sm:rounded-[2.5rem] sm:my-4 sm:h-[calc(100dvh-2rem)] border-0 sm:border-8 border-white ring-1 ring-black/5 animate-in fade-in duration-500">
         
