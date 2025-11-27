@@ -36,12 +36,13 @@ const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
   const IconComponent = !isCustomLogo ? (ICONS[logoStr] || Sparkles) : Sparkles;
 
   useEffect(() => {
-    // Android Webview fix: Ensure timers run even if backgrounded briefly
+    // Android Webview optimizasyonu: Timer'ları daha güvenli hale getirdik
     const startExit = () => setIsExiting(true);
     const finish = () => onFinish();
 
-    const t1 = setTimeout(startExit, 1200); // 1.2s bekle, çıkışı başlat
-    const t2 = setTimeout(finish, 1800);    // 1.8s bekle, tamamen kaldır
+    // Süreleri kısalttık ve sıraladık
+    const t1 = setTimeout(startExit, 1000); // 1.0s sonra çıkış animasyonu başlar
+    const t2 = setTimeout(finish, 1600);    // 1.6s sonra komponent tamamen kalkar
 
     return () => {
       clearTimeout(t1);
@@ -51,28 +52,30 @@ const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
 
   const handleForceFinish = () => {
       setIsExiting(true);
-      setTimeout(onFinish, 300);
+      setTimeout(onFinish, 200);
   };
 
   return (
     <div 
         onClick={handleForceFinish}
-        className={`fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center cursor-pointer ${isExiting ? 'animate-slide-out' : ''}`}
+        className={`fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center cursor-pointer ${isExiting ? 'animate-slide-out' : ''}`}
     >
         <div className="relative">
-            <div className="absolute inset-0 bg-indigo-500/30 blur-3xl rounded-full animate-pulse-slow"></div>
-            {/* Logo Container: w-40 h-40, p-0 (No padding for max size) */}
-            <div className="relative bg-white/10 backdrop-blur-md rounded-[2rem] border border-white/10 shadow-2xl animate-pulse-slow flex items-center justify-center overflow-hidden w-40 h-40">
+            {/* Arka plan parlaması (Light mode uyumlu) */}
+            <div className="absolute inset-0 bg-indigo-500/10 blur-3xl rounded-full animate-pulse-slow"></div>
+            
+            {/* Logo Container: Genişletildi ve Sığdırma (contain) modu açıldı */}
+            <div className="relative bg-white/50 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 shadow-2xl animate-pulse-slow flex items-center justify-center overflow-hidden w-64 h-64 p-6">
                 {isCustomLogo ? (
-                   <img src={logoStr} alt="Logo" className="w-full h-full object-cover" />
+                   <img src={logoStr} alt="Logo" className="w-full h-full object-contain" />
                 ) : (
-                   <IconComponent size={80} className="text-white" strokeWidth={1.5} />
+                   <IconComponent size={100} className="text-indigo-600" strokeWidth={1.5} />
                 )}
             </div>
         </div>
         <div className="mt-8 text-center animate-pulse-slow px-4">
-            <h1 className="text-3xl font-black text-white tracking-tight">Kurs Pro</h1>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Yükleniyor...</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Kurs Pro</h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Yükleniyor...</p>
         </div>
     </div>
   );
