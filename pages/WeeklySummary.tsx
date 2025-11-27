@@ -2,7 +2,8 @@
 import React, { useMemo, useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay } from '../types';
-import { CalendarCheck, Banknote, Expand, Star, RefreshCcw } from 'lucide-react';
+import { CalendarCheck, Banknote, Expand, Star, RefreshCcw, Plus, Clock, ArrowRight } from 'lucide-react';
+import { Dialog } from '../components/Dialog';
 
 interface WeeklySummaryProps {
     onOpenStudentProfile: (id: string) => void;
@@ -21,11 +22,18 @@ const timeToMinutes = (time: string) => {
   return h * 60 + m;
 };
 
+const minutesToTime = (minutes: number) => {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
 export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfile }) => {
-  const { state } = useCourse();
+  const { state, actions } = useCourse();
   
   // UI States
   const [isScreenshotMode, setIsScreenshotMode] = useState(false);
+  const [gapModalData, setGapModalData] = useState<{day: WeekDay, gaps: string[]} | null>(null);
 
   // --- STATS & EARNINGS ---
   const { monthlyEarnings } = useMemo(() => {
@@ -54,6 +62,53 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
   const getDaySlots = (day: WeekDay) => {
       const key = `${state.currentTeacher}|${day}`;
       return (state.schedule[key] || []).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+  };
+
+  const handleDayClick = (day: WeekDay) => {
+      if (isScreenshotMode) return;
+
+      const slots = getDaySlots(day);
+      const foundGaps: string[] = [];
+      
+      // Scan from 15:00 to 21:00
+      let currentPointer = 15 * 60; 
+      const END_OF_DAY = 21 * 60;
+      const SLOT_DURATION = 40;
+
+      // Filter slots that end after scan start
+      const relevantSlots = slots.filter(s => timeToMinutes(s.end) > currentPointer);
+
+      relevantSlots.forEach(slot => {
+          const s = timeToMinutes(slot.start);
+          const e = timeToMinutes(slot.end);
+          
+          if (e > currentPointer) {
+               // Check gap before this slot
+               while (currentPointer + SLOT_DURATION <= s) {
+                   foundGaps.push(minutesToTime(currentPointer));
+                   currentPointer += SLOT_DURATION;
+               }
+               currentPointer = Math.max(currentPointer, e);
+          }
+      });
+
+      // Check remaining time
+      while (currentPointer + SLOT_DURATION <= END_OF_DAY) {
+          foundGaps.push(minutesToTime(currentPointer));
+          currentPointer += SLOT_DURATION;
+      }
+
+      setGapModalData({ day, gaps: foundGaps });
+  };
+
+  const handleAddGap = (startTime: string) => {
+      if (gapModalData) {
+          const startMins = timeToMinutes(startTime);
+          const endMins = startMins + 40;
+          const endTime = minutesToTime(endMins);
+          actions.addSlot(gapModalData.day, startTime, endTime);
+          setGapModalData(null);
+      }
   };
 
   return (
@@ -107,10 +162,14 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                         <div key={day} className={`flex flex-col min-w-0 rounded-xl transition-colors duration-300 ${isToday ? 'bg-[var(--c-50)]/50 ring-1 ring-[var(--c-200)]' : 'bg-transparent'}`}>
                             
                             {/* Day Header */}
-                            <div className={`text-center py-2 mb-1 ${isToday ? 'bg-[var(--c-100)] rounded-t-xl' : ''}`}>
-                                <span className={`block font-black uppercase tracking-wider ${isScreenshotMode ? 'text-[9px] text-slate-800' : 'text-[9px]'} ${isToday ? 'text-[var(--c-700)]' : 'text-slate-400'}`}>
+                            <div 
+                                onClick={() => handleDayClick(day)}
+                                className={`text-center py-2 mb-1 group cursor-pointer transition-colors ${isToday ? 'bg-[var(--c-100)] rounded-t-xl' : 'hover:bg-slate-50 rounded-xl'}`}
+                            >
+                                <span className={`block font-black uppercase tracking-wider ${isScreenshotMode ? 'text-[9px] text-slate-800' : 'text-[9px]'} ${isToday ? 'text-[var(--c-700)]' : 'text-slate-400 group-hover:text-indigo-500'}`}>
                                     {isScreenshotMode ? FULL_DAYS[day].slice(0,3) : SHORT_DAYS[day]}
                                 </span>
+                                {!isScreenshotMode && <div className="h-0.5 w-0 bg-indigo-500 mx-auto transition-all group-hover:w-4 rounded-full mt-0.5"></div>}
                             </div>
 
                             {/* Stacked Lessons */}
@@ -134,8 +193,8 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                 key={slot.id}
                                                 onClick={() => slot.studentId && onOpenStudentProfile(slot.studentId)}
                                                 className={`
-                                                    relative rounded-md p-1 transition-all duration-200 cursor-pointer active:scale-95
-                                                    flex flex-col justify-center
+                                                    relative rounded-md p-1.5 transition-all duration-200 cursor-pointer active:scale-95
+                                                    flex flex-col
                                                     ${isScreenshotMode ? 'shadow-none border-[0.5px] border-slate-900/10' : 'shadow-sm'}
                                                     
                                                     ${isMakeup ? 'bg-orange-100 text-orange-900' 
@@ -143,15 +202,15 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                         : 'bg-[var(--c-100)] text-[var(--c-900)]'}
                                                 `}
                                             >
-                                                {/* TIME - Very Small */}
-                                                <div className={`text-[6px] font-bold leading-none mb-0.5 opacity-70 flex justify-between items-center ${isMakeup ? 'text-orange-800' : isTrial ? 'text-purple-800' : 'text-[var(--c-700)]'}`}>
+                                                {/* TIME - Very Small at Top */}
+                                                <div className={`text-[6px] font-bold leading-none mb-1 opacity-60 flex justify-between items-center ${isMakeup ? 'text-orange-800' : isTrial ? 'text-purple-800' : 'text-[var(--c-700)]'}`}>
                                                     <span>{slot.start}-{slot.end}</span>
                                                     {isTrial && <Star size={6} fill="currentColor" />}
                                                     {isMakeup && <RefreshCcw size={6} />}
                                                 </div>
 
-                                                {/* FIRST NAME ONLY - Reduced Size */}
-                                                <div className={`text-[8px] font-black leading-tight truncate`}>
+                                                {/* NAME - Large at Bottom */}
+                                                <div className={`text-[9px] font-black leading-tight break-words`}>
                                                     {firstName}
                                                 </div>
                                             </div>
@@ -164,6 +223,39 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                 })}
             </div>
         </div>
+
+        {/* Gap Finder Modal */}
+        <Dialog 
+            isOpen={!!gapModalData} 
+            onClose={() => setGapModalData(null)} 
+            title={gapModalData ? `${gapModalData.day} - Boşluklar` : "Boşluklar"}
+        >
+            <div className="py-2">
+                {gapModalData?.gaps.length === 0 ? (
+                    <div className="text-center py-4">
+                        <Clock className="mx-auto text-slate-300 mb-2" size={32} />
+                        <p className="text-slate-400 text-sm font-medium">15:00 - 21:00 arası uygun boşluk yok.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto">
+                        {gapModalData?.gaps.map(startTime => {
+                            const endMins = timeToMinutes(startTime) + 40;
+                            const endTime = minutesToTime(endMins);
+                            return (
+                                <button 
+                                    key={startTime} 
+                                    onClick={() => handleAddGap(startTime)} 
+                                    className="p-3 border border-slate-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-colors text-center group"
+                                >
+                                    <span className="text-lg font-bold text-slate-700 block group-hover:text-indigo-700">{startTime}</span>
+                                    <span className="text-xs text-slate-400 group-hover:text-indigo-400">{endTime}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </Dialog>
     </div>
   );
 };
