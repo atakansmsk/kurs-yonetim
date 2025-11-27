@@ -1,197 +1,186 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useCourse } from '../context/CourseContext';
-import { DAYS, WeekDay } from '../types';
-import { CalendarCheck, Star, RefreshCcw } from 'lucide-react';
+import { DAYS, WeekDay, LessonSlot } from '../types';
+import { CalendarCheck, Star, RefreshCcw, GripVertical } from 'lucide-react';
 
 interface WeeklySummaryProps {
     onOpenStudentProfile: (id: string) => void;
 }
+
+const SHORT_DAYS: Record<WeekDay, string> = {
+  "Pazartesi": "PZT", "Salı": "SAL", "Çarşamba": "ÇAR", "Perşembe": "PER", "Cuma": "CUM", "Cmt": "CMT", "Pazar": "PAZ"
+};
 
 const timeToMinutes = (time: string) => {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 };
 
-// SHORT DAYS for Header
-const SHORT_DAYS: Record<WeekDay, string> = {
-  "Pazartesi": "PZT", 
-  "Salı": "SAL", 
-  "Çarşamba": "ÇAR", 
-  "Perşembe": "PER", 
-  "Cuma": "CUM", 
-  "Cmt": "CMT", 
-  "Pazar": "PAZ"
-};
-
 export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfile }) => {
-  const { state } = useCourse();
+  const { state, actions } = useCourse();
 
-  // 1. Calculate Stats & Global Start Time
-  const { stats, minStartMin } = useMemo(() => {
+  // --- DRAG & DROP STATE ---
+  const [draggingSlot, setDraggingSlot] = useState<{ day: WeekDay, slot: LessonSlot } | null>(null);
+
+  // Stats Calculation
+  const stats = useMemo(() => {
     let totalRegular = 0, totalMakeup = 0, totalTrial = 0;
-    let minMin = 24 * 60; // Initialize high
-    let hasLessons = false;
-
     DAYS.forEach(day => {
         const key = `${state.currentTeacher}|${day}`;
-        const lessons = state.schedule[key] || [];
-        lessons.forEach(s => {
+        (state.schedule[key] || []).forEach(s => {
             if (s.studentId) {
-                hasLessons = true;
                 if (s.label === 'TRIAL') totalTrial++;
                 else if (s.label === 'MAKEUP') totalMakeup++;
                 else totalRegular++;
-                
-                const startM = timeToMinutes(s.start);
-                if (startM < minMin) minMin = startM;
             }
         });
     });
-    
-    // If no lessons, default to 09:00 (540 mins)
-    if (!hasLessons) minMin = 9 * 60;
-
-    return {
-        stats: { totalRegular, totalMakeup, totalTrial, total: totalRegular + totalMakeup + totalTrial },
-        minStartMin: minMin
-    };
+    return { totalRegular, totalMakeup, totalTrial, total: totalRegular + totalMakeup + totalTrial };
   }, [state.schedule, state.currentTeacher]);
 
-  const todayIndex = new Date().getDay(); // 0=Sun
-  const jsDayToAppKey: Record<number, WeekDay> = {
-      1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt", 0: "Pazar"
-  };
+  const todayIndex = new Date().getDay(); 
+  const jsDayToAppKey: Record<number, WeekDay> = { 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt", 0: "Pazar" };
   const currentDayName = jsDayToAppKey[todayIndex];
 
-  // 2. Prepare Data for Each Day
-  const getDayData = (day: WeekDay) => {
-      const key = `${state.currentTeacher}|${day}`;
-      const lessons = (state.schedule[key] || [])
-          .filter(s => s.studentId)
-          .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+  // --- DRAG HANDLERS ---
+  const handleDragStart = (e: React.DragEvent, day: WeekDay, slot: LessonSlot) => {
+      setDraggingSlot({ day, slot });
+      // Veriyi transfer nesnesine de koyalım (görsel efekt için gerekebilir)
+      e.dataTransfer.setData('application/json', JSON.stringify({ day, slotId: slot.id }));
+      e.dataTransfer.effectAllowed = 'move';
+  };
 
-      const blocks: React.ReactNode[] = [];
-      let currentPointer = minStartMin; // Start exactly from the earliest lesson of the week
+  const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault(); // Drop'a izin ver
+      e.dataTransfer.dropEffect = 'move';
+  };
 
-      lessons.forEach((lesson, idx) => {
-          const lStart = timeToMinutes(lesson.start);
-          const lEnd = timeToMinutes(lesson.end);
+  const handleDrop = (e: React.DragEvent, targetDay: WeekDay, targetSlot: LessonSlot) => {
+      e.preventDefault();
+      
+      if (!draggingSlot) return;
 
-          // Render Gap (Invisible or Visible Spacer)
-          if (lStart > currentPointer) {
-              const diff = lStart - currentPointer;
-              // If gap is large (>= 40 mins), show spacing but NO LABEL as per request
-              // If it's the first gap (before first lesson of day), we just render empty space, no text.
-              
-              // We render a flexible height div. 1 min ~= 1.5px (just an estimation for flex)
-              // Actually, flex-grow is better. But here we just stack them.
-              
-              // To represent time visually, we can add a spacer.
-              // If the user wants a true timeline, gaps should be proportional.
-              // Let's add a spacer block.
-              
-              if (diff >= 20) {
-                 blocks.push(
-                     <div key={`gap-${idx}`} style={{ height: `${diff * 1.2}px` }} className="w-full flex items-center justify-center my-0.5 relative group">
-                        {/* Only show 'Mola' if it is strictly BETWEEN lessons, not before the first one if start times differ */}
-                        {/* User said: "15:00 de başlıyosa öncesinde mola yazmasın" -> Handled by starting currentPointer at minStartMin globally */}
-                        
-                        {/* Visual Guide Line (very subtle) */}
-                        <div className="w-px h-full bg-slate-100 group-hover:bg-indigo-100 transition-colors"></div>
-                     </div>
-                 );
-              } else {
-                 blocks.push(<div key={`sp-${idx}`} className="h-2"></div>);
-              }
+      const sourceDay = draggingSlot.day;
+      const sourceSlot = draggingSlot.slot;
+      
+      // Kendi üzerine bırakılırsa iptal
+      if (sourceDay === targetDay && sourceSlot.id === targetSlot.id) {
+          setDraggingSlot(null);
+          return;
+      }
+
+      // Hedef dolu mu? -> SWAP
+      if (targetSlot.studentId) {
+          if (confirm(`"${state.students[sourceSlot.studentId!]?.name}" ile "${state.students[targetSlot.studentId]?.name}" yer değiştirsin mi?`)) {
+              actions.swapSlots(sourceDay, sourceSlot.id, targetDay, targetSlot.id);
           }
+      } 
+      // Hedef boş mu? -> MOVE
+      else {
+          actions.moveSlot(sourceDay, sourceSlot.id, targetDay, targetSlot.id);
+      }
+      
+      setDraggingSlot(null);
+  };
 
-          // Render Lesson
-          const student = state.students[lesson.studentId!];
-          const isMakeup = lesson.label === 'MAKEUP';
-          const isTrial = lesson.label === 'TRIAL';
-
-          blocks.push(
-            <div 
-                key={lesson.id}
-                onClick={() => onOpenStudentProfile(lesson.studentId!)}
-                className={`w-full mb-1 cursor-pointer active:scale-95 transition-transform`}
-            >
-                {/* Card */}
-                <div className={`w-full rounded-md px-1.5 py-1.5 border-l-[3px] shadow-sm flex flex-col gap-0.5 ${
-                    isMakeup 
-                        ? 'bg-orange-50 border-orange-400' 
-                    : isTrial 
-                        ? 'bg-purple-50 border-purple-400' 
-                    : 'bg-white border-indigo-500'
-                }`}>
-                    <div className="flex justify-between items-start">
-                        <div className={`font-bold leading-tight truncate text-[8px] ${
-                            isMakeup ? 'text-orange-900' : isTrial ? 'text-purple-900' : 'text-slate-900'
-                        }`}>
-                            {student?.name.split(' ')[0]} {student?.name.split(' ')[1]?.charAt(0)}.
-                        </div>
-                        {isTrial && <Star size={8} className="text-purple-500" fill="currentColor"/>}
-                        {isMakeup && <RefreshCcw size={8} className="text-orange-500"/>}
-                    </div>
-                    
-                    {/* Time Range */}
-                    <div className={`text-[7px] font-bold opacity-80 ${
-                         isMakeup ? 'text-orange-700' : isTrial ? 'text-purple-700' : 'text-indigo-600'
-                    }`}>
-                        {lesson.start} - {lesson.end}
-                    </div>
-                </div>
-            </div>
-          );
-
-          currentPointer = lEnd;
-      });
-
-      return blocks;
+  const getDaySlots = (day: WeekDay) => {
+      const key = `${state.currentTeacher}|${day}`;
+      return (state.schedule[key] || []).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
   };
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
-        {/* Compact Header */}
+        {/* Header */}
         <div className="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 z-20 shadow-sm">
             <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200">
+                 <div className="w-8 h-8 rounded-lg bg-[var(--c-600)] text-white flex items-center justify-center shadow-md shadow-[var(--c-200)]">
                     <CalendarCheck size={16} />
                  </div>
                  <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">{state.currentTeacher}</h2>
             </div>
-            
-            {/* Stats Badges */}
             <div className="flex gap-1.5">
-                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] font-bold rounded-md border border-indigo-100">
-                    {stats.total} Ders
-                </span>
+                <span className="px-2 py-0.5 bg-[var(--c-50)] text-[var(--c-700)] text-[9px] font-bold rounded-md border border-[var(--c-100)]">{stats.total} Ders</span>
                 {stats.totalTrial > 0 && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[9px] font-bold rounded-md border border-purple-100">{stats.totalTrial} Deneme</span>}
             </div>
         </div>
 
-        {/* 7-Column Grid Layout */}
-        <div className="flex-1 overflow-y-auto p-2 bg-slate-50/50">
-            <div className="grid grid-cols-7 gap-1 h-full min-h-[500px]">
+        {/* 7-Column Stacked Grid */}
+        <div className="flex-1 overflow-y-auto p-2">
+            <div className="grid grid-cols-7 gap-1.5 h-full content-start">
                 {DAYS.map((day) => {
                     const isToday = day === currentDayName;
-                    const blocks = getDayData(day);
+                    const slots = getDaySlots(day);
                     
                     return (
-                        <div key={day} className={`flex flex-col min-w-0 rounded-lg ${isToday ? 'bg-white ring-1 ring-indigo-200 shadow-sm z-10' : 'bg-transparent'}`}>
+                        <div key={day} className={`flex flex-col min-w-0 rounded-xl transition-colors duration-300 ${isToday ? 'bg-[var(--c-50)]/50 ring-1 ring-[var(--c-200)]' : 'bg-transparent'}`}>
+                            
                             {/* Day Header */}
-                            <div className={`text-center py-2 shrink-0 border-b border-slate-100/50 mb-1 ${isToday ? 'bg-indigo-50 rounded-t-lg' : ''}`}>
-                                <span className={`block text-[8px] font-black uppercase tracking-wider ${isToday ? 'text-indigo-700' : 'text-slate-400'}`}>
+                            <div className={`text-center py-2 mb-1 ${isToday ? 'bg-[var(--c-100)] rounded-t-xl' : ''}`}>
+                                <span className={`block text-[9px] font-black uppercase tracking-wider ${isToday ? 'text-[var(--c-700)]' : 'text-slate-400'}`}>
                                     {SHORT_DAYS[day]}
                                 </span>
                             </div>
 
-                            {/* Timeline Content */}
-                            <div className="flex-1 px-0.5 pb-2 flex flex-col">
-                                {blocks.length > 0 ? blocks : (
-                                    <div className="flex-1 w-full flex flex-col items-center justify-start pt-4 opacity-10">
-                                        <div className="w-px h-full border-l border-dashed border-slate-400"></div>
-                                    </div>
+                            {/* Stacked Lessons */}
+                            <div className="flex flex-col gap-1 px-1 pb-2 h-full">
+                                {slots.length === 0 ? (
+                                    <div className="h-full border-l border-dashed border-slate-200 mx-auto w-px opacity-50"></div>
+                                ) : (
+                                    slots.map((slot) => {
+                                        const isOccupied = !!slot.studentId;
+                                        const student = isOccupied ? state.students[slot.studentId!] : null;
+                                        const isMakeup = slot.label === 'MAKEUP';
+                                        const isTrial = slot.label === 'TRIAL';
+                                        const isDraggingMe = draggingSlot?.slot.id === slot.id;
+
+                                        return (
+                                            <div 
+                                                key={slot.id}
+                                                draggable={isOccupied} // Sadece dolu olanlar sürüklenebilir
+                                                onDragStart={(e) => handleDragStart(e, day, slot)}
+                                                onDragOver={handleDragOver}
+                                                onDrop={(e) => handleDrop(e, day, slot)}
+                                                
+                                                onClick={() => isOccupied && onOpenStudentProfile(slot.studentId!)}
+                                                
+                                                className={`
+                                                    relative group rounded-md p-1.5 transition-all duration-200
+                                                    ${isDraggingMe ? 'opacity-30 scale-95' : 'opacity-100 scale-100'}
+                                                    ${isOccupied 
+                                                        ? 'bg-white shadow-sm cursor-pointer hover:shadow-md border-l-[3px]' 
+                                                        : 'bg-slate-50/50 border border-slate-100/50 border-dashed hover:bg-indigo-50/50 hover:border-indigo-200'}
+                                                    ${isOccupied && isMakeup ? 'border-l-orange-400' 
+                                                        : isOccupied && isTrial ? 'border-l-purple-400' 
+                                                        : isOccupied ? 'border-l-[var(--c-500)]' : ''}
+                                                `}
+                                            >
+                                                {isOccupied ? (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <div className="flex justify-between items-start">
+                                                            <span className={`text-[7px] font-bold opacity-70 ${isMakeup?'text-orange-600':isTrial?'text-purple-600':'text-[var(--c-600)]'}`}>
+                                                                {slot.start}
+                                                            </span>
+                                                            {/* Drag Handle Icon (Visible on hover) */}
+                                                            <GripVertical size={8} className="text-slate-300 opacity-0 group-hover:opacity-100" />
+                                                        </div>
+                                                        <div className={`text-[8px] font-bold leading-tight truncate ${isMakeup?'text-orange-900':isTrial?'text-purple-900':'text-slate-700'}`}>
+                                                            {student?.name.split(' ')[0]}
+                                                        </div>
+                                                        {(isMakeup || isTrial) && (
+                                                            <div className="flex justify-end">
+                                                                {isTrial && <Star size={6} className="text-purple-500" fill="currentColor"/>}
+                                                                {isMakeup && <RefreshCcw size={6} className="text-orange-500"/>}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-6 flex items-center justify-center">
+                                                        <span className="text-[7px] font-medium text-slate-300">{slot.start}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>

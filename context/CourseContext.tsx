@@ -561,7 +561,88 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     toggleAutoProcessing: () => {
         setAppState(prev => ({ ...prev, autoLessonProcessing: !prev.autoLessonProcessing }));
+    },
+    
+    // --- DRAG & DROP ACTIONS ---
+    
+    moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => {
+        setAppState(prev => {
+            const sourceKey = `${prev.currentTeacher}|${fromDay}`;
+            const targetKey = `${prev.currentTeacher}|${toDay}`;
+            
+            const sourceSlots = prev.schedule[sourceKey] || [];
+            const targetSlots = prev.schedule[targetKey] || [];
+            
+            const sourceSlot = sourceSlots.find(s => s.id === fromSlotId);
+            const targetSlot = targetSlots.find(s => s.id === toSlotId);
+            
+            if (!sourceSlot || !targetSlot) return prev;
+            if (fromDay === toDay && fromSlotId === toSlotId) return prev;
+
+            // Move data from source to target, clear source
+            const newTargetSlot = { 
+                ...targetSlot, 
+                studentId: sourceSlot.studentId, 
+                label: sourceSlot.label 
+            };
+            
+            const newSourceSlot = { 
+                ...sourceSlot, 
+                studentId: null, 
+                label: undefined 
+            } as LessonSlot;
+
+            const newSchedule = { ...prev.schedule };
+            
+            if (fromDay === toDay) {
+                newSchedule[sourceKey] = sourceSlots.map(s => 
+                    s.id === fromSlotId ? newSourceSlot : 
+                    s.id === toSlotId ? newTargetSlot : s
+                );
+            } else {
+                newSchedule[sourceKey] = sourceSlots.map(s => s.id === fromSlotId ? newSourceSlot : s);
+                newSchedule[targetKey] = targetSlots.map(s => s.id === toSlotId ? newTargetSlot : s);
+            }
+
+            return { ...prev, schedule: newSchedule };
+        });
+    },
+
+    swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => {
+        setAppState(prev => {
+            const keyA = `${prev.currentTeacher}|${dayA}`;
+            const keyB = `${prev.currentTeacher}|${dayB}`;
+            
+            const slotsA = prev.schedule[keyA] || [];
+            const slotsB = prev.schedule[keyB] || [];
+            
+            const slotA = slotsA.find(s => s.id === slotIdA);
+            const slotB = slotsB.find(s => s.id === slotIdB);
+            
+            if (!slotA || !slotB) return prev;
+            
+            const tempStudent = slotA.studentId;
+            const tempLabel = slotA.label;
+            
+            const newSlotA = { ...slotA, studentId: slotB.studentId, label: slotB.label };
+            const newSlotB = { ...slotB, studentId: tempStudent, label: tempLabel };
+            
+            const newSchedule = { ...prev.schedule };
+            
+            if (dayA === dayB) {
+                newSchedule[keyA] = slotsA.map(s => 
+                    s.id === slotIdA ? newSlotA : 
+                    s.id === slotIdB ? newSlotB : s
+                );
+            } else {
+                newSchedule[keyA] = slotsA.map(s => s.id === slotIdA ? newSlotA : s);
+                newSchedule[keyB] = slotsB.map(s => s.id === slotIdB ? newSlotB : s);
+            }
+            
+            return { ...prev, schedule: newSchedule };
+        });
     }
+
   }), [setAppState]);
 
   const providerValue = useMemo(() => ({ state, actions }), [state, actions]);

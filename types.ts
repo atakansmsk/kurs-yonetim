@@ -67,6 +67,8 @@ export interface CourseContextType {
     updateTransaction: (studentId: string, transactionId: string, note: string) => void;
     deleteTransaction: (studentId: string, transactionId: string) => void;
     toggleAutoProcessing: () => void;
+    moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => void;
+    swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => void;
   };
 }
 
