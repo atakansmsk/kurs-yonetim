@@ -150,8 +150,8 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                     {isMakeup && <RefreshCcw size={6} />}
                                                 </div>
 
-                                                {/* FIRST NAME ONLY - Larger */}
-                                                <div className={`text-[10px] font-black leading-tight truncate`}>
+                                                {/* FIRST NAME ONLY - Reduced Size */}
+                                                <div className={`text-[8px] font-black leading-tight truncate`}>
                                                     {firstName}
                                                 </div>
                                             </div>
