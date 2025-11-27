@@ -1,4 +1,3 @@
-
 import { auth, db } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";

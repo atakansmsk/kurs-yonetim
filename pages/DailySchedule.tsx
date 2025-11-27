@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';

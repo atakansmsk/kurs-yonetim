@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, DAYS, WeekDay } from '../types';
 import { useAuth } from './AuthContext';

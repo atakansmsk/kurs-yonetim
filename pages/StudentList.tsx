@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';

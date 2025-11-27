@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';

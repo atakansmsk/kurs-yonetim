@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ArrowRight, Lock, Mail, Sparkles, User, AlertCircle } from 'lucide-react';

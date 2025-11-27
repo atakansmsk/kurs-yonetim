@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay } from '../types';
