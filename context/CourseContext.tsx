@@ -9,67 +9,12 @@ const CourseContext = createContext<CourseContextType | undefined>(undefined);
 const INITIAL_STATE: AppState = {
   schoolName: "Sanat Okulu",
   schoolIcon: "sparkles",
-  themeColor: "red",
   currentTeacher: "",
   teachers: [],
   students: {},
   schedule: {},
   updatedAt: new Date(0).toISOString(),
   autoLessonProcessing: true
-};
-
-// RGB Values for Tailwind Colors (50-950)
-const THEME_COLORS: Record<string, Record<string, string>> = {
-  red: { // Default
-    50: '254 242 242', 100: '254 226 226', 200: '254 202 202', 300: '252 165 165',
-    400: '248 113 113', 500: '239 68 68', 600: '220 38 38', 700: '185 28 28',
-    800: '153 27 27', 900: '127 29 29', 950: '69 10 10'
-  },
-  blue: {
-    50: '239 246 255', 100: '219 234 254', 200: '191 219 254', 300: '147 197 253',
-    400: '96 165 250', 500: '59 130 246', 600: '37 99 235', 700: '29 78 216',
-    800: '30 64 175', 900: '30 58 138', 950: '23 37 84'
-  },
-  indigo: {
-    50: '238 242 255', 100: '224 231 255', 200: '199 210 254', 300: '165 180 252',
-    400: '129 140 248', 500: '99 102 241', 600: '79 70 229', 700: '67 56 202',
-    800: '55 48 163', 900: '49 46 129', 950: '30 27 75'
-  },
-  violet: {
-    50: '245 243 255', 100: '237 233 254', 200: '221 214 254', 300: '196 181 253',
-    400: '167 139 250', 500: '139 92 246', 600: '124 58 237', 700: '109 40 217',
-    800: '91 33 182', 900: '76 29 149', 950: '46 16 101'
-  },
-  emerald: {
-    50: '236 253 245', 100: '209 250 229', 200: '167 243 208', 300: '110 231 183',
-    400: '52 211 153', 500: '16 185 129', 600: '5 150 105', 700: '4 120 87',
-    800: '6 95 70', 900: '6 78 59', 950: '2 44 34'
-  },
-  orange: {
-    50: '255 247 237', 100: '255 237 213', 200: '254 215 170', 300: '253 186 116',
-    400: '251 146 60', 500: '249 115 22', 600: '234 88 12', 700: '194 65 12',
-    800: '154 52 18', 900: '124 45 18', 950: '67 20 7'
-  },
-  rose: {
-    50: '255 241 242', 100: '255 228 229', 200: '254 205 211', 300: '253 164 175',
-    400: '251 113 133', 500: '244 63 94', 600: '225 29 72', 700: '190 18 60',
-    800: '159 18 57', 900: '136 19 55', 950: '76 5 25'
-  },
-  gray: { // Gri
-    50: '249 250 251', 100: '243 244 246', 200: '229 231 235', 300: '209 213 219',
-    400: '156 163 175', 500: '107 114 128', 600: '75 85 99', 700: '55 65 81',
-    800: '31 41 55', 900: '17 24 39', 950: '3 7 18'
-  },
-  zinc: { // Antrasit
-    50: '250 250 250', 100: '244 244 245', 200: '228 228 231', 300: '212 212 216',
-    400: '161 161 170', 500: '113 113 122', 600: '82 82 91', 700: '63 63 70',
-    800: '39 39 42', 900: '24 24 27', 950: '9 9 11'
-  },
-  neutral: { // Siyah
-    50: '250 250 250', 100: '245 245 245', 200: '229 229 229', 300: '212 212 212',
-    400: '163 163 163', 500: '115 115 115', 600: '82 82 82', 700: '64 64 64',
-    800: '38 38 38', 900: '23 23 23', 950: '10 10 10'
-  }
 };
 
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -79,12 +24,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [state, setState] = useState<AppState>(() => {
     try {
       const local = localStorage.getItem('course_app_backup');
-      if (local) {
-          const parsed = JSON.parse(local);
-          // Ensure new fields exist
-          return { ...INITIAL_STATE, ...parsed, themeColor: parsed.themeColor || 'red' };
-      }
-      return INITIAL_STATE;
+      return local ? { ...INITIAL_STATE, ...JSON.parse(local) } : INITIAL_STATE;
     } catch {
       return INITIAL_STATE;
     }
@@ -95,14 +35,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   useEffect(() => {
     stateRef.current = state;
-    
-    // APPLY THEME
-    const theme = THEME_COLORS[state.themeColor] || THEME_COLORS['red'];
-    const root = document.documentElement;
-    Object.keys(theme).forEach(shade => {
-        root.style.setProperty(`--theme-${shade}`, theme[shade]);
-    });
-
   }, [state]);
 
   const isRemoteUpdate = useRef(false);
@@ -156,18 +88,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   localStorage.setItem('course_app_backup', incomingJson);
                   
                   setTimeout(() => setSyncStatus('IDLE'), 2000);
-                  
-                  // Merge with initial to ensure structure
-                  const mergedState = { ...INITIAL_STATE, ...cloudData };
-                  
-                  // Apply theme immediately on sync
-                  const theme = THEME_COLORS[mergedState.themeColor || 'red'] || THEME_COLORS['red'];
-                  const root = document.documentElement;
-                  Object.keys(theme).forEach(shade => {
-                      root.style.setProperty(`--theme-${shade}`, theme[shade]);
-                  });
-
-                  return mergedState; 
+                  return { ...INITIAL_STATE, ...cloudData }; 
               }
            } else if (localTime > cloudTime) {
               // lastSyncedJson'u sıfırla ki sync effect tetiklensin
@@ -246,7 +167,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (slot.studentId) {
                 const student = currentState.students[slot.studentId];
                 if (student) {
+                    // Bu öğrenciye bugün için herhangi bir işlem (ders/telafi/deneme) yapılmış mı?
                     const hasLessonToday = student.history.some(tx => 
+                        // isDebt kontrolünü kaldırdım çünkü deneme dersi isDebt=false olabilir ama yine de bugün işlenmiş sayılmalı
                         new Date(tx.date).toLocaleDateString('tr-TR') === dateStr
                     );
 
@@ -275,11 +198,13 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                          if (label === 'TRIAL') {
                              note = "Deneme Dersi (Ücretsiz)";
                              isDebt = false;
-                             incrementCount = 0; 
+                             incrementCount = 0; // Deneme dersi sayacı artırmaz
                          } else if (label === 'MAKEUP') {
                              note = "Telafi Dersi (Otomatik)";
-                             isDebt = false; 
-                             incrementCount = 0; 
+                             isDebt = false; // Telafi dersi borç yazmaz (önceden yazılmıştır)
+                             incrementCount = 0; // Telafi dersi sayacı artırmaz
+                             // Otomatik işlenen telafi dersi krediden düşülmeli mi? 
+                             // Genelde planlarken düşeriz ama otomatikte de garantiye alalım:
                              if (newMakeupCredit > 0) newMakeupCredit -= 1;
                          }
                          
@@ -319,7 +244,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const actions = useMemo(() => ({
     updateSchoolName: (name: string) => setAppState(p => ({ ...p, schoolName: name })),
     updateSchoolIcon: (icon: string) => setAppState(p => ({ ...p, schoolIcon: icon })),
-    updateTheme: (color: string) => setAppState(p => ({ ...p, themeColor: color })),
     
     addTeacher: (name: string) => {
       setAppState(prev => {
@@ -388,8 +312,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         let newStudents = { ...prev.students };
         
+        // TELAFİ DERSİ İŞLENİYORSA: Krediden Düş
         if (student && label === 'MAKEUP') {
             const currentCredit = student.makeupCredit || 0;
+            // Kredi negatif olmasın diye kontrol edebiliriz ama bazen borç telafi de olabilir, şimdilik 0 altına indirmeyelim
             const newCredit = Math.max(0, currentCredit - 1);
             newStudents[studentId] = { ...student, makeupCredit: newCredit };
         }
@@ -410,6 +336,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         let newStudents = { ...prev.students };
 
+        // İPTAL EDİLEN DERS TELAFİ İSE: Krediyi İade Et
         if (slot && slot.studentId && slot.label === 'MAKEUP') {
             const student = newStudents[slot.studentId];
             if (student) {
@@ -450,14 +377,17 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: count, history: newHistory } } };
 
         } else {
+          // PAYMENT
+          // Eğer custom amount yoksa ve borç varsa standart fee'yi kullan.
           if (!amt && count > 0) amt = s.fee;
-          if (amt === 0 && count === 0) return prev; 
+          if (amt === 0 && count === 0) return prev; // İşlem yok
 
+          // Eğer custom date varsa (Geçmiş ödeme), sayacı sıfırlama, sadece kayıt at.
           if (customDate) {
               note = "Ödeme (Geçmiş)";
           } else {
               note = `Dönem Kapatıldı (${count} Ders)`;
-              count = 0; 
+              count = 0; // Güncel ödeme sayacı sıfırlar
           }
             
           const newTx = { id: generateId(), note, date: txDate, isDebt: false, amount: amt };
@@ -483,15 +413,22 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const isNowPending = note === "Telafi Bekliyor";
             const isResolved = note.includes("Telafi Edildi");
 
+            // Durum 1: "Normal" -> "Telafi Bekliyor"
+            // Yapılan ders sayısını azalt (-1), Telafi kredisini artır (+1).
             if (!wasPending && isNowPending) {
                 makeupChange = 1;
                 debtCountChange = -1; 
             }
+            // Durum 2: "Telafi Bekliyor" -> "Normal" (veya Telafi Edildi)
             else if (wasPending && !isNowPending) {
                 makeupChange = -1;
+                
+                // Eğer "Telafi Edildi" olduysa: Ders sayısını ARTIRMA (0).
+                // Çünkü telafi başka bir gün yapılmış olmalı.
                 if (isResolved) {
                     debtCountChange = 0;
                 } else {
+                    // Eğer not "Ders İşlendi"ye geri döndüyse sayacı geri ekle (+1).
                     debtCountChange = 1;
                 }
             }
@@ -526,12 +463,19 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             let nc = s.debtLessonCount;
             let mc = s.makeupCredit || 0;
 
+            // Eğer silinen kayıt bir ders ise ve "Telafi Bekliyor" değilse, sayacı düş.
+            // Ayrıca "Telafi Edildi" ise de sayaca dokunma (çünkü o artırmamıştı).
+            // NOT: "Telafi Bekliyor" silinince zaten debtLessonCount üzerinde etkisi yoktu, o yüzden azaltmıyoruz.
             if(tx.isDebt && tx.note !== "Telafi Bekliyor" && !tx.note.includes("Telafi Edildi")) {
                  nc = Math.max(0, nc - 1);
             }
+            
+            // Eğer silinen kayıt "Telafi Bekliyor" ise krediyi de sil (Çünkü ders hiç olmamış gibi oluyor)
             if (tx.note === "Telafi Bekliyor") {
                 mc = Math.max(0, mc - 1);
             }
+
+            // Eğer silinen kayıt "Telafi Edildi" ise krediyi geri ver (İşlemi geri alıyoruz)
             if (tx.note.includes("Telafi Edildi")) {
                 mc = mc + 1;
             }
@@ -539,69 +483,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: nc, history: nh, makeupCredit: mc } } }
         });
     },
-    
-    // --- SANITIZE / RECALCULATE STATE ---
-    // Bu fonksiyon her açılışta veya senkronizasyonda çağrılabilir.
-    // Öğrencinin geçmişine (history) bakarak debtLessonCount ve makeupCredit'i sıfırdan hesaplar.
-    // Böylece eski hatalı veriler düzelir.
-    sanitizeAppState: () => {
-        setAppState(prev => {
-            const newStudents = { ...prev.students };
-            let hasChanges = false;
-            
-            Object.keys(newStudents).forEach(studId => {
-                const s = newStudents[studId];
-                let calcDebt = 0;
-                let calcMakeup = 0;
-                
-                // History'yi eskiden yeniye sırala ki işlemi doğru yapalım
-                const sortedHistory = [...s.history].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                
-                sortedHistory.forEach(tx => {
-                    if (tx.isDebt) {
-                        if (tx.note === "Telafi Bekliyor") {
-                            calcMakeup++;
-                            // Debt artmaz
-                        } else if (tx.note.includes("Telafi Edildi")) {
-                            calcMakeup = Math.max(0, calcMakeup - 1);
-                            // Debt artmaz
-                        } else if (tx.note.includes("Deneme")) {
-                            // Debt artmaz
-                        } else {
-                            // Normal Ders
-                            calcDebt++;
-                        }
-                    } else {
-                        // Payment
-                        if (tx.note.includes("Dönem Kapatıldı")) {
-                            calcDebt = 0;
-                        }
-                    }
-                });
-                
-                if (s.debtLessonCount !== calcDebt || s.makeupCredit !== calcMakeup) {
-                    newStudents[studId] = { ...s, debtLessonCount: calcDebt, makeupCredit: calcMakeup };
-                    hasChanges = true;
-                }
-            });
-            
-            return hasChanges ? { ...prev, students: newStudents } : prev;
-        });
-    },
 
     toggleAutoProcessing: () => {
         setAppState(prev => ({ ...prev, autoLessonProcessing: !prev.autoLessonProcessing }));
     }
   }), [setAppState]);
-  
-  // Her açılışta verileri temizle/doğrula
-  useEffect(() => {
-     // Kısa bir gecikme ile çalıştır ki initial load bitsin
-     const t = setTimeout(() => {
-         actions.sanitizeAppState();
-     }, 1000);
-     return () => clearTimeout(t);
-  }, []); // Sadece mount anında
 
   const providerValue = useMemo(() => ({ state, actions }), [state, actions]);
 
@@ -610,7 +496,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       {children}
       {syncStatus !== 'IDLE' && (
          <div className="fixed top-2 right-2 z-[100] pointer-events-none flex flex-col items-end gap-1">
-            {syncStatus === 'SAVING' && <div className="bg-red-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">Buluta Kaydediliyor...</div>}
+            {syncStatus === 'SAVING' && <div className="bg-indigo-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">Buluta Kaydediliyor...</div>}
             {syncStatus === 'SYNCED' && <div className="bg-emerald-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg">Veriler Güvende</div>}
             {syncStatus === 'ERROR' && <div className="bg-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg">Bağlantı Hatası</div>}
             {syncStatus === 'OFFLINE' && <div className="bg-slate-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg opacity-50">Çevrimdışı Mod</div>}

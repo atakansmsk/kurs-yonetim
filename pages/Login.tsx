@@ -18,6 +18,7 @@ export const Login: React.FC = () => {
     setError("");
     setLoading(true);
 
+    // Yapay bekleme (Network hissi için)
     await new Promise(r => setTimeout(r, 800));
 
     if (!email || !pass) {
@@ -40,24 +41,27 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-[#F8FAFC] flex flex-col items-center justify-center p-6 relative overflow-hidden">
       
-      <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[60%] bg-red-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-orange-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+      {/* Background Decor */}
+      <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[60%] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-500/10 rounded-full blur-[100px] pointer-events-none"></div>
 
-      <div className="w-full max-w-sm bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl shadow-red-200/50 border border-white relative animate-slide-up">
+      <div className="w-full max-w-sm bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-200/50 border border-white relative animate-slide-up">
         
+        {/* Logo / Header */}
         <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-tr from-red-600 to-rose-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-500/30 mb-4 transform rotate-3">
+            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 mb-4 transform rotate-3">
                 <Sparkles size={32} strokeWidth={2} />
             </div>
             <h1 className="text-2xl font-black text-slate-800 tracking-tight">Kurs Pro</h1>
             <p className="text-sm font-medium text-slate-400 mt-1">Eğitmen Yönetim Portalı</p>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             
             {isRegister && (
                 <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-red-500 transition-colors">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                         <User size={20} />
                     </div>
                     <input 
@@ -65,13 +69,13 @@ export const Login: React.FC = () => {
                         placeholder="Adınız Soyadınız"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-red-500 focus:bg-white transition-all placeholder:font-medium"
+                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all placeholder:font-medium"
                     />
                 </div>
             )}
 
             <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-red-500 transition-colors">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                     <Mail size={20} />
                 </div>
                 <input 
@@ -79,12 +83,12 @@ export const Login: React.FC = () => {
                     placeholder="E-posta Adresi"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-red-500 focus:bg-white transition-all placeholder:font-medium"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all placeholder:font-medium"
                 />
             </div>
 
             <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-red-500 transition-colors">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                     <Lock size={20} />
                 </div>
                 <input 
@@ -92,7 +96,7 @@ export const Login: React.FC = () => {
                     placeholder="Şifre"
                     value={pass}
                     onChange={(e) => setPass(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-red-500 focus:bg-white transition-all placeholder:font-medium"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all placeholder:font-medium"
                 />
             </div>
 
@@ -119,12 +123,13 @@ export const Login: React.FC = () => {
             </button>
         </form>
 
+        {/* Toggle */}
         <div className="mt-8 text-center">
             <p className="text-slate-400 text-sm font-medium">
                 {isRegister ? "Zaten hesabın var mı?" : "Hesabın yok mu?"}
                 <button 
                     onClick={() => { setIsRegister(!isRegister); setError(""); }}
-                    className="ml-2 text-red-600 font-black hover:underline"
+                    className="ml-2 text-indigo-600 font-black hover:underline"
                 >
                     {isRegister ? "Giriş Yap" : "Hemen Kayıt Ol"}
                 </button>

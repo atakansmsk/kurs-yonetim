@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid, Check } from 'lucide-react';
+import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface HomeProps {
@@ -17,19 +17,6 @@ const ICONS: Record<string, React.ElementType> = {
   'trophy': Trophy,
   'activity': Activity
 };
-
-const THEMES = [
-  { id: 'red', color: 'bg-red-600', label: 'Klasik' },
-  { id: 'blue', color: 'bg-blue-600', label: 'Okyanus' },
-  { id: 'indigo', color: 'bg-indigo-600', label: 'Gece' },
-  { id: 'violet', color: 'bg-violet-600', label: 'Menekşe' },
-  { id: 'emerald', color: 'bg-emerald-600', label: 'Doğa' },
-  { id: 'orange', color: 'bg-orange-600', label: 'Güneş' },
-  { id: 'rose', color: 'bg-rose-600', label: 'Şeker' },
-  { id: 'gray', color: 'bg-gray-600', label: 'Gri' },
-  { id: 'zinc', color: 'bg-zinc-600', label: 'Antrasit' },
-  { id: 'neutral', color: 'bg-neutral-900', label: 'Siyah' },
-];
 
 export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const { state, actions } = useCourse();
@@ -49,8 +36,16 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [todayData, setTodayData] = useState({ count: 0, label: "Bugün" });
 
   useEffect(() => {
+    // JS getDay(): 0=Pazar, 1=Pazartesi ... 6=Cumartesi
+    // Map to App Keys used in schedule (defined in types.ts as DAYS)
     const jsDayToAppKey: Record<number, string> = {
-        0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
+        0: "Pazar",
+        1: "Pazartesi",
+        2: "Salı",
+        3: "Çarşamba",
+        4: "Perşembe",
+        5: "Cuma",
+        6: "Cmt"
     };
     
     const today = new Date();
@@ -62,7 +57,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     
     setTodayData({ count, label: appDayKey });
   }, [state.schedule, state.currentTeacher]);
+  // --------------------------
   
+  // HELPER: Belirli bir öğretmenin kaç farklı öğrencisi olduğunu hesapla
   const getStudentCountForTeacher = (teacherName: string) => {
     const uniqueStudents = new Set<string>();
     Object.keys(state.schedule).forEach(key => {
@@ -110,7 +107,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           </div>
           <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 bg-white text-slate-400 rounded-2xl border border-slate-100 shadow-sm hover:bg-slate-50 transition-colors relative">
              <Settings size={20} />
-             {state.autoLessonProcessing && <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></div>}
+             {state.autoLessonProcessing && <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border border-white"></div>}
           </button>
       </div>
 
@@ -124,10 +121,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                 <img src={state.schoolIcon} alt="Logo" className="h-full w-full object-contain" />
              </div>
          ) : (
-             <div className="w-full h-32 rounded-[1.7rem] bg-gradient-to-r from-red-600 to-rose-600 flex flex-col items-center justify-center text-white shadow-inner gap-2 relative overflow-hidden">
+             <div className="w-full h-32 rounded-[1.7rem] bg-gradient-to-r from-slate-900 to-slate-800 flex flex-col items-center justify-center text-white shadow-inner gap-2 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                 <CurrentIcon size={36} strokeWidth={1.5} className="relative z-10" />
-                <span className="text-[10px] font-bold text-red-100 uppercase tracking-widest relative z-10">{state.schoolName}</span>
+                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest relative z-10">{state.schoolName}</span>
              </div>
          )}
          <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-white/40 transition-colors z-20">
@@ -137,16 +134,16 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
       {/* 3. Stats Row (Colored Widgets) */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-red-50/80 p-4 rounded-3xl border border-red-100 flex flex-col items-start justify-center relative overflow-hidden">
-             <div className="absolute right-[-10px] top-[-10px] text-red-200 opacity-50"><Users size={60} /></div>
-             <span className="text-3xl font-black text-red-900 z-10">{currentTeacherStudentCount}</span>
-             <span className="text-[10px] font-bold text-red-400 uppercase tracking-wide z-10">Öğrenciniz</span>
+          <div className="bg-indigo-50/50 p-4 rounded-3xl border border-indigo-100 flex flex-col items-start justify-center relative overflow-hidden">
+             <div className="absolute right-[-10px] top-[-10px] text-indigo-100 opacity-50"><Users size={60} /></div>
+             <span className="text-3xl font-black text-indigo-900 z-10">{currentTeacherStudentCount}</span>
+             <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide z-10">Öğrenciniz</span>
           </div>
 
-          <div className="bg-orange-50/80 p-4 rounded-3xl border border-orange-100 flex flex-col items-start justify-center relative overflow-hidden">
-             <div className="absolute right-[-10px] top-[-10px] text-orange-200 opacity-50"><CalendarRange size={60} /></div>
-             <span className="text-3xl font-black text-orange-900 z-10">{todayData.count}</span>
-             <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wide z-10">{todayData.label} Dersi</span>
+          <div className="bg-purple-50/50 p-4 rounded-3xl border border-purple-100 flex flex-col items-start justify-center relative overflow-hidden">
+             <div className="absolute right-[-10px] top-[-10px] text-purple-100 opacity-50"><CalendarRange size={60} /></div>
+             <span className="text-3xl font-black text-purple-900 z-10">{todayData.count}</span>
+             <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide z-10">{todayData.label} Dersi</span>
           </div>
       </div>
 
@@ -155,10 +152,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1">Hızlı Erişim</h3>
         <button 
            onClick={() => onNavigate('SCHEDULE')}
-           className="w-full bg-white p-5 rounded-[2rem] shadow-lg shadow-slate-200/50 border border-slate-100 flex items-center justify-between group hover:border-red-200 transition-all active:scale-[0.98]"
+           className="w-full bg-white p-5 rounded-[2rem] shadow-lg shadow-slate-200/50 border border-slate-100 flex items-center justify-between group hover:border-indigo-200 transition-all active:scale-[0.98]"
         >
             <div className="flex items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-200 group-hover:scale-110 transition-transform">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
                     <Calendar size={28} />
                 </div>
                 <div className="text-left">
@@ -166,7 +163,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                     <p className="text-xs text-slate-400 font-medium">Takvimi görüntüle ve düzenle</p>
                 </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
+            <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
                 <ChevronRight size={20} />
             </div>
         </button>
@@ -180,7 +177,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
            onClick={() => setIsTeachersListOpen(true)} 
            className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-start gap-3 hover:border-slate-300 transition-all active:scale-[0.98]"
         >
-             <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center">
+             <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
                 <GraduationCap size={20} />
              </div>
              <div className="text-left">
@@ -194,7 +191,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
            onClick={() => onNavigate('STUDENTS')} 
            className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-start gap-3 hover:border-slate-300 transition-all active:scale-[0.98]"
         >
-             <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
+             <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
                 <UserPlus size={20} />
              </div>
              <div className="text-left">
@@ -207,7 +204,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* Logo Modal */}
       <Dialog isOpen={isLogoModalOpen} onClose={() => setIsLogoModalOpen(false)} title="Logo Düzenle">
         <div className="grid grid-cols-4 gap-3 p-1">
-          <button onClick={() => fileInputRef.current?.click()} className="col-span-4 py-6 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-red-200 text-red-500 bg-red-50/30 hover:bg-red-50 transition-all mb-2">
+          <button onClick={() => fileInputRef.current?.click()} className="col-span-4 py-6 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-indigo-200 text-indigo-500 bg-indigo-50/30 hover:bg-indigo-50 transition-all mb-2">
             <ImagePlus size={32} />
             <span className="text-xs font-black uppercase tracking-wide">Galeriden Yükle</span>
           </button>
@@ -215,7 +212,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           {Object.keys(ICONS).map((key) => {
             const Icon = ICONS[key];
             return (
-              <button key={key} onClick={() => { actions.updateSchoolIcon(key); setIsLogoModalOpen(false); }} className={`aspect-square flex items-center justify-center rounded-2xl border transition-all ${state.schoolIcon === key ? 'border-red-600 bg-red-50 text-red-600' : 'border-slate-100 text-slate-300 hover:border-slate-200'}`}>
+              <button key={key} onClick={() => { actions.updateSchoolIcon(key); setIsLogoModalOpen(false); }} className={`aspect-square flex items-center justify-center rounded-2xl border transition-all ${state.schoolIcon === key ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-100 text-slate-300 hover:border-slate-200'}`}>
                 <Icon size={24} strokeWidth={1.5} />
               </button>
             );
@@ -246,15 +243,15 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                       state.teachers.map(teacher => {
                           const count = getStudentCountForTeacher(teacher);
                           return (
-                            <div key={teacher} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm group hover:border-red-100 transition-colors">
+                            <div key={teacher} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm group hover:border-indigo-100 transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${teacher === state.currentTeacher ? 'bg-red-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div>
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${teacher === state.currentTeacher ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div>
                                     <div>
                                         <div className="font-bold text-slate-800 text-sm">{teacher}</div>
                                         <div className="text-[10px] font-bold text-slate-400">{count} Öğrenci</div>
                                     </div>
                                 </div>
-                                {teacher !== state.currentTeacher && <button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-bold border border-slate-200 rounded-lg hover:border-red-600 hover:bg-red-50 hover:text-red-600 transition-colors">Seç</button>}
+                                {teacher !== state.currentTeacher && <button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-bold border border-slate-200 rounded-lg hover:border-indigo-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">Seç</button>}
                             </div>
                           );
                       })
@@ -277,35 +274,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                 </div>
              </div>
 
-            {/* Tema Rengi Seçici */}
-            <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 ml-1">Tema Rengi</h4>
-                <div className="flex flex-wrap gap-3">
-                    {THEMES.map(theme => (
-                        <button
-                            key={theme.id}
-                            onClick={() => actions.updateTheme(theme.id)}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${theme.color} ${state.themeColor === theme.id ? 'ring-2 ring-offset-2 ring-slate-400 scale-110 shadow-md' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
-                            title={theme.label}
-                        >
-                            {state.themeColor === theme.id && <Check size={16} className="text-white" strokeWidth={3} />}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
             {/* Otomatik Ders Toggle */}
-            <button onClick={actions.toggleAutoProcessing} className={`p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 ${state.autoLessonProcessing ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}>
+            <button onClick={actions.toggleAutoProcessing} className={`p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 ${state.autoLessonProcessing ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${state.autoLessonProcessing ? 'bg-red-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${state.autoLessonProcessing ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
                         <Zap size={20} fill="currentColor" />
                     </div>
                     <div className="text-left">
-                        <h4 className={`font-bold text-sm ${state.autoLessonProcessing ? 'text-red-900' : 'text-slate-700'}`}>Otomatik Ders İşle</h4>
+                        <h4 className={`font-bold text-sm ${state.autoLessonProcessing ? 'text-indigo-900' : 'text-slate-700'}`}>Otomatik Ders İşle</h4>
                         <p className="text-[10px] opacity-70 leading-tight mt-0.5">Ders günü gelen öğrencileri<br/>otomatik olarak borçlandır.</p>
                     </div>
                 </div>
-                <div className={`w-12 h-7 rounded-full p-1 transition-colors ${state.autoLessonProcessing ? 'bg-red-500' : 'bg-slate-200'}`}>
+                <div className={`w-12 h-7 rounded-full p-1 transition-colors ${state.autoLessonProcessing ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                     <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${state.autoLessonProcessing ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </div>
             </button>

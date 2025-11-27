@@ -15,6 +15,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
+  // New Student Form
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newFee, setNewFee] = useState("");
@@ -34,6 +35,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] p-4 pb-24">
       
+      {/* Header & Add Button */}
       <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">Öğrenciler</h2>
           <button 
@@ -44,14 +46,15 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           </button>
       </div>
       
+      {/* Search */}
       <div className="relative mb-4 group">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="text-slate-400 group-focus-within:text-red-500 transition-colors" size={18} />
+            <Search className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
         </div>
         <input 
             type="text" 
             placeholder="İsim ara..." 
-            className="block w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-white text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-red-500 transition-all shadow-sm"
+            className="block w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-white text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
         />
@@ -67,11 +70,11 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
             students.map((student, idx) => (
                 <div 
                     key={student.id} 
-                    className="group bg-white rounded-xl p-3 shadow-sm border border-slate-100 hover:border-red-100 transition-all duration-200 flex items-center gap-3 cursor-pointer active:scale-[0.99] animate-slide-up"
+                    className="group bg-white rounded-xl p-3 shadow-sm border border-slate-100 hover:border-indigo-100 transition-all duration-200 flex items-center gap-3 cursor-pointer active:scale-[0.99] animate-slide-up"
                     style={{ animationDelay: `${idx * 0.03}s` }}
                     onClick={() => onSelect(student.id)}
                 >
-                    <div className="w-10 h-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-bold text-sm shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0">
                         {student.name.charAt(0).toUpperCase()}
                     </div>
                     
@@ -91,23 +94,25 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
         )}
       </div>
 
+      {/* Add Student Modal */}
       <Dialog isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Öğrenci" 
         actions={
             <>
                 <button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-                <button onClick={handleAddStudent} disabled={!newName} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-sm shadow-md shadow-red-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
+                <button onClick={handleAddStudent} disabled={!newName} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
             </>
         }
       >
           <div className="flex flex-col gap-3 py-1">
-             <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-red-500 outline-none" placeholder="Ad Soyad" autoFocus />
-             <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-red-500 outline-none" placeholder="Telefon" />
+             <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Ad Soyad" autoFocus />
+             <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Telefon" />
              <div>
-                <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-red-500 outline-none" placeholder="Aylık Ücret" />
+                <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Aylık Ücret" />
              </div>
           </div>
       </Dialog>
 
+      {/* Delete Dialog */}
       <Dialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Silinsin mi?" actions={
           <>
             <button onClick={() => setDeleteId(null)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">Vazgeç</button>

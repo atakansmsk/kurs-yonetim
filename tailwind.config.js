@@ -7,35 +7,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Dynamic Theme Override
-        // We map 'red' to CSS variables so we can switch themes at runtime
-        // without refactoring the whole codebase.
-        red: {
-          50: 'rgb(var(--theme-50) / <alpha-value>)',
-          100: 'rgb(var(--theme-100) / <alpha-value>)',
-          200: 'rgb(var(--theme-200) / <alpha-value>)',
-          300: 'rgb(var(--theme-300) / <alpha-value>)',
-          400: 'rgb(var(--theme-400) / <alpha-value>)',
-          500: 'rgb(var(--theme-500) / <alpha-value>)',
-          600: 'rgb(var(--theme-600) / <alpha-value>)',
-          700: 'rgb(var(--theme-700) / <alpha-value>)',
-          800: 'rgb(var(--theme-800) / <alpha-value>)',
-          900: 'rgb(var(--theme-900) / <alpha-value>)',
-          950: 'rgb(var(--theme-950) / <alpha-value>)',
-        },
-        primary: '#DC2626', // Fallback
-        background: '#F8FAFC',
+        primary: '#4F46E5', // Modern Indigo
+        primaryDark: '#3730A3',
+        secondary: '#8B5CF6', // Violet
+        background: '#F8FAFC', // Slate 50
         surface: '#FFFFFF',
-        textMain: '#0F172A',
-        textMuted: '#64748B',
+        success: '#10B981', // Emerald
+        error: '#EF4444', // Red
+        textMain: '#0F172A', // Slate 900 (Darker for contrast)
+        textMuted: '#64748B', // Slate 500
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        'soft': '0 10px 40px -10px rgba(var(--theme-600), 0.15)',
+        'soft': '0 10px 40px -10px rgba(0,0,0,0.05)',
         'card': '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
-        'glow': '0 0 20px rgba(var(--theme-600), 0.25)',
+        'glow': '0 0 20px rgba(79, 70, 229, 0.15)',
+        'glow-colored': '0 8px 20px -6px var(--tw-shadow-color)',
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',

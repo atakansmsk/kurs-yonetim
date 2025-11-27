@@ -144,7 +144,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
               key={day}
               onClick={() => setSelectedDay(day)}
               className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all duration-200 text-center ${
-                selectedDay === day ? 'bg-white text-red-600 shadow-sm shadow-slate-200' : 'text-slate-400 hover:text-slate-600'
+                selectedDay === day ? 'bg-white text-indigo-600 shadow-sm shadow-slate-200' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               {SHORT_DAYS[day]}
@@ -155,7 +155,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
         <div className="mt-2 flex justify-end px-1">
              <button 
                 onClick={handleFindGaps}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-100 active:scale-95 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 active:scale-95 transition-all"
              >
                  <Sparkles size={12} />
                  <span>Boşluk Bul</span>
@@ -170,7 +170,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                  <CalendarDays size={28} className="text-slate-300" strokeWidth={1.5} />
             </div>
             <p className="text-slate-800 font-bold text-lg mb-1">Program Boş</p>
-            <button onClick={() => openAddSlotModal("09:00")} className="mt-4 px-6 py-3 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95 flex items-center justify-center gap-2">
+            <button onClick={() => openAddSlotModal("09:00")} className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95 flex items-center justify-center gap-2">
                 <Plus size={16} /> İlk Saati Ekle
             </button>
           </div>
@@ -197,7 +197,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                               <div className="w-[48px] flex justify-center shrink-0"></div>
                               <button 
                                 onClick={() => openAddSlotModal(slot.end, slots[idx + 1].start)}
-                                className="flex-1 h-5 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-300 hover:text-red-500"
+                                className="flex-1 h-5 flex items-center justify-center gap-1 text-[9px] font-bold text-slate-300 hover:text-indigo-500"
                               >
                                   <span>+ {diff} dk</span>
                               </button>
@@ -223,7 +223,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                                 isOccupied 
                                 ? (isMakeup ? 'bg-orange-50 border-orange-400 active:scale-[0.99]' 
                                     : isTrial ? 'bg-purple-50 border-purple-400 active:scale-[0.99]'
-                                    : 'bg-red-50 border-red-500 active:scale-[0.99]')
+                                    : 'bg-indigo-50 border-indigo-500 active:scale-[0.99]')
                                 : 'bg-white border-slate-200 cursor-pointer active:scale-[0.99]'
                             }`}
                         >
@@ -232,10 +232,10 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                                     <>
                                         <div className="flex items-center gap-2.5 overflow-hidden">
                                             <div className="min-w-0">
-                                                <h4 className={`font-bold text-[13px] leading-tight line-clamp-2 ${
+                                                <h4 className={`font-bold truncate text-[13px] leading-tight ${
                                                     isMakeup ? 'text-orange-900' 
                                                     : isTrial ? 'text-purple-900'
-                                                    : 'text-red-900'
+                                                    : 'text-indigo-900'
                                                 }`}>{student?.name}</h4>
                                                 
                                                 <div className="flex gap-1">
@@ -247,7 +247,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                                         <ChevronRight size={14} className={
                                              isMakeup ? 'text-orange-200' 
                                             : isTrial ? 'text-purple-200'
-                                            : 'text-red-200'
+                                            : 'text-indigo-200'
                                         } />
                                     </>
                                 ) : (
@@ -306,7 +306,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
             </div>
             <div className="flex justify-center gap-2">
                 {[20, 40, 50].map(mins => (
-                    <button key={mins} onClick={() => handleDurationChange(mins)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${duration === mins ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-500 border-slate-200'}`}>{mins} dk</button>
+                    <button key={mins} onClick={() => handleDurationChange(mins)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${duration === mins ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'}`}>{mins} dk</button>
                 ))}
             </div>
         </div>
@@ -323,7 +323,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                         const endMins = timeToMinutes(startTime) + 40;
                         const endTime = minutesToTime(endMins);
                         return (
-                            <button key={startTime} onClick={() => { openAddSlotModal(startTime, endTime); setIsFindGapModalOpen(false); }} className="p-3 border border-slate-200 rounded-xl hover:bg-red-50 hover:border-red-200 transition-colors text-center">
+                            <button key={startTime} onClick={() => { openAddSlotModal(startTime, endTime); setIsFindGapModalOpen(false); }} className="p-3 border border-slate-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-colors text-center">
                                 <span className="text-lg font-bold text-slate-700 block">{startTime}</span>
                                 <span className="text-xs text-slate-400">{endTime}</span>
                             </button>
@@ -338,7 +338,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
       <Dialog isOpen={isBookModalOpen} onClose={() => setIsBookModalOpen(false)} title="Ders Kaydı" actions={
           <>
             <button onClick={() => setIsBookModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-            <button onClick={handleBookStudent} disabled={!existingStudentId && !bookName} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-sm">Kaydet</button>
+            <button onClick={handleBookStudent} disabled={!existingStudentId && !bookName} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button>
           </>
         }
       >
@@ -349,13 +349,13 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
              if(match) { setExistingStudentId(match.id); setBookPhone(match.phone); setBookFee(match.fee.toString()); match.makeupCredit > 0 ? (setStudentCredit(match.makeupCredit), setLessonType('MAKEUP')) : setStudentCredit(0); } 
              else { setExistingStudentId(null); setStudentCredit(0); }
           }} placeholder="Öğrenci Adı..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" autoFocus />
-          {studentCredit > 0 && <div className="p-2 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg flex items-center gap-1"><Layers size={12}/> {studentCredit} Telafi Hakkı</div>}
+          {studentCredit > 0 && <div className="p-2 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg flex items-center gap-1"><Layers size={12}/> {studentCredit} Telafi hakkı var</div>}
           <div className="grid grid-cols-2 gap-3">
             <input type="tel" value={bookPhone} onChange={e=>setBookPhone(e.target.value)} placeholder="Tel" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
             {lessonType !== 'TRIAL' && <input type="number" value={bookFee} onChange={e=>setBookFee(e.target.value)} placeholder="Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />}
           </div>
           <div className="grid grid-cols-3 gap-2 mt-2">
-              <button onClick={() => setLessonType('REGULAR')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'REGULAR' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Normal</button>
+              <button onClick={() => setLessonType('REGULAR')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Normal</button>
               <button onClick={() => setLessonType('MAKEUP')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Telafi</button>
               <button onClick={() => setLessonType('TRIAL')} className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Deneme</button>
           </div>

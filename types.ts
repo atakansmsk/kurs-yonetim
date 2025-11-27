@@ -1,3 +1,6 @@
+
+
+
 export interface Transaction {
   id: string;
   note: string;
@@ -38,7 +41,6 @@ export const DAYS: WeekDay[] = ["Pazartesi", "Salı", "Çarşamba", "Perşembe",
 export interface AppState {
   schoolName: string;
   schoolIcon: string; // 'sparkles' | 'palette' | 'music' | 'book' | 'trophy'
-  themeColor: string; // 'red' | 'blue' | 'indigo' | 'violet' | 'emerald' | 'orange' | 'rose'
   currentTeacher: string;
   teachers: string[];
   students: Record<string, Student>; // Keyed by ID
@@ -52,7 +54,6 @@ export interface CourseContextType {
   actions: {
     updateSchoolName: (name: string) => void;
     updateSchoolIcon: (icon: string) => void;
-    updateTheme: (color: string) => void;
     addTeacher: (name: string) => void;
     switchTeacher: (name: string) => void;
     addStudent: (name: string, phone: string, fee: number) => string;
