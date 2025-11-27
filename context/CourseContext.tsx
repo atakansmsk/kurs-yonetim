@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, DAYS, WeekDay } from '../types';
 import { useAuth } from './AuthContext';
@@ -42,10 +43,20 @@ const THEMES: Record<string, Record<string, string>> = {
     50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 
     500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' 
   },
-  neutral: { 
-    // Antrasit / Slate Palette
+  slate: { 
+    // Mavi/Gri Antrasit
     50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 
     500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' 
+  },
+  zinc: { 
+    // Nötr Gri
+    50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8', 400: '#a1a1aa', 
+    500: '#71717a', 600: '#52525b', 700: '#3f3f46', 800: '#27272a', 900: '#18181b', 950: '#09090b' 
+  },
+  neutral: { 
+    // Tam Siyah/Monochrome
+    50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4', 400: '#a3a3a3', 
+    500: '#737373', 600: '#525252', 700: '#404040', 800: '#262626', 900: '#171717', 950: '#0a0a0a' 
   }
 };
 
@@ -74,11 +85,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const root = document.documentElement;
     Object.keys(theme).forEach(key => {
-        // Special handling for neutral theme to make primary action buttons dark/black
-        if (themeKey === 'neutral' && (key === '500' || key === '600')) {
+        // Special handling for dark themes to make primary action buttons dark/black
+        if ((themeKey === 'neutral' || themeKey === 'zinc' || themeKey === 'slate') && (key === '500' || key === '600')) {
              root.style.setProperty(`--c-${key}`, theme['900']); // Make primary buttons black
-        } else if (themeKey === 'neutral' && key === '50') {
-             root.style.setProperty(`--c-${key}`, '#f8fafc'); // Keep bg light
+        } else if ((themeKey === 'neutral' || themeKey === 'zinc' || themeKey === 'slate') && key === '50') {
+             root.style.setProperty(`--c-${key}`, '#f8fafc'); // Keep bg light for readability
         } else {
              root.style.setProperty(`--c-${key}`, theme[key]);
         }
@@ -376,308 +387,4 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const ns = { ...prev.students }; delete ns[id];
         const nsch = { ...prev.schedule };
         Object.keys(nsch).forEach(k => nsch[k] = nsch[k].map(s => s.studentId === id ? { ...s, studentId: null, label: undefined } : s));
-        return { ...prev, students: ns, schedule: nsch };
-      });
-    },
-
-    getStudent: (id: string) => stateRef.current.students[id],
-
-    addSlot: (day: any, start: string, end: string) => {
-      setAppState(prev => {
-        const key = `${prev.currentTeacher}|${day}`;
-        const slots = prev.schedule[key] || [];
-        if (slots.some(s => s.start === start)) return prev;
-        return { ...prev, schedule: { ...prev.schedule, [key]: [...slots, { id: generateId(), start, end, studentId: null }].sort((a,b) => a.start.localeCompare(b.start)) } };
-      });
-    },
-
-    deleteSlot: (day: any, slotId: string) => {
-      setAppState(prev => {
-        const key = `${prev.currentTeacher}|${day}`;
-        return { ...prev, schedule: { ...prev.schedule, [key]: (prev.schedule[key] || []).filter(s => s.id !== slotId) } };
-      });
-    },
-
-    bookSlot: (day: any, slotId: string, studentId: string, label: 'REGULAR' | 'MAKEUP' | 'TRIAL' = 'REGULAR') => {
-      setAppState(prev => {
-        const key = `${prev.currentTeacher}|${day}`;
-        const student = prev.students[studentId];
-        
-        let newStudents = { ...prev.students };
-        
-        if (student && label === 'MAKEUP') {
-            const currentCredit = student.makeupCredit || 0;
-            const newCredit = Math.max(0, currentCredit - 1);
-            newStudents[studentId] = { ...student, makeupCredit: newCredit };
-        }
-
-        return { 
-            ...prev, 
-            students: newStudents,
-            schedule: { ...prev.schedule, [key]: (prev.schedule[key] || []).map(s => s.id === slotId ? { ...s, studentId, label } : s) } 
-        };
-      });
-    },
-
-    cancelSlot: (day: any, slotId: string) => {
-      setAppState(prev => {
-        const key = `${prev.currentTeacher}|${day}`;
-        const slots = prev.schedule[key] || [];
-        const slot = slots.find(s => s.id === slotId);
-        
-        let newStudents = { ...prev.students };
-
-        if (slot && slot.studentId && slot.label === 'MAKEUP') {
-            const student = newStudents[slot.studentId];
-            if (student) {
-                newStudents[slot.studentId] = { ...student, makeupCredit: (student.makeupCredit || 0) + 1 };
-            }
-        }
-
-        return { 
-            ...prev, 
-            students: newStudents,
-            schedule: { ...prev.schedule, [key]: slots.map(s => s.id === slotId ? { ...s, studentId: null, label: undefined } : s) } 
-        };
-      });
-    },
-
-    addTransaction: (studentId: string, type: 'LESSON' | 'PAYMENT', customDate?: string, amount?: number) => {
-      setAppState(prev => {
-        const s = prev.students[studentId];
-        if (!s) return prev;
-        let count = s.debtLessonCount;
-        let amt = amount || 0;
-        let note = "";
-        
-        let txDate = new Date().toISOString();
-        if (customDate) {
-            const d = new Date(customDate);
-            d.setHours(12, 0, 0, 0);
-            txDate = d.toISOString();
-        }
-
-        if (type === 'LESSON') {
-          count++;
-          note = customDate ? "Ders İşlendi (Geçmiş)" : "Ders İşlendi";
-          
-          const newTx = { id: generateId(), note, date: txDate, isDebt: true, amount: 0 };
-          const newHistory = [...s.history, newTx].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          
-          return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: count, history: newHistory } } };
-
-        } else {
-          if (!amt && count > 0) amt = s.fee;
-          if (amt === 0 && count === 0) return prev; 
-
-          if (customDate) {
-              note = "Ödeme (Geçmiş)";
-          } else {
-              note = `Dönem Kapatıldı (${count} Ders)`;
-              count = 0; 
-          }
-            
-          const newTx = { id: generateId(), note, date: txDate, isDebt: false, amount: amt };
-          const newHistory = [...s.history, newTx].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            
-          return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: count, history: newHistory } } };
-        }
-      });
-    },
-
-    updateTransaction: (studentId: string, transactionId: string, note: string) => {
-        setAppState(prev => {
-            const s = prev.students[studentId];
-            if (!s) return prev;
-            
-            const oldTx = s.history.find(t => t.id === transactionId);
-            if (!oldTx) return prev;
-
-            let makeupChange = 0;
-            let debtCountChange = 0;
-
-            const wasPending = oldTx.note === "Telafi Bekliyor";
-            const isNowPending = note === "Telafi Bekliyor";
-            const isResolved = note.includes("Telafi Edildi");
-
-            if (!wasPending && isNowPending) {
-                makeupChange = 1;
-                debtCountChange = -1; 
-            }
-            else if (wasPending && !isNowPending) {
-                makeupChange = -1;
-                if (isResolved) {
-                    debtCountChange = 0;
-                } else {
-                    debtCountChange = 1;
-                }
-            }
-
-            const newHistory = s.history.map(tx => {
-                if (tx.id === transactionId) {
-                    return { ...tx, note };
-                }
-                return tx;
-            });
-
-            return { 
-                ...prev, 
-                students: { 
-                    ...prev.students, 
-                    [studentId]: { 
-                        ...s, 
-                        history: newHistory,
-                        makeupCredit: Math.max(0, (s.makeupCredit || 0) + makeupChange),
-                        debtLessonCount: Math.max(0, s.debtLessonCount + debtCountChange)
-                    } 
-                } 
-            };
-        });
-    },
-
-    deleteTransaction: (studentId: string, txId: string) => {
-        setAppState(prev => {
-            const s = prev.students[studentId]; if(!s) return prev;
-            const tx = s.history.find(t => t.id === txId); if(!tx) return prev;
-            const nh = s.history.filter(t => t.id !== txId);
-            let nc = s.debtLessonCount;
-            let mc = s.makeupCredit || 0;
-
-            if(tx.isDebt && tx.note !== "Telafi Bekliyor" && !tx.note.includes("Telafi Edildi")) {
-                 nc = Math.max(0, nc - 1);
-            }
-            
-            if (tx.note === "Telafi Bekliyor") {
-                mc = Math.max(0, mc - 1);
-            }
-
-            if (tx.note.includes("Telafi Edildi")) {
-                mc = mc + 1;
-            }
-
-            return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: nc, history: nh, makeupCredit: mc } } }
-        });
-    },
-
-    toggleAutoProcessing: () => {
-        setAppState(prev => ({ ...prev, autoLessonProcessing: !prev.autoLessonProcessing }));
-    },
-    
-    // --- DRAG & DROP ACTIONS ---
-    
-    moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => {
-        setAppState(prev => {
-            const sourceKey = `${prev.currentTeacher}|${fromDay}`;
-            const targetKey = `${prev.currentTeacher}|${toDay}`;
-            
-            const sourceSlots = prev.schedule[sourceKey] || [];
-            const targetSlots = prev.schedule[targetKey] || [];
-            
-            const sourceSlot = sourceSlots.find(s => s.id === fromSlotId);
-            const targetSlot = targetSlots.find(s => s.id === toSlotId);
-            
-            if (!sourceSlot || !targetSlot) return prev;
-            if (fromDay === toDay && fromSlotId === toSlotId) return prev;
-
-            // Move data from source to target, clear source
-            const newTargetSlot = { 
-                ...targetSlot, 
-                studentId: sourceSlot.studentId, 
-                label: sourceSlot.label 
-            };
-            
-            const newSourceSlot = { 
-                ...sourceSlot, 
-                studentId: null, 
-                label: undefined 
-            } as LessonSlot;
-
-            const newSchedule = { ...prev.schedule };
-            
-            if (fromDay === toDay) {
-                newSchedule[sourceKey] = sourceSlots.map(s => 
-                    s.id === fromSlotId ? newSourceSlot : 
-                    s.id === toSlotId ? newTargetSlot : s
-                );
-            } else {
-                newSchedule[sourceKey] = sourceSlots.map(s => s.id === fromSlotId ? newSourceSlot : s);
-                newSchedule[targetKey] = targetSlots.map(s => s.id === toSlotId ? newTargetSlot : s);
-            }
-
-            return { ...prev, schedule: newSchedule };
-        });
-    },
-
-    swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => {
-        setAppState(prev => {
-            const keyA = `${prev.currentTeacher}|${dayA}`;
-            const keyB = `${prev.currentTeacher}|${dayB}`;
-            
-            const slotsA = prev.schedule[keyA] || [];
-            const slotsB = prev.schedule[keyB] || [];
-            
-            const slotA = slotsA.find(s => s.id === slotIdA);
-            const slotB = slotsB.find(s => s.id === slotIdB);
-            
-            if (!slotA || !slotB) return prev;
-            
-            const tempStudent = slotA.studentId;
-            const tempLabel = slotA.label;
-            
-            const newSlotA = { ...slotA, studentId: slotB.studentId, label: slotB.label };
-            const newSlotB = { ...slotB, studentId: tempStudent, label: tempLabel };
-            
-            const newSchedule = { ...prev.schedule };
-            
-            if (dayA === dayB) {
-                newSchedule[keyA] = slotsA.map(s => 
-                    s.id === slotIdA ? newSlotA : 
-                    s.id === slotIdB ? newSlotB : s
-                );
-            } else {
-                newSchedule[keyA] = slotsA.map(s => s.id === slotIdA ? newSlotA : s);
-                newSchedule[keyB] = slotsB.map(s => s.id === slotIdB ? newSlotB : s);
-            }
-            
-            return { ...prev, schedule: newSchedule };
-        });
-    }
-
-  }), [setAppState]);
-
-  const providerValue = useMemo(() => ({ state, actions }), [state, actions]);
-
-  return (
-    <CourseContext.Provider value={providerValue}>
-      {children}
-      {syncStatus !== 'IDLE' && (
-         <div className="fixed top-2 right-2 z-[100] pointer-events-none flex flex-col items-end gap-1">
-            {syncStatus === 'SAVING' && <div className="bg-indigo-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">Buluta Kaydediliyor...</div>}
-            {syncStatus === 'SYNCED' && <div className="bg-emerald-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg">Veriler Güvende</div>}
-            {syncStatus === 'ERROR' && <div className="bg-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg">Bağlantı Hatası</div>}
-            {syncStatus === 'OFFLINE' && <div className="bg-slate-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg opacity-50">Çevrimdışı Mod</div>}
-            {syncStatus === 'PERMISSION_ERROR' && (
-                <div className="bg-red-600 text-white text-[10px] font-bold px-3 py-2 rounded-xl shadow-lg flex flex-col items-end gap-1 animate-bounce pointer-events-auto">
-                    <div className="flex flex-col items-end">
-                        <span>⚠️ Veritabanı İzni Yok!</span>
-                        <span className="opacity-80 text-[9px]">Firebase Kurallarını Ayarlayın</span>
-                    </div>
-                    <button 
-                        onClick={() => setSyncStatus('IDLE')} 
-                        className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg text-[9px] transition-colors mt-1"
-                    >
-                        Ayarı Yaptım, Tekrar Dene
-                    </button>
-                </div>
-            )}
-         </div>
-      )}
-    </CourseContext.Provider>
-  );
-};
-
-export const useCourse = () => {
-  const context = useContext(CourseContext);
-  if (!context) throw new Error("useCourse must be used within a CourseProvider");
-  return context;
-};
+        return
