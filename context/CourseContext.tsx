@@ -42,6 +42,10 @@ const THEMES: Record<string, Record<string, string>> = {
   amber: { 
     50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 
     500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' 
+  },
+  neutral: { 
+    50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 
+    500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' 
   }
 };
 
@@ -65,10 +69,19 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     stateRef.current = state;
     
     // Apply Theme Color
-    const theme = THEMES[state.themeColor || 'indigo'] || THEMES.indigo;
+    const themeKey = state.themeColor || 'indigo';
+    const theme = THEMES[themeKey] || THEMES.indigo;
+    
     const root = document.documentElement;
     Object.keys(theme).forEach(key => {
-        root.style.setProperty(`--c-${key}`, theme[key]);
+        // Special handling for neutral theme to make primary action buttons dark/black
+        if (themeKey === 'neutral' && (key === '500' || key === '600')) {
+             root.style.setProperty(`--c-${key}`, theme['900']); // Make primary buttons black
+        } else if (themeKey === 'neutral' && key === '50') {
+             root.style.setProperty(`--c-${key}`, '#f8fafc'); // Keep bg light
+        } else {
+             root.style.setProperty(`--c-${key}`, theme[key]);
+        }
     });
     
   }, [state]);
@@ -284,25 +297,16 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const student = newStudents[studId];
             let calculatedDebt = 0;
             
-            // Re-calculate debt based on history to fix any past logic errors
-            // Sort history by date ascending to replay events
             const sortedHistory = [...student.history].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
             sortedHistory.forEach(tx => {
                 if (!tx.isDebt) {
-                    // Payment (or Period Reset)
-                    // If note indicates period close, reset. But usually payment resets logic depending on biz logic.
-                    // Current logic: Payment = Reset Debt Count? 
-                    // Wait, current logic in addTransaction(PAYMENT) sets debtLessonCount = 0.
-                    // So we should replicate that.
                     if (tx.note.includes("Dönem Kapatıldı") || tx.note.includes("Ödeme")) {
                          if (!tx.note.includes("(Geçmiş)")) {
                              calculatedDebt = 0;
                          }
                     }
                 } else {
-                    // Lesson
-                    // Exclude 'Makeup Pending', 'Makeup Resolved', 'Trial'
                     if (tx.note === "Telafi Bekliyor" || tx.note.includes("Telafi Edildi") || tx.note.includes("Deneme") || tx.note.includes("Habersiz")) {
                         // Do not increment
                     } else {
@@ -320,7 +324,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return hasChanges ? { ...s, students: newStudents } : s;
     };
 
-    // Run once on mount if data exists, or after sync
     if (state.updatedAt !== INITIAL_STATE.updatedAt) {
          setAppState(prev => sanitizeAppState(prev));
     }
@@ -402,10 +405,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         let newStudents = { ...prev.students };
         
-        // TELAFİ DERSİ İŞLENİYORSA: Krediden Düş
         if (student && label === 'MAKEUP') {
             const currentCredit = student.makeupCredit || 0;
-            // Kredi negatif olmasın diye kontrol edebiliriz ama bazen borç telafi de olabilir, şimdilik 0 altına indirmeyelim
             const newCredit = Math.max(0, currentCredit - 1);
             newStudents[studentId] = { ...student, makeupCredit: newCredit };
         }
@@ -426,7 +427,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         let newStudents = { ...prev.students };
 
-        // İPTAL EDİLEN DERS TELAFİ İSE: Krediyi İade Et
         if (slot && slot.studentId && slot.label === 'MAKEUP') {
             const student = newStudents[slot.studentId];
             if (student) {
@@ -467,17 +467,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return { ...prev, students: { ...prev.students, [studentId]: { ...s, debtLessonCount: count, history: newHistory } } };
 
         } else {
-          // PAYMENT
-          // Eğer custom amount yoksa ve borç varsa standart fee'yi kullan.
           if (!amt && count > 0) amt = s.fee;
-          if (amt === 0 && count === 0) return prev; // İşlem yok
+          if (amt === 0 && count === 0) return prev; 
 
-          // Eğer custom date varsa (Geçmiş ödeme), sayacı sıfırlama, sadece kayıt at.
           if (customDate) {
               note = "Ödeme (Geçmiş)";
           } else {
               note = `Dönem Kapatıldı (${count} Ders)`;
-              count = 0; // Güncel ödeme sayacı sıfırlar
+              count = 0; 
           }
             
           const newTx = { id: generateId(), note, date: txDate, isDebt: false, amount: amt };
@@ -503,22 +500,15 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const isNowPending = note === "Telafi Bekliyor";
             const isResolved = note.includes("Telafi Edildi");
 
-            // Durum 1: "Normal" -> "Telafi Bekliyor"
-            // Yapılan ders sayısını azalt (-1), Telafi kredisini artır (+1).
             if (!wasPending && isNowPending) {
                 makeupChange = 1;
                 debtCountChange = -1; 
             }
-            // Durum 2: "Telafi Bekliyor" -> "Normal" (veya Telafi Edildi)
             else if (wasPending && !isNowPending) {
                 makeupChange = -1;
-                
-                // Eğer "Telafi Edildi" olduysa: Ders sayısını ARTIRMA (0).
-                // Çünkü telafi başka bir gün yapılmış olmalı.
                 if (isResolved) {
                     debtCountChange = 0;
                 } else {
-                    // Eğer not "Ders İşlendi"ye geri döndüyse sayacı geri ekle (+1).
                     debtCountChange = 1;
                 }
             }
@@ -553,19 +543,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             let nc = s.debtLessonCount;
             let mc = s.makeupCredit || 0;
 
-            // Eğer silinen kayıt bir ders ise ve "Telafi Bekliyor" değilse, sayacı düş.
-            // Ayrıca "Telafi Edildi" ise de sayaca dokunma (çünkü o artırmamıştı).
-            // NOT: "Telafi Bekliyor" silinince zaten debtLessonCount üzerinde etkisi yoktu, o yüzden azaltmıyoruz.
             if(tx.isDebt && tx.note !== "Telafi Bekliyor" && !tx.note.includes("Telafi Edildi")) {
                  nc = Math.max(0, nc - 1);
             }
             
-            // Eğer silinen kayıt "Telafi Bekliyor" ise krediyi de sil (Çünkü ders hiç olmamış gibi oluyor)
             if (tx.note === "Telafi Bekliyor") {
                 mc = Math.max(0, mc - 1);
             }
 
-            // Eğer silinen kayıt "Telafi Edildi" ise krediyi geri ver (İşlemi geri alıyoruz)
             if (tx.note.includes("Telafi Edildi")) {
                 mc = mc + 1;
             }
@@ -590,8 +575,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             {syncStatus === 'SYNCED' && <div className="bg-emerald-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg">Veriler Güvende</div>}
             {syncStatus === 'ERROR' && <div className="bg-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg">Bağlantı Hatası</div>}
             {syncStatus === 'OFFLINE' && <div className="bg-slate-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg opacity-50">Çevrimdışı Mod</div>}
-            
-            {/* ÖZEL HATA MESAJI ve RETRY BUTONU */}
             {syncStatus === 'PERMISSION_ERROR' && (
                 <div className="bg-red-600 text-white text-[10px] font-bold px-3 py-2 rounded-xl shadow-lg flex flex-col items-end gap-1 animate-bounce pointer-events-auto">
                     <div className="flex flex-col items-end">

@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay } from '../types';
-import { Maximize2, X, Star, RefreshCcw, CalendarCheck, Coffee, Clock } from 'lucide-react';
+import { CalendarCheck, Star, RefreshCcw, Clock } from 'lucide-react';
 
 interface WeeklySummaryProps {
     onOpenStudentProfile: (id: string) => void;
@@ -13,6 +13,7 @@ const timeToMinutes = (time: string) => {
   return h * 60 + m;
 };
 
+// SHORT DAYS for Header
 const SHORT_DAYS: Record<WeekDay, string> = {
   "Pazartesi": "PZT", 
   "Salı": "SAL", 
@@ -23,32 +24,46 @@ const SHORT_DAYS: Record<WeekDay, string> = {
   "Pazar": "PAZ"
 };
 
-const WORK_START = "09:00";
-const WORK_END = "22:00";
-const START_MIN = timeToMinutes(WORK_START);
-const END_MIN = timeToMinutes(WORK_END);
-
 export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfile }) => {
   const { state } = useCourse();
-  const [isScreenshotMode, setIsScreenshotMode] = useState(false);
 
-  // Stats
-  let totalRegular = 0;
-  let totalMakeup = 0;
-  let totalTrial = 0;
+  // 1. Calculate Stats & Global Range
+  const { stats, minStartMin, maxEndMin } = useMemo(() => {
+    let totalRegular = 0, totalMakeup = 0, totalTrial = 0;
+    let minMin = 9 * 60; // Default earliest 09:00
+    let maxMin = 18 * 60; // Default latest 18:00
+    let hasLessons = false;
 
-  DAYS.forEach(day => {
-      const key = `${state.currentTeacher}|${day}`;
-      (state.schedule[key] || []).forEach(s => {
-          if (s.studentId) {
-              if (s.label === 'TRIAL') totalTrial++;
-              else if (s.label === 'MAKEUP') totalMakeup++;
-              else totalRegular++;
-          }
-      });
-  });
+    DAYS.forEach(day => {
+        const key = `${state.currentTeacher}|${day}`;
+        const lessons = state.schedule[key] || [];
+        lessons.forEach(s => {
+            if (s.studentId) {
+                hasLessons = true;
+                if (s.label === 'TRIAL') totalTrial++;
+                else if (s.label === 'MAKEUP') totalMakeup++;
+                else totalRegular++;
+                
+                const startM = timeToMinutes(s.start);
+                const endM = timeToMinutes(s.end);
+                
+                if (startM < minMin) minMin = startM;
+                if (endM > maxMin) maxMin = endM;
+            }
+        });
+    });
+    
+    // Add some padding
+    if (hasLessons) {
+        maxMin = Math.min(23 * 60, maxMin + 30); // 30 min buffer at end
+    }
 
-  const totalLessons = totalRegular + totalMakeup + totalTrial;
+    return {
+        stats: { totalRegular, totalMakeup, totalTrial, total: totalRegular + totalMakeup + totalTrial },
+        minStartMin: minMin,
+        maxEndMin: maxMin
+    };
+  }, [state.schedule, state.currentTeacher]);
 
   const todayIndex = new Date().getDay(); // 0=Sun
   const jsDayToAppKey: Record<number, WeekDay> = {
@@ -56,175 +71,125 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
   };
   const currentDayName = jsDayToAppKey[todayIndex];
 
-  const getFullDaySchedule = (day: WeekDay) => {
+  // 2. Prepare Data for Each Day
+  const getDayData = (day: WeekDay) => {
       const key = `${state.currentTeacher}|${day}`;
       const lessons = (state.schedule[key] || [])
           .filter(s => s.studentId)
           .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
-      const blocks: { type: 'LESSON' | 'GAP', start: string, end: string, duration: number, data?: any }[] = [];
-      let currentPointer = START_MIN;
+      const blocks: React.ReactNode[] = [];
+      let currentPointer = minStartMin;
 
-      lessons.forEach(lesson => {
+      lessons.forEach((lesson, idx) => {
           const lStart = timeToMinutes(lesson.start);
           const lEnd = timeToMinutes(lesson.end);
 
-          if (lStart > currentPointer) {
-              blocks.push({ type: 'GAP', start: "", end: "", duration: lStart - currentPointer });
+          // Gap Detection (> 40 mins)
+          if (lStart - currentPointer >= 40) {
+               // Render Gap
+               blocks.push(
+                   <div key={`gap-${idx}`} className="w-full flex flex-col items-center justify-center my-1 opacity-40">
+                       <div className="w-px h-3 bg-slate-300"></div>
+                       <span className="text-[7px] text-slate-400 font-medium whitespace-nowrap bg-slate-100 px-1 rounded">{(lStart - currentPointer)}dk Mola</span>
+                       <div className="w-px h-3 bg-slate-300"></div>
+                   </div>
+               );
+          } else if (lStart > currentPointer) {
+               // Small gap, just spacing
+               blocks.push(<div key={`sp-${idx}`} className="h-1"></div>);
           }
 
-          blocks.push({ type: 'LESSON', start: lesson.start, end: lesson.end, duration: lEnd - lStart, data: lesson });
-          currentPointer = Math.max(currentPointer, lEnd);
+          // Render Lesson
+          const student = state.students[lesson.studentId!];
+          const isMakeup = lesson.label === 'MAKEUP';
+          const isTrial = lesson.label === 'TRIAL';
+
+          blocks.push(
+            <div 
+                key={lesson.id}
+                onClick={() => onOpenStudentProfile(lesson.studentId!)}
+                className={`w-full mb-1 relative group cursor-pointer active:scale-95 transition-transform`}
+            >
+                {/* Time Badge */}
+                <div className="text-[7px] font-bold text-slate-400 mb-[1px] ml-0.5">{lesson.start}</div>
+                
+                {/* Card */}
+                <div className={`w-full rounded-md px-1.5 py-1.5 border-l-2 shadow-sm ${
+                    isMakeup 
+                        ? 'bg-orange-50 border-orange-400' 
+                    : isTrial 
+                        ? 'bg-purple-50 border-purple-400' 
+                    : 'bg-white border-indigo-500'
+                }`}>
+                    <div className={`font-bold leading-tight truncate text-[8px] ${
+                        isMakeup ? 'text-orange-900' : isTrial ? 'text-purple-900' : 'text-slate-900'
+                    }`}>
+                        {student?.name.split(' ')[0]}
+                    </div>
+                    <div className={`font-medium truncate text-[7px] opacity-70 ${
+                         isMakeup ? 'text-orange-800' : isTrial ? 'text-purple-800' : 'text-slate-500'
+                    }`}>
+                        {student?.name.split(' ')[1] || ''}
+                    </div>
+
+                    {/* Icons */}
+                    {isTrial && <div className="absolute top-3 right-1"><Star size={6} className="text-purple-500" fill="currentColor"/></div>}
+                    {isMakeup && <div className="absolute top-3 right-1"><RefreshCcw size={6} className="text-orange-500"/></div>}
+                </div>
+            </div>
+          );
+
+          currentPointer = lEnd;
       });
 
-      if (currentPointer < END_MIN) {
-          blocks.push({ type: 'GAP', start: "", end: "", duration: END_MIN - currentPointer });
-      }
-
-      return { blocks, isEmpty: lessons.length === 0 };
+      return blocks;
   };
 
   return (
-    <div className={`flex flex-col h-full bg-[#F8FAFC] ${isScreenshotMode ? 'fixed inset-0 z-[100] w-full h-full overflow-hidden bg-white' : 'overflow-y-auto no-scrollbar'}`}>
-        
-        {/* Header */}
-        <div className={`flex flex-col border-b border-slate-200 bg-white ${isScreenshotMode ? 'px-4 py-3' : 'px-6 py-4 sticky top-0 z-20 shadow-sm'}`}>
-            <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
-                        <CalendarCheck size={20} />
-                    </div>
-                    <div>
-                        <span className={`font-bold text-slate-400 tracking-widest uppercase block ${isScreenshotMode ? 'text-[9px]' : 'text-[10px]'}`}>HAFTALIK PROGRAM</span>
-                        <h2 className={`font-black text-slate-900 leading-none tracking-tight ${isScreenshotMode ? 'text-xl' : 'text-2xl'}`}>{state.currentTeacher}</h2>
-                    </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                    {!isScreenshotMode ? (
-                        <button 
-                            onClick={() => setIsScreenshotMode(true)}
-                            className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"
-                            title="Tam Ekran / Yazdır"
-                        >
-                            <Maximize2 size={20} />
-                        </button>
-                    ) : (
-                        <button 
-                            onClick={() => setIsScreenshotMode(false)}
-                            className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors print:hidden"
-                        >
-                            <X size={20} />
-                        </button>
-                    )}
-                </div>
+    <div className="flex flex-col h-full bg-[#F8FAFC]">
+        {/* Compact Header */}
+        <div className="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 z-20">
+            <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-200">
+                    <CalendarCheck size={16} />
+                 </div>
+                 <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">{state.currentTeacher}</h2>
             </div>
-
-            {/* Colorful Stats */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-                <div className="px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold whitespace-nowrap">
-                    Top. {totalLessons} Ders
-                </div>
-                {totalRegular > 0 && (
-                     <div className="px-3 py-1 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-[10px] font-bold whitespace-nowrap flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div> {totalRegular} Normal
-                    </div>
-                )}
-                {totalTrial > 0 && (
-                     <div className="px-3 py-1 rounded-full bg-fuchsia-100 border border-fuchsia-200 text-fuchsia-700 text-[10px] font-bold whitespace-nowrap flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></div> {totalTrial} Deneme
-                    </div>
-                )}
-                {totalMakeup > 0 && (
-                     <div className="px-3 py-1 rounded-full bg-orange-100 border border-orange-200 text-orange-700 text-[10px] font-bold whitespace-nowrap flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div> {totalMakeup} Telafi
-                    </div>
-                )}
+            
+            {/* Stats Badges */}
+            <div className="flex gap-1.5">
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded-md border border-slate-200">
+                    {stats.total} Ders
+                </span>
+                {stats.totalTrial > 0 && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[9px] font-bold rounded-md border border-purple-200">{stats.totalTrial} D</span>}
             </div>
         </div>
-        
-        {/* Main Content */}
-        <div className={`flex-1 flex relative ${isScreenshotMode ? 'p-1 bg-white' : 'p-2'}`}>
-            
-            {/* Background Grid Pattern */}
-            <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
-                 style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px)', backgroundSize: '100% 40px' }}>
-            </div>
 
-            {/* Days Columns */}
-            <div className="flex-1 flex gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+        {/* 7-Column Grid Layout */}
+        <div className="flex-1 overflow-y-auto p-2">
+            <div className="grid grid-cols-7 gap-1 h-full min-h-[500px]">
                 {DAYS.map((day) => {
-                    const { blocks, isEmpty } = getFullDaySchedule(day);
                     const isToday = day === currentDayName;
-                    
+                    const blocks = getDayData(day);
+                    const hasBlocks = blocks.length > 0;
+
                     return (
-                        <div key={day} className={`flex-1 flex flex-col min-w-0 bg-white relative group`}>
-                            
+                        <div key={day} className={`flex flex-col min-w-0 rounded-lg ${isToday ? 'bg-indigo-50/30 ring-1 ring-indigo-100' : 'bg-transparent'}`}>
                             {/* Day Header */}
-                            <div className={`text-center py-2 border-b border-slate-100 flex flex-col items-center justify-center shrink-0 ${isToday ? 'bg-indigo-50/50' : 'bg-white'}`}>
-                                <span className={`font-black uppercase tracking-tight ${isToday ? 'text-indigo-600' : 'text-slate-500'} ${isScreenshotMode ? 'text-[8px]' : 'text-[10px]'}`}>
-                                    {isScreenshotMode ? SHORT_DAYS[day] : SHORT_DAYS[day]}
+                            <div className="text-center py-2 shrink-0 border-b border-slate-100/50 mb-1">
+                                <span className={`block text-[8px] font-black uppercase tracking-wider ${isToday ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                    {SHORT_DAYS[day]}
                                 </span>
-                                {isToday && <div className="w-1 h-1 rounded-full bg-indigo-500 mt-0.5"></div>}
                             </div>
 
-                            {/* Timeline Track */}
-                            <div className="flex-1 flex flex-col w-full relative">
-                                {isEmpty ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center opacity-30">
-                                        <div className="w-full h-full flex items-center justify-center" style={{ backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
-                                            {/* Pattern Background for Empty Days */}
-                                        </div>
+                            {/* Timeline Content */}
+                            <div className="flex-1 px-0.5 pb-2 flex flex-col items-center">
+                                {hasBlocks ? blocks : (
+                                    <div className="flex-1 w-full flex flex-col items-center justify-start pt-10 opacity-20">
+                                        {/* Empty state visual */}
+                                        <div className="w-px h-full border-l border-dashed border-slate-300"></div>
                                     </div>
-                                ) : (
-                                    blocks.map((block, idx) => {
-                                        if (block.type === 'GAP') {
-                                            return <div key={idx} style={{ flexGrow: block.duration }} className="w-full"></div>;
-                                        } else {
-                                            const slot = block.data;
-                                            const student = state.students[slot.studentId!];
-                                            const isMakeup = slot.label === 'MAKEUP';
-                                            const isTrial = slot.label === 'TRIAL';
-
-                                            return (
-                                                <div 
-                                                    key={idx} 
-                                                    style={{ flexGrow: block.duration }}
-                                                    className="w-full px-0.5 py-px relative z-10"
-                                                >
-                                                    <div 
-                                                        onClick={() => onOpenStudentProfile(slot.studentId!)}
-                                                        className={`w-full h-full rounded-md shadow-sm border flex flex-col justify-center px-1.5 relative overflow-hidden transition-all hover:scale-[1.02] hover:z-20 cursor-pointer ${
-                                                            isMakeup 
-                                                                ? 'bg-orange-100 border-orange-200 text-orange-900' 
-                                                            : isTrial 
-                                                                ? 'bg-fuchsia-100 border-fuchsia-200 text-fuchsia-900' 
-                                                            : 'bg-indigo-100 border-indigo-200 text-indigo-900'
-                                                        }`}
-                                                    >
-                                                        {/* Color Indicator */}
-                                                        <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${
-                                                            isMakeup ? 'bg-orange-500' : isTrial ? 'bg-fuchsia-500' : 'bg-indigo-500'
-                                                        }`}></div>
-
-                                                        <div className={`font-bold leading-tight truncate pl-1.5 ${isScreenshotMode ? 'text-[7px]' : 'text-[9px]'}`}>
-                                                            {student?.name.split(' ')[0]}
-                                                            {student?.name.split(' ')[1] ? ` ${student?.name.split(' ')[1].charAt(0)}.` : ''}
-                                                        </div>
-                                                        
-                                                        <div className={`font-medium opacity-70 leading-none mt-0.5 pl-1.5 truncate flex items-center gap-0.5 ${isScreenshotMode ? 'text-[6px]' : 'text-[8px]'}`}>
-                                                            {/* <Clock size={isScreenshotMode ? 4 : 8} className="opacity-50" /> */}
-                                                            {block.start}
-                                                        </div>
-
-                                                        {/* Icons */}
-                                                        {isTrial && <div className="absolute top-0.5 right-0.5"><Star size={6} className="text-fuchsia-500" fill="currentColor"/></div>}
-                                                        {isMakeup && <div className="absolute top-0.5 right-0.5"><RefreshCcw size={6} className="text-orange-500"/></div>}
-                                                    </div>
-                                                </div>
-                                            );
-                                        }
-                                    })
                                 )}
                             </div>
                         </div>

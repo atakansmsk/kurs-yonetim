@@ -103,6 +103,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     { key: 'violet', color: '#7c3aed' },
     { key: 'rose', color: '#e11d48' },
     { key: 'amber', color: '#d97706' },
+    { key: 'neutral', color: '#334155' }, // Black/Neutral
   ];
 
   return (
@@ -123,7 +124,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* 2. Brand Card */}
       <button 
          onClick={() => setIsLogoModalOpen(true)}
-         className="w-full bg-white rounded-[2rem] p-1.5 shadow-sm border border-slate-100 mb-6 relative group active:scale-[0.99] transition-all"
+         className="w-full bg-white rounded-[2rem] p-1.5 shadow-soft border border-slate-100 mb-6 relative group active:scale-[0.99] transition-all"
       >
          {isCustomLogo ? (
              <div className="w-full h-32 rounded-[1.7rem] overflow-hidden bg-slate-50 relative">
@@ -161,10 +162,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1">Hızlı Erişim</h3>
         <button 
            onClick={() => onNavigate('SCHEDULE')}
-           className="w-full bg-white p-5 rounded-[2rem] shadow-lg shadow-slate-200/50 border border-slate-100 flex items-center justify-between group hover:border-indigo-200 transition-all active:scale-[0.98]"
+           className="w-full bg-white p-5 rounded-[2rem] shadow-soft border border-slate-100 flex items-center justify-between group hover:border-indigo-200 transition-all active:scale-[0.98]"
         >
             <div className="flex items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-glow-colored shadow-indigo-500 group-hover:scale-110 transition-transform">
                     <Calendar size={28} />
                 </div>
                 <div className="text-left">
@@ -184,7 +185,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         {/* Eğitmenler */}
         <button 
            onClick={() => setIsTeachersListOpen(true)} 
-           className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-start gap-3 hover:border-slate-300 transition-all active:scale-[0.98]"
+           className="bg-white p-4 rounded-3xl border border-slate-100 shadow-soft flex flex-col items-start gap-3 hover:border-slate-300 transition-all active:scale-[0.98]"
         >
              <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
                 <GraduationCap size={20} />
@@ -198,7 +199,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
          {/* Öğrenci Ekle */}
          <button 
            onClick={() => onNavigate('STUDENTS')} 
-           className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-start gap-3 hover:border-slate-300 transition-all active:scale-[0.98]"
+           className="bg-white p-4 rounded-3xl border border-slate-100 shadow-soft flex flex-col items-start gap-3 hover:border-slate-300 transition-all active:scale-[0.98]"
         >
              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center">
                 <UserPlus size={20} />
@@ -286,13 +287,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
             {/* Tema Rengi Seçimi */}
             <div className="bg-white border border-slate-100 p-4 rounded-2xl">
                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Tema Rengi</h4>
-                 <div className="flex gap-3 justify-center">
+                 <div className="flex gap-3 justify-center flex-wrap">
                     {THEME_OPTIONS.map(theme => (
                         <button 
                             key={theme.key} 
                             onClick={() => actions.updateThemeColor(theme.key)}
                             className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${state.themeColor === theme.key ? 'border-slate-800 scale-110' : 'border-transparent'}`}
                             style={{ backgroundColor: theme.color }}
+                            title={theme.key}
                         />
                     ))}
                  </div>
