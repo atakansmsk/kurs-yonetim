@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CourseProvider, useCourse } from './context/CourseContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -35,10 +36,10 @@ const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
   const IconComponent = !isCustomLogo ? (ICONS[logoStr] || Sparkles) : Sparkles;
 
   useEffect(() => {
-    // 1.5 saniye bekle, sonra çıkış animasyonunu başlat
-    const timer1 = setTimeout(() => setIsExiting(true), 1500);
-    // Animasyon süresi (0.8s) kadar daha bekle, sonra bileşeni tamamen kaldır
-    const timer2 = setTimeout(() => onFinish(), 2300);
+    // Daha hızlı geçiş: 1.0 saniye bekle, sonra çıkış animasyonunu başlat
+    const timer1 = setTimeout(() => setIsExiting(true), 1000);
+    // Animasyon süresi (0.8s) kadar daha bekle, sonra bileşeni tamamen kaldır (Toplam 1.8sn)
+    const timer2 = setTimeout(() => onFinish(), 1800);
 
     return () => {
       clearTimeout(timer1);
@@ -48,22 +49,22 @@ const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
 
   return (
     <div 
-        onClick={() => { setIsExiting(true); setTimeout(onFinish, 500); }} // Dokunarak geçme (Failsafe)
         className={`fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center cursor-pointer ${isExiting ? 'animate-slide-out' : ''}`}
     >
         <div className="relative">
             <div className="absolute inset-0 bg-indigo-500/30 blur-3xl rounded-full animate-pulse-slow"></div>
-            <div className="relative bg-white/10 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 shadow-2xl animate-pulse-slow flex items-center justify-center overflow-hidden w-32 h-32">
+            {/* Logo Container Büyütüldü: w-48 h-48 */}
+            <div className="relative bg-white/10 backdrop-blur-md p-4 rounded-[2.5rem] border border-white/10 shadow-2xl animate-pulse-slow flex items-center justify-center overflow-hidden w-48 h-48">
                 {isCustomLogo ? (
                    <img src={logoStr} alt="Logo" className="w-full h-full object-contain" />
                 ) : (
-                   <IconComponent size={48} className="text-white" strokeWidth={1.5} />
+                   <IconComponent size={80} className="text-white" strokeWidth={1.5} />
                 )}
             </div>
         </div>
-        <div className="mt-6 text-center animate-pulse-slow">
-            <h1 className="text-2xl font-black text-white tracking-tight">Kurs Pro</h1>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Yükleniyor</p>
+        <div className="mt-8 text-center animate-pulse-slow">
+            <h1 className="text-3xl font-black text-white tracking-tight">Kurs Pro</h1>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Yükleniyor</p>
         </div>
     </div>
   );
