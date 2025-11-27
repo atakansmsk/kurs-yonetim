@@ -11,11 +11,46 @@ import { CalendarRange, LayoutDashboard, Users2, ChevronDown, Home as HomeIcon, 
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
 
+// --- SPLASH SCREEN COMPONENT ---
+const SplashScreen = ({ onFinish }: { onFinish: () => void }) => {
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    // 1.5 saniye bekle, sonra çıkış animasyonunu başlat
+    const timer1 = setTimeout(() => setIsExiting(true), 1500);
+    // Animasyon süresi (0.8s) kadar daha bekle, sonra bileşeni tamamen kaldır
+    const timer2 = setTimeout(() => onFinish(), 2300);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, [onFinish]);
+
+  return (
+    <div className={`fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center ${isExiting ? 'animate-slide-out' : ''}`}>
+        <div className="relative">
+            <div className="absolute inset-0 bg-indigo-500/30 blur-3xl rounded-full animate-pulse-slow"></div>
+            <div className="relative bg-white/10 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 shadow-2xl animate-pulse-slow">
+                <Sparkles size={48} className="text-white" strokeWidth={1.5} />
+            </div>
+        </div>
+        <div className="mt-6 text-center animate-pulse-slow">
+            <h1 className="text-2xl font-black text-white tracking-tight">Kurs Pro</h1>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Yükleniyor</p>
+        </div>
+    </div>
+  );
+};
+
 const AppContent: React.FC = () => {
   const { user } = useAuth();
   const { state, actions } = useCourse();
   const [activeTab, setActiveTab] = useState<Tab>('HOME');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  
+  // Splash State
+  const [showSplash, setShowSplash] = useState(true);
 
   // --- BACK BUTTON NAVIGATION LOGIC ---
   useEffect(() => {
@@ -86,81 +121,86 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full max-w-md bg-[#F8FAFC] shadow-2xl overflow-hidden relative mx-auto sm:rounded-[2.5rem] sm:my-4 sm:h-[calc(100dvh-2rem)] border-0 sm:border-8 border-white ring-1 ring-black/5 animate-in fade-in duration-500">
-      
-      {/* Custom AppBar - Only show on inner pages */}
-      {!selectedStudentId && activeTab !== 'HOME' && (
-          <header className="bg-white/80 backdrop-blur-md px-6 py-4 sticky top-0 z-30 flex justify-between items-center animate-slide-up border-b border-slate-100/50">
-            <button 
-                onClick={() => handleTabChange('HOME')} // Changed to handler
-                className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-colors active:scale-95"
-            >
-                <HomeIcon size={24} strokeWidth={2} />
-            </button>
+    <>
+      {/* SPLASH SCREEN OVERLAY */}
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 
-            {/* Teacher Switcher */}
-            <div className="relative group flex-1 flex flex-col items-center z-50">
-                <div className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mb-0.5">Eğitmen</div>
-                <button className="flex items-center gap-2 text-lg font-black text-slate-800 tracking-tight hover:opacity-70 transition-opacity">
-                    {state.currentTeacher}
-                    <div className="bg-indigo-50 text-indigo-600 rounded-full p-0.5">
-                       <ChevronDown size={12} strokeWidth={4} />
-                    </div>
-                </button>
-                
-                {/* Dropdown */}
-                <div className="absolute top-full mt-4 w-64 bg-white/95 backdrop-blur-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] rounded-3xl py-2 hidden group-hover:block border border-white/50 ring-1 ring-black/5 animate-scale-in origin-top">
-                    <div className="px-5 py-3 border-b border-gray-100/50">
-                        <span className="text-xs font-bold text-gray-400 uppercase">Hesap Değiştir</span>
-                    </div>
-                    {state.teachers.map(t => (
-                        <button 
-                            key={t} 
-                            onClick={() => actions.switchTeacher(t)}
-                            className="w-full flex items-center justify-between px-5 py-4 hover:bg-indigo-50/50 transition-colors text-sm text-left"
-                        >
-                            <span className={`font-bold text-base ${t === state.currentTeacher ? 'text-indigo-600' : 'text-slate-600'}`}>{t}</span>
-                            {t === state.currentTeacher && <Check size={18} className="text-indigo-600" strokeWidth={3} />}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            
-            <div className="w-11"></div> {/* Balance spacer */}
-          </header>
-      )}
+      <div className="flex flex-col h-[100dvh] w-full max-w-md bg-[#F8FAFC] shadow-2xl overflow-hidden relative mx-auto sm:rounded-[2.5rem] sm:my-4 sm:h-[calc(100dvh-2rem)] border-0 sm:border-8 border-white ring-1 ring-black/5 animate-in fade-in duration-500">
+        
+        {/* Custom AppBar - Only show on inner pages */}
+        {!selectedStudentId && activeTab !== 'HOME' && (
+            <header className="bg-white/80 backdrop-blur-md px-6 py-4 sticky top-0 z-30 flex justify-between items-center animate-slide-up border-b border-slate-100/50">
+              <button 
+                  onClick={() => handleTabChange('HOME')} // Changed to handler
+                  className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-colors active:scale-95"
+              >
+                  <HomeIcon size={24} strokeWidth={2} />
+              </button>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden relative bg-[#F8FAFC]">
-        {renderContent()}
-      </main>
+              {/* Teacher Switcher */}
+              <div className="relative group flex-1 flex flex-col items-center z-50">
+                  <div className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mb-0.5">Eğitmen</div>
+                  <button className="flex items-center gap-2 text-lg font-black text-slate-800 tracking-tight hover:opacity-70 transition-opacity">
+                      {state.currentTeacher}
+                      <div className="bg-indigo-50 text-indigo-600 rounded-full p-0.5">
+                         <ChevronDown size={12} strokeWidth={4} />
+                      </div>
+                  </button>
+                  
+                  {/* Dropdown */}
+                  <div className="absolute top-full mt-4 w-64 bg-white/95 backdrop-blur-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] rounded-3xl py-2 hidden group-hover:block border border-white/50 ring-1 ring-black/5 animate-scale-in origin-top">
+                      <div className="px-5 py-3 border-b border-gray-100/50">
+                          <span className="text-xs font-bold text-gray-400 uppercase">Hesap Değiştir</span>
+                      </div>
+                      {state.teachers.map(t => (
+                          <button 
+                              key={t} 
+                              onClick={() => actions.switchTeacher(t)}
+                              className="w-full flex items-center justify-between px-5 py-4 hover:bg-indigo-50/50 transition-colors text-sm text-left"
+                          >
+                              <span className={`font-bold text-base ${t === state.currentTeacher ? 'text-indigo-600' : 'text-slate-600'}`}>{t}</span>
+                              {t === state.currentTeacher && <Check size={18} className="text-indigo-600" strokeWidth={3} />}
+                          </button>
+                      ))}
+                  </div>
+              </div>
+              
+              <div className="w-11"></div> {/* Balance spacer */}
+            </header>
+        )}
 
-      {/* Clean Bottom Navigation */}
-      {!selectedStudentId && activeTab !== 'HOME' && (
-        <div className="absolute bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-100 pb-safe pt-2 px-6 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)] animate-slide-up">
-            <nav className="flex justify-around items-center h-16">
-              <NavButton 
-                active={activeTab === 'SCHEDULE'} 
-                onClick={() => handleTabChange('SCHEDULE')} 
-                icon={CalendarRange} 
-                label="Program" 
-              />
-              <NavButton 
-                active={activeTab === 'WEEKLY'} 
-                onClick={() => handleTabChange('WEEKLY')} 
-                icon={LayoutDashboard} 
-                label="Özet" 
-              />
-              <NavButton 
-                active={activeTab === 'STUDENTS'} 
-                onClick={() => handleTabChange('STUDENTS')} 
-                icon={Users2} 
-                label="Kişiler" 
-              />
-            </nav>
-        </div>
-      )}
-    </div>
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-hidden relative bg-[#F8FAFC]">
+          {renderContent()}
+        </main>
+
+        {/* Clean Bottom Navigation */}
+        {!selectedStudentId && activeTab !== 'HOME' && (
+          <div className="absolute bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-100 pb-safe pt-2 px-6 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)] animate-slide-up">
+              <nav className="flex justify-around items-center h-16">
+                <NavButton 
+                  active={activeTab === 'SCHEDULE'} 
+                  onClick={() => handleTabChange('SCHEDULE')} 
+                  icon={CalendarRange} 
+                  label="Program" 
+                />
+                <NavButton 
+                  active={activeTab === 'WEEKLY'} 
+                  onClick={() => handleTabChange('WEEKLY')} 
+                  icon={LayoutDashboard} 
+                  label="Özet" 
+                />
+                <NavButton 
+                  active={activeTab === 'STUDENTS'} 
+                  onClick={() => handleTabChange('STUDENTS')} 
+                  icon={Users2} 
+                  label="Kişiler" 
+                />
+              </nav>
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

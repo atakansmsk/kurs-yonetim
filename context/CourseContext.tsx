@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, DAYS, WeekDay } from '../types';
 import { useAuth } from './AuthContext';
@@ -387,4 +386,207 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const ns = { ...prev.students }; delete ns[id];
         const nsch = { ...prev.schedule };
         Object.keys(nsch).forEach(k => nsch[k] = nsch[k].map(s => s.studentId === id ? { ...s, studentId: null, label: undefined } : s));
-        return
+        return { ...prev, students: ns, schedule: nsch };
+      });
+    },
+
+    getStudent: (id: string) => state.students[id],
+
+    addSlot: (day: WeekDay, start: string, end: string) => {
+        setAppState(prev => {
+            const key = `${prev.currentTeacher}|${day}`;
+            const currentSlots = prev.schedule[key] || [];
+            const newSlot: LessonSlot = { id: generateId(), start, end, studentId: null };
+            return {
+                ...prev,
+                schedule: { ...prev.schedule, [key]: [...currentSlots, newSlot] }
+            };
+        });
+    },
+
+    deleteSlot: (day: WeekDay, slotId: string) => {
+        setAppState(prev => {
+            const key = `${prev.currentTeacher}|${day}`;
+            const currentSlots = prev.schedule[key] || [];
+            return {
+                ...prev,
+                schedule: { ...prev.schedule, [key]: currentSlots.filter(s => s.id !== slotId) }
+            };
+        });
+    },
+
+    bookSlot: (day: WeekDay, slotId: string, studentId: string, label?: 'REGULAR' | 'MAKEUP' | 'TRIAL') => {
+        setAppState(prev => {
+            const key = `${prev.currentTeacher}|${day}`;
+            const currentSlots = prev.schedule[key] || [];
+            let newStudents = prev.students;
+            
+            if (label === 'MAKEUP') {
+                 const st = newStudents[studentId];
+                 if (st && st.makeupCredit > 0) {
+                     newStudents = { ...newStudents, [studentId]: { ...st, makeupCredit: st.makeupCredit - 1 } };
+                 }
+            }
+            
+            return {
+                ...prev,
+                students: newStudents,
+                schedule: { 
+                    ...prev.schedule, 
+                    [key]: currentSlots.map(s => s.id === slotId ? { ...s, studentId, label } : s) 
+                }
+            };
+        });
+    },
+
+    cancelSlot: (day: WeekDay, slotId: string) => {
+        setAppState(prev => {
+            const key = `${prev.currentTeacher}|${day}`;
+            const currentSlots = prev.schedule[key] || [];
+            return {
+                ...prev,
+                schedule: { 
+                    ...prev.schedule, 
+                    [key]: currentSlots.map(s => s.id === slotId ? { ...s, studentId: null, label: undefined } : s) 
+                }
+            };
+        });
+    },
+
+    addTransaction: (studentId: string, type: 'LESSON' | 'PAYMENT', customDate?: string, amount?: number) => {
+        setAppState(prev => {
+            const student = prev.students[studentId];
+            if (!student) return prev;
+            
+            const newHistory = [...student.history];
+            const date = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
+            
+            let note = "";
+            let isDebt = false;
+            let finalAmount = amount || 0;
+            let newDebtCount = student.debtLessonCount;
+
+            if (type === 'LESSON') {
+                note = "Geçmiş Ders İşlendi";
+                isDebt = true;
+                newDebtCount += 1;
+            } else {
+                if (!amount && !customDate) {
+                     note = `Dönem Kapatıldı (${student.debtLessonCount} Ders)`;
+                     finalAmount = student.fee;
+                     newDebtCount = 0;
+                } else {
+                     note = "Ödeme (Geçmiş)";
+                }
+                isDebt = false;
+            }
+
+            newHistory.unshift({
+                id: generateId(),
+                note,
+                date,
+                isDebt,
+                amount: finalAmount
+            });
+            
+            return {
+                ...prev,
+                students: {
+                    ...prev.students,
+                    [studentId]: {
+                        ...student,
+                        debtLessonCount: newDebtCount,
+                        history: newHistory
+                    }
+                }
+            };
+        });
+    },
+
+    updateTransaction: (studentId: string, transactionId: string, note: string) => {
+        setAppState(prev => {
+            const student = prev.students[studentId];
+            if(!student) return prev;
+            
+            const txIndex = student.history.findIndex(t => t.id === transactionId);
+            if(txIndex === -1) return prev;
+
+            const oldNote = student.history[txIndex].note;
+            const newHistory = [...student.history];
+            newHistory[txIndex] = { ...newHistory[txIndex], note };
+
+            let makeupCreditChange = 0;
+            
+            if (note === "Telafi Bekliyor" && oldNote !== "Telafi Bekliyor") {
+                 makeupCreditChange = 1;
+            } else if (note.includes("Telafi Edildi") && oldNote === "Telafi Bekliyor") {
+                 makeupCreditChange = -1;
+            }
+
+            return {
+                ...prev,
+                students: {
+                    ...prev.students,
+                    [studentId]: {
+                        ...student,
+                        makeupCredit: (student.makeupCredit || 0) + makeupCreditChange,
+                        history: newHistory
+                    }
+                }
+            };
+        });
+    },
+
+    deleteTransaction: (studentId: string, transactionId: string) => {
+        setAppState(prev => {
+            const student = prev.students[studentId];
+            if(!student) return prev;
+            
+            const tx = student.history.find(t => t.id === transactionId);
+            if(!tx) return prev;
+
+            let debtChange = 0;
+            if (tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Habersiz") && !tx.note.includes("Deneme")) {
+                 debtChange = -1;
+            }
+
+            return {
+                ...prev,
+                students: {
+                    ...prev.students,
+                    [studentId]: {
+                        ...student,
+                        debtLessonCount: Math.max(0, student.debtLessonCount + debtChange),
+                        history: student.history.filter(t => t.id !== transactionId)
+                    }
+                }
+            };
+        });
+    },
+
+    toggleAutoProcessing: () => setAppState(p => ({ ...p, autoLessonProcessing: !p.autoLessonProcessing })),
+
+    moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => {
+       // Placeholder
+    },
+    
+    swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => {
+       // Placeholder
+    }
+
+  }), [setAppState, state]);
+
+  return (
+    <CourseContext.Provider value={{ state, actions }}>
+      {children}
+    </CourseContext.Provider>
+  );
+};
+
+export const useCourse = () => {
+  const context = useContext(CourseContext);
+  if (context === undefined) {
+    throw new Error('useCourse must be used within a CourseProvider');
+  }
+  return context;
+};
