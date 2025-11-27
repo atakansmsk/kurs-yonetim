@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';
-import { Trash2, Search, ChevronRight, UserPlus, Phone, User, MessageSquare, Copy, Send } from 'lucide-react';
+import { Trash2, Search, ChevronRight, UserPlus, Phone, User, MessageSquare, Copy, Send, MessageCircle } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface StudentListProps {
@@ -36,23 +36,38 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       }
   }
 
-  const handleCopyNumbers = () => {
-      const numbers = students
+  const getCleanNumbers = () => {
+      return students
         .map(s => s.phone.replace(/[^0-9]/g, ''))
-        .filter(n => n.length >= 10)
-        .join(', ');
-      
+        .filter(n => n.length >= 7); // Geçerli olabilecek en kısa numara kontrolü
+  };
+
+  const handleCopyNumbers = () => {
+      const numbers = getCleanNumbers().join(', ');
       navigator.clipboard.writeText(numbers);
       alert(`${students.length} numara kopyalandı!`);
   };
 
+  const handleBulkSMS = () => {
+      const numbers = getCleanNumbers().join(',');
+      if (!numbers) return;
+
+      // iOS ve Android için ayırıcı ve body parametresi fark edebilir, genelde bu format çalışır
+      // iOS: &body= , Android: ?body=
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const separator = isIOS ? '&' : '?';
+      
+      const url = `sms:${numbers}${separator}body=${encodeURIComponent(bulkMessage)}`;
+      window.open(url, '_self');
+  };
+
   const handleSendToStudent = (phone: string) => {
       let cleanPhone = phone.replace(/[^0-9]/g, '');
-      if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
-      if (!cleanPhone.startsWith('90') && cleanPhone.length === 10) cleanPhone = '90' + cleanPhone;
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const separator = isIOS ? '&' : '?';
       
-      const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(bulkMessage)}`;
-      window.open(url, '_blank');
+      const url = `sms:${cleanPhone}${separator}body=${encodeURIComponent(bulkMessage)}`;
+      window.open(url, '_self');
   };
 
   return (
@@ -144,22 +159,29 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           </div>
       </Dialog>
 
-      {/* Bulk Message Modal */}
-      <Dialog isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} title="Toplu İletişim">
+      {/* Bulk Message Modal (SMS) */}
+      <Dialog isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} title="Toplu SMS">
         <div className="flex flex-col gap-4 py-2">
-            <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 text-amber-800 text-xs font-medium">
-                Toplu mesaj için WhatsApp Yayın Listesi kullanmanız önerilir. Numaraları buradan kopyalayabilirsiniz.
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-600 text-xs font-medium">
+                Tüm öğrencilere telefonunuzun SMS uygulaması üzerinden toplu mesaj gönderir. Numaraları kaydetmenize gerek yoktur.
             </div>
 
             <button 
-                onClick={handleCopyNumbers}
-                className="w-full py-3 bg-slate-100 text-slate-600 font-bold text-sm rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-95 transition-all"
+                onClick={handleBulkSMS}
+                className="w-full py-4 bg-slate-900 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
             >
-                <Copy size={16} /> Tüm Numaraları Kopyala
+                <MessageCircle size={18} /> Toplu SMS Başlat
+            </button>
+
+            <button 
+                onClick={handleCopyNumbers}
+                className="w-full py-2 bg-white border border-slate-200 text-slate-500 font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all"
+            >
+                <Copy size={14} /> Numaraları Kopyala
             </button>
 
             <div className="border-t border-slate-100 pt-4">
-                <p className="text-xs font-bold text-slate-400 uppercase mb-2">Hızlı Mesaj Gönderimi</p>
+                <p className="text-xs font-bold text-slate-400 uppercase mb-2">Taslak Mesaj</p>
                 <textarea 
                     value={bulkMessage}
                     onChange={(e) => setBulkMessage(e.target.value)}
@@ -167,16 +189,17 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium h-24 resize-none mb-3 focus:border-indigo-500 outline-none"
                 />
                 
-                <div className="max-h-[30vh] overflow-y-auto space-y-2 pr-1">
+                <div className="max-h-[25vh] overflow-y-auto space-y-2 pr-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Bireysel Gönderim</p>
                     {students.map(s => (
                         <div key={s.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
                             <span className="text-xs font-bold text-slate-700 truncate max-w-[120px]">{s.name}</span>
                             <button 
                                 onClick={() => handleSendToStudent(s.phone)}
                                 disabled={!s.phone}
-                                className="px-3 py-1.5 bg-emerald-100 text-emerald-600 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-emerald-200 disabled:opacity-50"
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-slate-100 disabled:opacity-50"
                             >
-                                <Send size={12} /> Gönder
+                                <Send size={12} /> SMS
                             </button>
                         </div>
                     ))}
