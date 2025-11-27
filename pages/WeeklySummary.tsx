@@ -124,14 +124,17 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                         const isMakeup = slot.label === 'MAKEUP';
                                         const isTrial = slot.label === 'TRIAL';
                                         
-                                        if (!isOccupied) return null; // Show only occupied slots to save space and remove clutter
+                                        if (!isOccupied) return null; // Show only occupied slots
+
+                                        // Sadece İsim (İlk kelime)
+                                        const firstName = student?.name.trim().split(' ')[0] || "Öğrenci";
 
                                         return (
                                             <div 
                                                 key={slot.id}
                                                 onClick={() => slot.studentId && onOpenStudentProfile(slot.studentId)}
                                                 className={`
-                                                    relative rounded-md p-1.5 transition-all duration-200 cursor-pointer active:scale-95
+                                                    relative rounded-md p-1 transition-all duration-200 cursor-pointer active:scale-95
                                                     flex flex-col justify-center
                                                     ${isScreenshotMode ? 'shadow-none border-[0.5px] border-slate-900/10' : 'shadow-sm'}
                                                     
@@ -140,16 +143,16 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                         : 'bg-[var(--c-100)] text-[var(--c-900)]'}
                                                 `}
                                             >
-                                                {/* TIME - Small & Top */}
-                                                <div className={`text-[7px] font-bold leading-none mb-0.5 opacity-70 flex justify-between items-center ${isMakeup ? 'text-orange-800' : isTrial ? 'text-purple-800' : 'text-[var(--c-700)]'}`}>
+                                                {/* TIME - Very Small */}
+                                                <div className={`text-[6px] font-bold leading-none mb-0.5 opacity-70 flex justify-between items-center ${isMakeup ? 'text-orange-800' : isTrial ? 'text-purple-800' : 'text-[var(--c-700)]'}`}>
                                                     <span>{slot.start}-{slot.end}</span>
                                                     {isTrial && <Star size={6} fill="currentColor" />}
                                                     {isMakeup && <RefreshCcw size={6} />}
                                                 </div>
 
-                                                {/* NAME - Large & Bottom (Wrapped) */}
-                                                <div className={`text-[10px] font-black leading-tight break-words line-clamp-2`}>
-                                                    {student?.name}
+                                                {/* FIRST NAME ONLY - Larger */}
+                                                <div className={`text-[10px] font-black leading-tight truncate`}>
+                                                    {firstName}
                                                 </div>
                                             </div>
                                         );
