@@ -36,35 +36,43 @@ const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
   const IconComponent = !isCustomLogo ? (ICONS[logoStr] || Sparkles) : Sparkles;
 
   useEffect(() => {
-    // Daha hızlı geçiş: 1.0 saniye bekle, sonra çıkış animasyonunu başlat
-    const timer1 = setTimeout(() => setIsExiting(true), 1000);
-    // Animasyon süresi (0.8s) kadar daha bekle, sonra bileşeni tamamen kaldır (Toplam 1.8sn)
-    const timer2 = setTimeout(() => onFinish(), 1800);
+    // Android Webview fix: Ensure timers run even if backgrounded briefly
+    const startExit = () => setIsExiting(true);
+    const finish = () => onFinish();
+
+    const t1 = setTimeout(startExit, 1200); // 1.2s bekle, çıkışı başlat
+    const t2 = setTimeout(finish, 1800);    // 1.8s bekle, tamamen kaldır
 
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
   }, [onFinish]);
 
+  const handleForceFinish = () => {
+      setIsExiting(true);
+      setTimeout(onFinish, 300);
+  };
+
   return (
     <div 
+        onClick={handleForceFinish}
         className={`fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center cursor-pointer ${isExiting ? 'animate-slide-out' : ''}`}
     >
         <div className="relative">
             <div className="absolute inset-0 bg-indigo-500/30 blur-3xl rounded-full animate-pulse-slow"></div>
-            {/* Logo Container Büyütüldü: w-48 h-48 */}
-            <div className="relative bg-white/10 backdrop-blur-md p-4 rounded-[2.5rem] border border-white/10 shadow-2xl animate-pulse-slow flex items-center justify-center overflow-hidden w-48 h-48">
+            {/* Logo Container: w-40 h-40, p-0 (No padding for max size) */}
+            <div className="relative bg-white/10 backdrop-blur-md rounded-[2rem] border border-white/10 shadow-2xl animate-pulse-slow flex items-center justify-center overflow-hidden w-40 h-40">
                 {isCustomLogo ? (
-                   <img src={logoStr} alt="Logo" className="w-full h-full object-contain" />
+                   <img src={logoStr} alt="Logo" className="w-full h-full object-cover" />
                 ) : (
                    <IconComponent size={80} className="text-white" strokeWidth={1.5} />
                 )}
             </div>
         </div>
-        <div className="mt-8 text-center animate-pulse-slow">
+        <div className="mt-8 text-center animate-pulse-slow px-4">
             <h1 className="text-3xl font-black text-white tracking-tight">Kurs Pro</h1>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Yükleniyor</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Yükleniyor...</p>
         </div>
     </div>
   );
