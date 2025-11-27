@@ -9,12 +9,40 @@ const CourseContext = createContext<CourseContextType | undefined>(undefined);
 const INITIAL_STATE: AppState = {
   schoolName: "Sanat Okulu",
   schoolIcon: "sparkles",
+  themeColor: "indigo",
   currentTeacher: "",
   teachers: [],
   students: {},
   schedule: {},
   updatedAt: new Date(0).toISOString(),
   autoLessonProcessing: true
+};
+
+const THEMES: Record<string, Record<string, string>> = {
+  indigo: { 
+    50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 
+    500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81', 950: '#1e1b4b' 
+  },
+  blue: { 
+    50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 
+    500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' 
+  },
+  emerald: { 
+    50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 
+    500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22' 
+  },
+  rose: { 
+    50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af', 400: '#fb7185', 
+    500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337', 950: '#4c0519' 
+  },
+  violet: { 
+    50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 
+    500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065' 
+  },
+  amber: { 
+    50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 
+    500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' 
+  }
 };
 
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,6 +63,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   useEffect(() => {
     stateRef.current = state;
+    
+    // Apply Theme Color
+    const theme = THEMES[state.themeColor || 'indigo'] || THEMES.indigo;
+    const root = document.documentElement;
+    Object.keys(theme).forEach(key => {
+        root.style.setProperty(`--c-${key}`, theme[key]);
+    });
+    
   }, [state]);
 
   const isRemoteUpdate = useRef(false);
@@ -238,12 +274,66 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   }, [setAppState]);
 
+  // --- DATA SANITIZATION ON LOAD ---
+  useEffect(() => {
+    const sanitizeAppState = (s: AppState): AppState => {
+        const newStudents = { ...s.students };
+        let hasChanges = false;
+
+        Object.keys(newStudents).forEach(studId => {
+            const student = newStudents[studId];
+            let calculatedDebt = 0;
+            
+            // Re-calculate debt based on history to fix any past logic errors
+            // Sort history by date ascending to replay events
+            const sortedHistory = [...student.history].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            sortedHistory.forEach(tx => {
+                if (!tx.isDebt) {
+                    // Payment (or Period Reset)
+                    // If note indicates period close, reset. But usually payment resets logic depending on biz logic.
+                    // Current logic: Payment = Reset Debt Count? 
+                    // Wait, current logic in addTransaction(PAYMENT) sets debtLessonCount = 0.
+                    // So we should replicate that.
+                    if (tx.note.includes("Dönem Kapatıldı") || tx.note.includes("Ödeme")) {
+                         if (!tx.note.includes("(Geçmiş)")) {
+                             calculatedDebt = 0;
+                         }
+                    }
+                } else {
+                    // Lesson
+                    // Exclude 'Makeup Pending', 'Makeup Resolved', 'Trial'
+                    if (tx.note === "Telafi Bekliyor" || tx.note.includes("Telafi Edildi") || tx.note.includes("Deneme") || tx.note.includes("Habersiz")) {
+                        // Do not increment
+                    } else {
+                        calculatedDebt++;
+                    }
+                }
+            });
+
+            if (student.debtLessonCount !== calculatedDebt) {
+                newStudents[studId] = { ...student, debtLessonCount: calculatedDebt };
+                hasChanges = true;
+            }
+        });
+
+        return hasChanges ? { ...s, students: newStudents } : s;
+    };
+
+    // Run once on mount if data exists, or after sync
+    if (state.updatedAt !== INITIAL_STATE.updatedAt) {
+         setAppState(prev => sanitizeAppState(prev));
+    }
+  }, [setAppState, state.updatedAt]);
+
+
   // --- ACTIONS ---
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
   const actions = useMemo(() => ({
     updateSchoolName: (name: string) => setAppState(p => ({ ...p, schoolName: name })),
     updateSchoolIcon: (icon: string) => setAppState(p => ({ ...p, schoolIcon: icon })),
+    updateThemeColor: (color: string) => setAppState(p => ({ ...p, themeColor: color })),
     
     addTeacher: (name: string) => {
       setAppState(prev => {

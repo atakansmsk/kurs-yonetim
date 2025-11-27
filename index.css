@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Default Indigo Palette Mapped to Variables */
+  --c-50: #eef2ff;
+  --c-100: #e0e7ff;
+  --c-200: #c7d2fe;
+  --c-300: #a5b4fc;
+  --c-400: #818cf8;
+  --c-500: #6366f1;
+  --c-600: #4f46e5;
+  --c-700: #4338ca;
+  --c-800: #3730a3;
+  --c-900: #312e81;
+  --c-950: #1e1b4b;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: #F8FAFC;

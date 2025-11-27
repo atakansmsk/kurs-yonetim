@@ -7,15 +7,29 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#4F46E5', // Modern Indigo
+        // Override Indigo to map to CSS variables
+        indigo: {
+          50: 'var(--c-50)',
+          100: 'var(--c-100)',
+          200: 'var(--c-200)',
+          300: 'var(--c-300)',
+          400: 'var(--c-400)',
+          500: 'var(--c-500)',
+          600: 'var(--c-600)',
+          700: 'var(--c-700)',
+          800: 'var(--c-800)',
+          900: 'var(--c-900)',
+          950: 'var(--c-950)',
+        },
+        primary: '#4F46E5', // Keep for compatibility if used explicitly
         primaryDark: '#3730A3',
-        secondary: '#8B5CF6', // Violet
-        background: '#F8FAFC', // Slate 50
+        secondary: '#8B5CF6', 
+        background: '#F8FAFC', 
         surface: '#FFFFFF',
-        success: '#10B981', // Emerald
-        error: '#EF4444', // Red
-        textMain: '#0F172A', // Slate 900 (Darker for contrast)
-        textMuted: '#64748B', // Slate 500
+        success: '#10B981', 
+        error: '#EF4444', 
+        textMain: '#0F172A', 
+        textMuted: '#64748B', 
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

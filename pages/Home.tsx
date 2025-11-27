@@ -96,6 +96,15 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     }
   };
 
+  const THEME_OPTIONS = [
+    { key: 'indigo', color: '#4f46e5' },
+    { key: 'blue', color: '#0284c7' },
+    { key: 'emerald', color: '#059669' },
+    { key: 'violet', color: '#7c3aed' },
+    { key: 'rose', color: '#e11d48' },
+    { key: 'amber', color: '#d97706' },
+  ];
+
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-5 pt-8 pb-32">
       
@@ -273,6 +282,21 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                     <p className="text-xs text-slate-500">{user?.email}</p>
                 </div>
              </div>
+
+            {/* Tema Rengi Seçimi */}
+            <div className="bg-white border border-slate-100 p-4 rounded-2xl">
+                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Tema Rengi</h4>
+                 <div className="flex gap-3 justify-center">
+                    {THEME_OPTIONS.map(theme => (
+                        <button 
+                            key={theme.key} 
+                            onClick={() => actions.updateThemeColor(theme.key)}
+                            className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${state.themeColor === theme.key ? 'border-slate-800 scale-110' : 'border-transparent'}`}
+                            style={{ backgroundColor: theme.color }}
+                        />
+                    ))}
+                 </div>
+            </div>
 
             {/* Otomatik Ders Toggle */}
             <button onClick={actions.toggleAutoProcessing} className={`p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 ${state.autoLessonProcessing ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
