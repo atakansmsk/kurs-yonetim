@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot } from '../types';
-import { CalendarCheck, Star, RefreshCcw, ArrowRightLeft, MousePointerClick, XCircle, Expand, Banknote } from 'lucide-react';
+import { CalendarCheck, Star, RefreshCcw, Banknote, Expand, Layers } from 'lucide-react';
 
 interface WeeklySummaryProps {
     onOpenStudentProfile: (id: string) => void;
@@ -23,41 +23,30 @@ const timeToMinutes = (time: string) => {
 export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfile }) => {
   const { state, actions } = useCourse();
   
-  // --- UI STATES ---
+  // UI States
   const [isScreenshotMode, setIsScreenshotMode] = useState(false);
-  const [isMoveMode, setIsMoveMode] = useState(false);
   const [moveSource, setMoveSource] = useState<{ day: WeekDay, slot: LessonSlot } | null>(null);
 
-  // --- STATS & EARNINGS ---
-  const { stats, monthlyEarnings } = useMemo(() => {
-    let totalRegular = 0, totalMakeup = 0, totalTrial = 0;
-    const uniqueStudentIds = new Set<string>();
+  // Long Press Refs
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- STATS & EARNINGS ---
+  const { monthlyEarnings } = useMemo(() => {
+    const uniqueStudentIds = new Set<string>();
     DAYS.forEach(day => {
         const key = `${state.currentTeacher}|${day}`;
         (state.schedule[key] || []).forEach(s => {
-            if (s.studentId) {
-                uniqueStudentIds.add(s.studentId);
-                if (s.label === 'TRIAL') totalTrial++;
-                else if (s.label === 'MAKEUP') totalMakeup++;
-                else totalRegular++;
-            }
+            if (s.studentId) uniqueStudentIds.add(s.studentId);
         });
     });
 
-    // Calculate Earnings based on unique students assigned to this teacher
     let earnings = 0;
     uniqueStudentIds.forEach(id => {
         const student = state.students[id];
-        if (student) {
-            earnings += student.fee || 0;
-        }
+        if (student) earnings += student.fee || 0;
     });
 
-    return { 
-        stats: { totalRegular, totalMakeup, totalTrial, total: totalRegular + totalMakeup + totalTrial },
-        monthlyEarnings: earnings
-    };
+    return { monthlyEarnings: earnings };
   }, [state.schedule, state.currentTeacher, state.students]);
 
   const todayIndex = new Date().getDay(); 
@@ -70,37 +59,53 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
       return (state.schedule[key] || []).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
   };
 
-  const handleSlotClick = (day: WeekDay, slot: LessonSlot) => {
-      // 1. Eğer Taşıma Modu AÇIKSA
-      if (isMoveMode) {
-          if (!moveSource) {
-              // Kaynak Seçimi (Sadece dolu dersler seçilebilir)
-              if (slot.studentId) {
-                  setMoveSource({ day, slot });
-              }
-          } else {
-              // Hedef Seçimi
-              // Kendi üzerine tıkladıysa iptal et
-              if (moveSource.day === day && moveSource.slot.id === slot.id) {
-                  setMoveSource(null);
-                  return;
-              }
+  // --- LONG PRESS LOGIC ---
+  const handleTouchStart = (day: WeekDay, slot: LessonSlot) => {
+      if (!slot.studentId) return; // Boş slot taşınmaz
+      
+      // Timer başlat
+      timerRef.current = setTimeout(() => {
+          setMoveSource({ day, slot });
+          if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+      }, 600); // 600ms basılı tutunca tetiklenir
+  };
 
-              // Hedef dolu mu? -> SWAP
-              if (slot.studentId) {
-                  if (confirm("Dersler yer değiştirsin mi?")) {
-                      actions.swapSlots(moveSource.day, moveSource.slot.id, day, slot.id);
-                  }
-              } 
-              // Hedef boş mu? -> MOVE
-              else {
-                  actions.moveSlot(moveSource.day, moveSource.slot.id, day, slot.id);
-              }
-              // İşlem bitince seçimi temizle ama modu açık tut (seri işlem için)
+  const handleTouchEnd = () => {
+      if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+      }
+  };
+
+  const handleTouchMove = () => {
+      // Eğer parmak kayarsa (scroll yaparsa) iptal et
+      if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+      }
+  };
+
+  const handleClick = (day: WeekDay, slot: LessonSlot) => {
+      // Eğer kaynak seçiliyse -> HEDEF İŞLEMİ
+      if (moveSource) {
+          // Kendi üzerine tıkladıysa iptal
+          if (moveSource.day === day && moveSource.slot.id === slot.id) {
               setMoveSource(null);
+              return;
           }
+
+          if (slot.studentId) {
+             // Hedef dolu -> SWAP
+             if (window.confirm("Derslerin yerini değiştirmek istiyor musunuz?")) {
+                 actions.swapSlots(moveSource.day, moveSource.slot.id, day, slot.id);
+             }
+          } else {
+             // Hedef boş -> MOVE
+             actions.moveSlot(moveSource.day, moveSource.slot.id, day, slot.id);
+          }
+          setMoveSource(null);
       } 
-      // 2. Taşıma Modu KAPALIYSA -> Profil Aç
+      // Kaynak seçili değilse -> PROFİL AÇ
       else {
           if (slot.studentId) {
               onOpenStudentProfile(slot.studentId);
@@ -108,18 +113,15 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
       }
   };
 
-  const handleEmptyDayClick = (day: WeekDay) => {
-      // Eğer kaynak seçiliyse ve boş bir güne (slotsuz alana değil ama mantıken slot listesine) tıklandıysa...
-      // Aslında Stacked yapıda boş alana tıklamak zordur, slotlara tıklanır.
-      // Bu fonksiyonu şimdilik pasif bırakıyoruz çünkü slotlara tıklanarak işlem yapılıyor.
-  };
+  // Hedef Boş Alana Tıklama (Günü yakalamak için opsiyonel, genelde slotlara tıklanır)
+  // Stacked yapıda boş alana tıklamak zordur, o yüzden slot mantığı yeterli.
 
   return (
     <div className={`flex flex-col h-full ${isScreenshotMode ? 'bg-white' : 'bg-[#F8FAFC]'}`}>
         
         {/* Header (App Mode Only) */}
         {!isScreenshotMode && (
-            <div className="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+            <div className="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 z-30 shadow-sm animate-slide-up">
                 <div className="flex items-center gap-3">
                      <div className="w-10 h-10 rounded-xl bg-[var(--c-600)] text-white flex items-center justify-center shadow-lg shadow-[var(--c-200)]">
                         <CalendarCheck size={20} />
@@ -133,15 +135,15 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                      </div>
                 </div>
                 
-                <div className="flex gap-2">
-                    {/* Move Mode Toggle */}
-                    <button 
-                        onClick={() => { setIsMoveMode(!isMoveMode); setMoveSource(null); }}
-                        className={`p-2 rounded-xl border transition-all active:scale-95 flex items-center gap-2 ${isMoveMode ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-200' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'}`}
-                    >
-                        {isMoveMode ? <XCircle size={18} /> : <ArrowRightLeft size={18} />}
-                        {isMoveMode && <span className="text-[10px] font-bold animate-in fade-in">Bitti</span>}
-                    </button>
+                <div className="flex gap-2 items-center">
+                    {/* Move Source Indicator */}
+                    {moveSource && (
+                        <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 animate-pulse mr-2">
+                             <Layers size={14} className="text-indigo-600" />
+                             <span className="text-[10px] font-bold text-indigo-700">Taşınıyor...</span>
+                             <button onClick={() => setMoveSource(null)} className="ml-1 text-xs font-black text-slate-400">X</button>
+                        </div>
+                    )}
 
                     {/* Screenshot Toggle */}
                     <button 
@@ -151,16 +153,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                         <Expand size={18} />
                     </button>
                 </div>
-            </div>
-        )}
-
-        {/* Info Banner (Move Mode) */}
-        {isMoveMode && !isScreenshotMode && (
-            <div className="bg-indigo-50 px-4 py-2 border-b border-indigo-100 flex items-center justify-center gap-2 sticky top-[65px] z-20">
-                <MousePointerClick size={14} className="text-indigo-600 animate-bounce" />
-                <span className="text-[10px] font-bold text-indigo-700">
-                    {moveSource ? "Şimdi hedef kutuyu seçin..." : "Taşımak istediğiniz derse dokunun."}
-                </span>
             </div>
         )}
 
@@ -177,7 +169,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
 
         {/* Grid Content */}
         <div className={`flex-1 overflow-y-auto ${isScreenshotMode ? 'p-1' : 'p-2'}`}>
-            <div className={`grid gap-1.5 content-start h-full ${isScreenshotMode ? 'grid-cols-7' : 'grid-cols-7'}`}>
+            <div className={`grid gap-1.5 content-start h-full grid-cols-7`}>
                 {DAYS.map((day) => {
                     const isToday = day === currentDayName && !isScreenshotMode;
                     const slots = getDaySlots(day);
@@ -193,9 +185,9 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                             </div>
 
                             {/* Stacked Lessons */}
-                            <div className={`flex flex-col px-1 pb-2 h-full ${isScreenshotMode ? 'gap-0.5' : 'gap-1'}`}>
+                            <div className={`flex flex-col px-0.5 pb-2 h-full gap-1`}>
                                 {slots.length === 0 ? (
-                                    <div className="h-full border-l border-dashed border-slate-200 mx-auto w-px opacity-50 min-h-[50px]"></div>
+                                    <div className="h-full border-l border-dashed border-slate-200 mx-auto w-px opacity-30 min-h-[50px]"></div>
                                 ) : (
                                     slots.map((slot) => {
                                         const isOccupied = !!slot.studentId;
@@ -203,27 +195,34 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                         const isMakeup = slot.label === 'MAKEUP';
                                         const isTrial = slot.label === 'TRIAL';
                                         
-                                        // Move State Visuals
-                                        const isSelected = moveSource?.slot.id === slot.id;
-                                        const isDimmed = isMoveMode && moveSource && !isSelected && !isOccupied; // Target candidate (empty)
-                                        const isSwapTarget = isMoveMode && moveSource && !isSelected && isOccupied; // Target candidate (swap)
+                                        // Visual States
+                                        const isSelectedSource = moveSource?.slot.id === slot.id;
+                                        const isMoveTarget = moveSource && !isSelectedSource;
 
                                         return (
                                             <div 
                                                 key={slot.id}
-                                                onClick={() => handleSlotClick(day, slot)}
+                                                // Mouse Click
+                                                onClick={() => handleClick(day, slot)}
+                                                // Touch Long Press
+                                                onTouchStart={() => handleTouchStart(day, slot)}
+                                                onTouchEnd={handleTouchEnd}
+                                                onTouchMove={handleTouchMove}
+                                                // Desktop Long Press simulation (mousedown + timer)
+                                                onMouseDown={() => handleTouchStart(day, slot)}
+                                                onMouseUp={handleTouchEnd}
+                                                onMouseLeave={handleTouchEnd}
+
                                                 className={`
-                                                    relative group rounded-md p-1.5 transition-all duration-200
+                                                    relative rounded-lg p-1.5 transition-all duration-200 select-none
                                                     ${isScreenshotMode ? 'border-[0.5px] shadow-none' : 'shadow-sm border-l-[3px]'}
-                                                    ${isMoveMode && isOccupied ? 'cursor-pointer' : ''}
-                                                    ${isSelected ? 'ring-2 ring-indigo-500 scale-95 z-10' : ''}
-                                                    ${isSwapTarget ? 'hover:ring-2 hover:ring-indigo-300 hover:scale-95 cursor-pointer' : ''}
+                                                    
+                                                    ${isSelectedSource ? 'ring-2 ring-indigo-500 scale-95 z-20 opacity-80' : ''}
+                                                    ${isMoveTarget ? 'opacity-60 hover:opacity-100 hover:scale-105' : ''}
                                                     
                                                     ${isOccupied 
                                                         ? 'bg-white' 
-                                                        : 'bg-slate-50/50 border border-slate-100/50 border-dashed'}
-                                                    
-                                                    ${!isOccupied && moveSource ? 'animate-pulse bg-indigo-50/30 border-indigo-200 cursor-pointer' : ''}
+                                                        : 'bg-slate-50/50 border border-slate-100/50 border-dashed hover:bg-indigo-50/50'}
 
                                                     ${isOccupied && isMakeup ? 'border-l-orange-400' 
                                                         : isOccupied && isTrial ? 'border-l-purple-400' 
@@ -234,27 +233,26 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                     <div className="flex flex-col gap-0.5">
                                                         {/* Time Range */}
                                                         <div className="flex justify-between items-start">
-                                                            <span className={`font-bold opacity-80 leading-none ${isScreenshotMode ? 'text-[6px]' : 'text-[8px]'} ${isMakeup?'text-orange-600':isTrial?'text-purple-600':'text-[var(--c-600)]'}`}>
-                                                                {slot.start} - {slot.end}
+                                                            <span className={`font-bold leading-none ${isScreenshotMode ? 'text-[7px]' : 'text-[9px]'} ${isMakeup?'text-orange-600':isTrial?'text-purple-600':'text-[var(--c-600)]'}`}>
+                                                                {slot.start}-{slot.end}
                                                             </span>
+                                                            {(isMakeup || isTrial) && !isScreenshotMode && (
+                                                                <div className="flex">
+                                                                    {isTrial && <Star size={8} className="text-purple-500" fill="currentColor"/>}
+                                                                    {isMakeup && <RefreshCcw size={8} className="text-orange-500"/>}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         
                                                         {/* Student Name */}
-                                                        <div className={`font-black leading-tight truncate ${isScreenshotMode ? 'text-[8px]' : 'text-[10px]'} ${isMakeup?'text-orange-900':isTrial?'text-purple-900':'text-slate-800'}`}>
+                                                        <div className={`font-black leading-tight truncate mt-0.5 ${isScreenshotMode ? 'text-[9px]' : 'text-[11px]'} ${isMakeup?'text-orange-900':isTrial?'text-purple-900':'text-slate-900'}`}>
                                                             {student?.name}
                                                         </div>
-                                                        
-                                                        {(isMakeup || isTrial) && !isScreenshotMode && (
-                                                            <div className="flex justify-end mt-0.5">
-                                                                {isTrial && <Star size={8} className="text-purple-500" fill="currentColor"/>}
-                                                                {isMakeup && <RefreshCcw size={8} className="text-orange-500"/>}
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 ) : (
                                                     // Empty Slot
-                                                    <div className={`flex items-center justify-center ${isScreenshotMode ? 'h-4' : 'h-6'}`}>
-                                                        <span className={`font-medium text-slate-300 ${isScreenshotMode ? 'text-[6px]' : 'text-[8px]'}`}>
+                                                    <div className={`flex flex-col items-center justify-center ${isScreenshotMode ? 'py-1' : 'py-1.5'}`}>
+                                                        <span className={`font-medium text-slate-300 ${isScreenshotMode ? 'text-[7px]' : 'text-[9px]'}`}>
                                                             {slot.start}
                                                         </span>
                                                     </div>
@@ -269,6 +267,13 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                 })}
             </div>
         </div>
+        
+        {/* Helper Toast for Long Press */}
+        {!isScreenshotMode && !moveSource && (
+            <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm pointer-events-none opacity-0 animate-[fadeIn_3s_ease-in-out_1s_forwards]">
+                İpucu: Taşımak için derse basılı tutun
+            </div>
+        )}
     </div>
   );
 };
