@@ -195,7 +195,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       </div>
 
       {/* Content - Compact Layout */}
-      <div className="p-5 space-y-4 relative z-10 pb-24">
+      <div className="p-5 space-y-4 relative z-10 pb-32">
         
         {/* Gelecek Ders Kartı (Kompakt) */}
         <div className="bg-slate-900 text-white p-5 rounded-[1.5rem] shadow-lg shadow-slate-300 relative overflow-hidden">
