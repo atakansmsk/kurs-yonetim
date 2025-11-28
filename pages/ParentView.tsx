@@ -171,7 +171,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
         
-        {/* HUGE LOGO AREA (Centered) - Height Reduced */}
+        {/* HUGE LOGO AREA (Centered) - Height Reduced to h-28 */}
         <div className="flex justify-center mb-8">
             <div className="h-28 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
                 {isCustomLogo ? (
