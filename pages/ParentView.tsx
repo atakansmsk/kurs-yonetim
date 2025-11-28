@@ -108,7 +108,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       const lastPaymentTx = allHistorySorted.find(tx => 
           !tx.isDebt && 
           !tx.note.includes("Telafi") && 
-          !tx.note.includes("Deneme") &&
+          !tx.note.includes("Deneme") && 
           !tx.note.includes("Ders")
       );
       
@@ -171,13 +171,13 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
-    // UPDATED: max-w-3xl for wider layout
-    <div className="min-h-screen bg-[#F8FAFC] max-w-3xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-32">
+    // UPDATED: max-w-4xl applied
+    <div className="min-h-screen bg-[#F8FAFC] max-w-4xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-32">
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
         
-        {/* HUGE LOGO AREA (Centered) - Height h-28 */}
+        {/* HUGE LOGO AREA (Centered) - Height Reduced to h-28 */}
         <div className="flex justify-center mb-8">
             <div className="h-28 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
                 {isCustomLogo ? (
@@ -190,8 +190,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* STUDENT IDENTITY CARD (Glass) */}
-        <div className="max-w-sm mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
+        {/* STUDENT IDENTITY CARD (Glass) - Width updated to max-w-3xl */}
+        <div className="max-w-3xl mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-slate-800 text-white flex items-center justify-center text-lg font-bold shadow-md">
                     {student.name.charAt(0).toUpperCase()}
@@ -210,7 +210,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-5 space-y-4">
+      {/* CONTENT AREA - Width updated to max-w-4xl */}
+      <div className="max-w-4xl mx-auto px-5 space-y-4">
         
         {/* --- NEXT LESSON CARD --- */}
         <div className="group relative bg-slate-900 rounded-[1.5rem] p-5 text-white shadow-xl shadow-slate-200 overflow-hidden cursor-default transition-transform active:scale-[0.99]">
@@ -292,7 +293,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         
                         {currentPeriodHistory.map((tx, idx) => {
                             const dateObj = new Date(tx.date);
-                            // FULL DATE WITH DAY NAME (e.g., 14 Kasım Perşembe)
+                            // FULL DATE WITH DAY NAME
                             const fullDateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
                             const time = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                             

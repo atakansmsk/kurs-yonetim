@@ -118,27 +118,21 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setSyncStatus(prev => prev === 'PERMISSION_ERROR' ? 'IDLE' : prev);
 
         setState(currentState => {
-           const cloudTime = new Date(cloudData.updatedAt || 0).getTime();
-           const localTime = new Date(currentState.updatedAt || 0).getTime();
-
-           // Relaxed logic: If cloud time is newer OR EQUAL, or if we just want to ensure we are in sync.
-           // Using >= instead of > to allow catching up if times are close or clocks are slightly off.
-           // Important: We only update if content is actually different to avoid loops.
-           if (cloudTime >= localTime) {
-              const incomingJson = JSON.stringify(cloudData);
-              if (incomingJson !== JSON.stringify(currentState)) {
-                  console.log("☁️ Bulut verisi indirildi.");
-                  isRemoteUpdate.current = true;
-                  lastSyncedJson.current = incomingJson;
-                  setSyncStatus('SYNCED');
-                  localStorage.setItem('course_app_backup', incomingJson);
-                  setTimeout(() => setSyncStatus('IDLE'), 2000);
-                  return { ...INITIAL_STATE, ...cloudData }; 
-              }
-           } else if (localTime > cloudTime) {
-              // Local is newer, let the saving mechanism handle it
-              lastSyncedJson.current = ""; 
+           // Always accept new data from cloud if it's different, regardless of timestamp logic if needed
+           // But let's keep a sane check: if cloud has data, and it's different from current state, take it.
+           // We relax the check to allow 'catching up' if local clock was weird.
+           
+           const incomingJson = JSON.stringify(cloudData);
+           if (incomingJson !== JSON.stringify(currentState)) {
+               console.log("☁️ Bulut verisi indirildi.");
+               isRemoteUpdate.current = true;
+               lastSyncedJson.current = incomingJson;
+               setSyncStatus('SYNCED');
+               localStorage.setItem('course_app_backup', incomingJson);
+               setTimeout(() => setSyncStatus('IDLE'), 2000);
+               return { ...INITIAL_STATE, ...cloudData }; 
            }
+           
            return currentState;
         });
       },
