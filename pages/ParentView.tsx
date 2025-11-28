@@ -171,12 +171,14 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
+    // UPDATED: max-w-5xl applied for extra wide layout
+    // UPDATED: pb-64 applied to ensure scrolling reaches the very bottom
     <div className="min-h-screen bg-[#F8FAFC] max-w-5xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-64">
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
         
-        {/* HUGE LOGO AREA (Centered) */}
+        {/* HUGE LOGO AREA (Centered) - Height Reduced to h-28 */}
         <div className="flex justify-center mb-8">
             <div className="h-28 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
                 {isCustomLogo ? (
@@ -189,7 +191,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* STUDENT IDENTITY CARD (Glass) */}
+        {/* STUDENT IDENTITY CARD (Glass) - Width updated to max-w-4xl */}
         <div className="max-w-4xl mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-slate-800 text-white flex items-center justify-center text-lg font-bold shadow-md">
@@ -209,6 +211,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
+      {/* CONTENT AREA - Width updated to max-w-5xl */}
       <div className="max-w-5xl mx-auto px-5 space-y-4">
         
         {/* --- NEXT LESSON CARD --- */}
@@ -241,7 +244,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* --- PAYMENT STATUS (NO FEE) --- */}
+        {/* --- PAYMENT STATUS (NO FEE DISPLAYED) --- */}
         <div className="grid grid-cols-2 gap-3">
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">SON ÖDEME</p>
@@ -291,7 +294,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         
                         {currentPeriodHistory.map((tx, idx) => {
                             const dateObj = new Date(tx.date);
-                            // FULL DATE WITH DAY NAME
+                            // FULL DATE WITH DAY NAME (e.g., 14 Kasım Perşembe)
                             const fullDateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
                             const time = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                             
@@ -315,6 +318,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                     <div className="flex justify-between items-start pr-2">
                                         <div>
                                             <div className={`text-xs font-bold ${statusColor}`}>{statusText}</div>
+                                            {/* FULL DATE DISPLAY */}
                                             <div className="text-[10px] font-medium text-slate-400 mt-0.5">{fullDateStr} • {time}</div>
                                         </div>
                                     </div>
