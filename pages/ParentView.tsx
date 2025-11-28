@@ -61,16 +61,20 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       nextPaymentStr,
       currentPeriodHistory,
       SchoolIcon,
-      isCustomLogo
+      isCustomLogo,
+      safeResources
   } = useMemo(() => {
       if (!student || !appState) return { 
           nextLesson: null, lastPaymentStr: "-", nextPaymentStr: "-", currentPeriodHistory: [], 
-          SchoolIcon: Sparkles, isCustomLogo: false 
+          SchoolIcon: Sparkles, isCustomLogo: false, safeResources: []
       };
 
       // Logo Logic
       const customLogo = appState.schoolIcon.startsWith('data:');
       const IconComp = !customLogo ? (ICONS[appState.schoolIcon] || Sparkles) : Sparkles;
+
+      // Resources Safety Check
+      const safeResources = Array.isArray(student.resources) ? student.resources : [];
 
       // 1. Next Lesson Logic
       const getNextLesson = () => {
@@ -138,7 +142,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           nextPaymentStr: nextPaymentDateStr,
           currentPeriodHistory: filteredHistory,
           SchoolIcon: IconComp,
-          isCustomLogo: customLogo
+          isCustomLogo: customLogo,
+          safeResources
       };
 
   }, [student, appState]);
@@ -166,12 +171,13 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-32">
+    // UPDATED: Increased max-width from max-w-xl to max-w-4xl for significant widening
+    <div className="min-h-screen bg-[#F8FAFC] max-w-4xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-32">
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
         
-        {/* HUGE LOGO AREA (Centered) - Height Reduced to h-28 */}
+        {/* HUGE LOGO AREA (Centered) - Height h-28 */}
         <div className="flex justify-center mb-8">
             <div className="h-28 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
                 {isCustomLogo ? (
@@ -204,7 +210,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-5 space-y-4">
+      <div className="max-w-2xl mx-auto px-5 space-y-4">
         
         {/* --- NEXT LESSON CARD --- */}
         <div className="group relative bg-slate-900 rounded-[1.5rem] p-5 text-white shadow-xl shadow-slate-200 overflow-hidden cursor-default transition-transform active:scale-[0.99]">
@@ -323,11 +329,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
 
         {/* --- HOMEWORK & RESOURCES --- */}
-        {(student.resources || []).length > 0 && (
+        {safeResources.length > 0 && (
             <div>
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1 mt-6">ÖDEVLER & MATERYALLER</h3>
-                <div className="grid grid-cols-1 gap-3">
-                    {student.resources.map(res => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {safeResources.map(res => (
                         <a 
                             key={res.id} 
                             href={res.url} 
