@@ -94,7 +94,7 @@ export const DataService = {
 
 // --- STORAGE SERVİSİ (DOSYA YÜKLEME) ---
 export const StorageService = {
-  async uploadFile(file: File, path: string): Promise<string> {
+  async uploadFile(file: File | Blob, path: string): Promise<string> {
     try {
       // 1. Storage Referansı Oluştur (images/userID/timestamp_filename)
       const storageRef = ref(storage, path);

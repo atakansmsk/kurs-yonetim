@@ -143,32 +143,79 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  // --- CLOUD STORAGE UPLOAD LOGIC ---
+  // --- CLOUD STORAGE UPLOAD LOGIC (With Compression) ---
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file || !user) return;
 
       setIsUploading(true);
+
       try {
-          // Benzersiz bir dosya adı oluştur
+          // 1. Convert to Standard Image Object & Compress
+          const compressImage = (file: File): Promise<Blob> => {
+              return new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.readAsDataURL(file);
+                  reader.onload = (event) => {
+                      const img = document.createElement('img');
+                      img.src = event.target?.result as string;
+                      img.onload = () => {
+                          const canvas = document.createElement('canvas');
+                          let width = img.width;
+                          let height = img.height;
+                          
+                          // Max width 1024px limit
+                          const MAX_WIDTH = 1024;
+                          const MAX_HEIGHT = 1024;
+
+                          if (width > height) {
+                              if (width > MAX_WIDTH) {
+                                  height *= MAX_WIDTH / width;
+                                  width = MAX_WIDTH;
+                              }
+                          } else {
+                              if (height > MAX_HEIGHT) {
+                                  width *= MAX_HEIGHT / height;
+                                  height = MAX_HEIGHT;
+                              }
+                          }
+
+                          canvas.width = width;
+                          canvas.height = height;
+                          const ctx = canvas.getContext('2d');
+                          ctx?.drawImage(img, 0, 0, width, height);
+                          
+                          // Convert to JPEG Blob (0.7 quality)
+                          canvas.toBlob((blob) => {
+                              if (blob) resolve(blob);
+                              else reject(new Error('Canvas to Blob failed'));
+                          }, 'image/jpeg', 0.7);
+                      };
+                      img.onerror = (error) => reject(error);
+                  };
+                  reader.onerror = (error) => reject(error);
+              });
+          };
+
+          const processedBlob = await compressImage(file);
+
+          // 2. Upload Processed Blob to Firebase
           const timestamp = new Date().getTime();
-          // Path: images/USER_ID/STUDENT_ID/TIMESTAMP_FILENAME
-          const path = `images/${user.id}/${studentId}/${timestamp}_${file.name}`;
+          // Use .jpg extension since we converted it
+          const path = `images/${user.id}/${studentId}/${timestamp}_compressed.jpg`;
           
-          // Firebase Storage'a yükle
-          const downloadUrl = await StorageService.uploadFile(file, path);
+          const downloadUrl = await StorageService.uploadFile(processedBlob, path);
           
           setResUrl(downloadUrl);
           setResType('IMAGE');
           if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
           
-          alert("Resim başarıyla yüklendi!");
+          // alert("Resim başarıyla yüklendi!"); // Optional feedback
       } catch (error) {
           console.error("Yükleme hatası:", error);
-          alert("Resim yüklenemedi. Lütfen Firebase Storage kurallarının açık olduğundan ve internet bağlantınızdan emin olun.");
+          alert("Resim işlenirken hata oluştu.");
       } finally {
           setIsUploading(false);
-          // Inputu temizle ki aynı dosyayı tekrar seçebilelim
           if (fileInputRef.current) fileInputRef.current.value = "";
       }
   };
