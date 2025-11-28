@@ -163,16 +163,16 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   return (
     <div className="min-h-screen bg-[#F8FAFC] max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800">
       
-      {/* Header - Brand Focused */}
+      {/* Header - Logo Centered */}
       <div className="bg-white px-5 pt-8 pb-4 rounded-b-[1.5rem] shadow-sm border-b border-slate-100 relative z-20">
         
-        {/* LOGO AREA (Centered & Large) */}
+        {/* LOGO AREA (Large & Centered) */}
         <div className="flex justify-center mb-6">
-            <div className="h-24 w-auto min-w-[100px] px-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden relative">
+            <div className="h-24 w-auto min-w-[120px] px-6 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden relative">
                 {isCustomLogo ? (
                     <img src={appState.schoolIcon} alt="Logo" className="h-full w-full object-contain" />
                 ) : (
-                    <SchoolIcon size={48} className="text-indigo-600" strokeWidth={1.5} />
+                    <SchoolIcon size={56} className="text-indigo-600" strokeWidth={1.5} />
                 )}
             </div>
         </div>
@@ -215,15 +215,15 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* Ödeme Bilgisi Kartı */}
+        {/* Ödeme Bilgisi Kartı (Sadeleştirilmiş - Ücretsiz) */}
         <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col gap-3">
              
-             {/* Dönem Ders Sayısı (Varsa) */}
+             {/* Dönem Ders Sayısı */}
              {student.debtLessonCount > 0 && (
-                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100">
                     <AlertCircle size={14} className="text-slate-400" />
                     <div className="flex flex-col leading-none">
-                        <span className="text-[8px] font-bold text-slate-400 uppercase">BU DÖNEM</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase mb-0.5">BU DÖNEM</span>
                         <span className="text-xs font-black text-slate-800">{student.debtLessonCount} Ders İşlendi</span>
                     </div>
                 </div>
