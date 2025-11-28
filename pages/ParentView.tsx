@@ -163,20 +163,21 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   return (
     <div className="min-h-screen bg-[#F8FAFC] max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800">
       
-      {/* Header - Logo Centered */}
+      {/* Header - Minimalist & Logo Centered */}
       <div className="bg-white px-5 pt-8 pb-4 rounded-b-[1.5rem] shadow-sm border-b border-slate-100 relative z-20">
         
         {/* LOGO AREA (Large & Centered) */}
-        <div className="flex justify-center mb-6">
-            <div className="h-24 w-auto min-w-[120px] px-6 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden relative">
+        <div className="flex justify-center mb-4">
+            <div className="h-20 w-auto min-w-[100px] px-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden relative">
                 {isCustomLogo ? (
                     <img src={appState.schoolIcon} alt="Logo" className="h-full w-full object-contain" />
                 ) : (
-                    <SchoolIcon size={56} className="text-indigo-600" strokeWidth={1.5} />
+                    <SchoolIcon size={48} className="text-indigo-600" strokeWidth={1.5} />
                 )}
             </div>
         </div>
 
+        {/* Student Mini Profile */}
         <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
             <div className="w-10 h-10 rounded-lg bg-slate-800 text-white flex items-center justify-center text-sm font-bold shadow-md">
                 {student.name.charAt(0).toUpperCase()}
@@ -191,74 +192,67 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4 space-y-3 relative z-10">
+      {/* Content - Compact Layout */}
+      <div className="p-4 space-y-3 relative z-10 pb-24">
         
-        {/* Gelecek Ders Kartı */}
-        <div className="bg-slate-900 text-white p-5 rounded-[1.5rem] shadow-lg shadow-slate-200 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/30 rounded-full blur-3xl -mr-10 -mt-10"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-500/20 rounded-full blur-3xl -ml-5 -mb-5"></div>
+        {/* Gelecek Ders Kartı (Kompakt) */}
+        <div className="bg-slate-900 text-white p-4 rounded-[1.2rem] shadow-lg shadow-slate-200 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/30 rounded-full blur-3xl -mr-8 -mt-8"></div>
             
-            <div className="relative z-10">
-                <div className="flex items-center gap-1.5 text-slate-400 mb-2">
-                    <Clock size={12} />
-                    <span className="text-[9px] font-bold uppercase tracking-widest">SIRADAKİ DERS</span>
-                </div>
-                {nextLesson ? (
-                    <div>
-                        <div className="text-2xl font-black tracking-tight">{nextLesson.day}</div>
-                        <div className="text-sm font-medium text-indigo-200">{nextLesson.time}</div>
+            <div className="relative z-10 flex justify-between items-center">
+                <div>
+                    <div className="flex items-center gap-1 text-slate-400 mb-1">
+                        <Clock size={10} />
+                        <span className="text-[8px] font-bold uppercase tracking-widest">SIRADAKİ DERS</span>
                     </div>
-                ) : (
-                    <div className="text-sm font-bold opacity-80 py-1">Planlanmış ders yok.</div>
+                    {nextLesson ? (
+                        <div>
+                            <div className="text-xl font-black tracking-tight">{nextLesson.day}</div>
+                            <div className="text-xs font-medium text-indigo-200">{nextLesson.time}</div>
+                        </div>
+                    ) : (
+                        <div className="text-xs font-bold opacity-80 py-1">Planlanmış ders yok.</div>
+                    )}
+                </div>
+                {/* Ders Sayacı Rozeti Buraya Taşındı */}
+                {student.debtLessonCount > 0 && (
+                    <div className="bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 text-center">
+                        <p className="text-[8px] text-indigo-200 font-bold uppercase">BU DÖNEM</p>
+                        <p className="text-sm font-black text-white">{student.debtLessonCount} Ders</p>
+                    </div>
                 )}
             </div>
         </div>
 
-        {/* Ödeme Bilgisi Kartı (Sadeleştirilmiş - Ücretsiz) */}
-        <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col gap-3">
-             
-             {/* Dönem Ders Sayısı */}
-             {student.debtLessonCount > 0 && (
-                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100">
-                    <AlertCircle size={14} className="text-slate-400" />
-                    <div className="flex flex-col leading-none">
-                        <span className="text-[8px] font-bold text-slate-400 uppercase mb-0.5">BU DÖNEM</span>
-                        <span className="text-xs font-black text-slate-800">{student.debtLessonCount} Ders İşlendi</span>
-                    </div>
+        {/* Ödeme Tarihleri (Compact Grid) */}
+        <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">SON ÖDEME</p>
+                <div className="flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    <span className="text-xs font-bold text-emerald-700">{lastPaymentStr}</span>
                 </div>
-             )}
-
-             {/* Ödeme Tarihleri Izgarası */}
-             <div className="grid grid-cols-2 gap-2">
-                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                    <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">SON ÖDEME</p>
-                    <div className="flex items-center gap-1.5">
-                        <CheckCircle2 size={12} className="text-emerald-500" />
-                        <span className="text-xs font-bold text-emerald-700">{lastPaymentStr}</span>
-                    </div>
+            </div>
+            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-center">
+                <p className="text-[8px] font-bold text-indigo-400 uppercase mb-1">GELECEK ÖDEME</p>
+                <div className="flex items-center gap-1.5">
+                    <Calendar size={14} className="text-indigo-500" />
+                    <span className="text-xs font-bold text-indigo-700">{nextPaymentStr}</span>
                 </div>
-                <div className="bg-indigo-50 p-2 rounded-xl border border-indigo-100">
-                    <p className="text-[8px] font-bold text-indigo-400 uppercase mb-1">GELECEK ÖDEME</p>
-                    <div className="flex items-center gap-1.5">
-                        <Calendar size={12} className="text-indigo-500" />
-                        <span className="text-xs font-bold text-indigo-700">{nextPaymentStr}</span>
-                    </div>
-                </div>
-             </div>
+            </div>
         </div>
 
-        {/* Geçmiş Hareketler Listesi (Filtrelenmiş) */}
+        {/* Geçmiş Hareketler Listesi (Filtrelenmiş & Kompakt) */}
         <div>
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2 mt-2">DÖNEM HAREKETLERİ</h3>
-            <div className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden">
+            <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2 mt-2">DÖNEM HAREKETLERİ</h3>
+            <div className="bg-white rounded-[1.2rem] border border-slate-100 shadow-sm overflow-hidden">
                 {currentPeriodHistory.length === 0 ? (
-                    <div className="text-center py-8 px-4">
-                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
-                            <Sparkles size={18} />
+                    <div className="text-center py-6 px-4">
+                        <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
+                            <Sparkles size={14} />
                         </div>
-                        <p className="text-slate-900 font-bold text-xs">Yeni Dönem Başladı</p>
-                        <p className="text-slate-400 text-[10px] mt-1">Son ödemeden sonra henüz işlem yok.</p>
+                        <p className="text-slate-900 font-bold text-xs">Yeni Dönem</p>
+                        <p className="text-slate-400 text-[9px]">Henüz işlem yok.</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-slate-50">
@@ -272,11 +266,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             let icon = <CheckCircle2 size={14} className="text-indigo-500" />;
 
                             if (tx.note.includes("Telafi")) {
-                                statusText = "Telafi Dersi";
+                                statusText = "Telafi";
                                 statusColor = "text-orange-500";
                                 icon = <Layers size={14} className="text-orange-500" />;
                             } else if (tx.note.includes("Deneme")) {
-                                statusText = "Deneme Dersi";
+                                statusText = "Deneme";
                                 statusColor = "text-purple-500";
                                 icon = <Sparkles size={14} className="text-purple-500" />;
                             } else if (tx.note.includes("Gelmedi") || tx.note.includes("Habersiz")) {
@@ -284,22 +278,22 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                 statusColor = "text-red-500";
                                 icon = <XCircle size={14} className="text-red-500" />;
                             } else if (!tx.isDebt) {
-                                statusText = "Ödeme İşlemi";
+                                statusText = "Ödeme";
                                 statusColor = "text-emerald-600";
                                 icon = <Banknote size={14} className="text-emerald-500" />;
                             }
 
                             return (
-                                <div key={tx.id} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                <div key={tx.id} className="px-3 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 text-center leading-tight">
-                                            <div className="text-[10px] font-bold text-slate-900 uppercase">{day.split(' ')[1]}</div>
-                                            <div className="text-base font-black text-slate-800">{day.split(' ')[0]}</div>
+                                        <div className="w-8 text-center leading-tight shrink-0">
+                                            <div className="text-[8px] font-bold text-slate-900 uppercase">{day.split(' ')[1]}</div>
+                                            <div className="text-sm font-black text-slate-800">{day.split(' ')[0]}</div>
                                         </div>
-                                        <div className="h-6 w-px bg-slate-100"></div>
+                                        <div className="h-5 w-px bg-slate-100"></div>
                                         <div>
-                                            <div className={`text-xs font-bold ${statusColor}`}>{statusText}</div>
-                                            <div className="text-[9px] text-slate-400 font-medium">{time}</div>
+                                            <div className={`text-[11px] font-bold ${statusColor}`}>{statusText}</div>
+                                            <div className="text-[8px] text-slate-400 font-medium">{time}</div>
                                         </div>
                                     </div>
                                     <div className="opacity-80">
@@ -313,8 +307,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        <div className="text-center pt-4 pb-8">
-            <div className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+        <div className="text-center pt-2">
+            <div className="inline-flex items-center gap-1 text-[8px] font-bold text-slate-300 uppercase tracking-widest">
                 <Sparkles size={8} />
                 <span>Powered by Kurs Pro</span>
             </div>
