@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
@@ -135,8 +136,9 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC]">
-      <div className="bg-white/90 backdrop-blur-md pt-2 pb-0 px-2 z-20 sticky top-0 border-b border-slate-100 shadow-sm">
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden">
+      {/* Header */}
+      <div className="bg-white/90 backdrop-blur-md pt-2 pb-0 px-2 z-20 sticky top-0 border-b border-slate-100 shadow-sm shrink-0">
         <div className="flex overflow-x-auto no-scrollbar gap-1 bg-slate-50 p-1 rounded-xl">
           {DAYS.map(day => (
             <button
@@ -160,9 +162,10 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
+      {/* Content Area - Scrollable */}
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-40">
         {slots.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[50vh] text-center">
+          <div className="flex flex-col items-center justify-center h-full text-center min-h-[300px]">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-slate-50">
                  <CalendarDays size={28} className="text-slate-300" strokeWidth={1.5} />
             </div>
@@ -272,7 +275,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
         )}
       </div>
 
-      <button onClick={() => openAddSlotModal()} className="fixed bottom-20 right-5 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-400/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-30"><Plus size={24} strokeWidth={2} /></button>
+      <button onClick={() => openAddSlotModal()} className="fixed bottom-24 right-5 w-12 h-12 bg-slate-900 text-white rounded-full shadow-xl shadow-slate-400/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-30"><Plus size={24} strokeWidth={2} /></button>
 
       <Dialog isOpen={isTimeModalOpen} onClose={() => setIsTimeModalOpen(false)} title="Saat Ekle" actions={<><button onClick={() => setIsTimeModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={() => { actions.addSlot(selectedDay, newTimeStart, newTimeEnd); setIsTimeModalOpen(false); }} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Ekle</button></>}>
         <div className="flex flex-col gap-4 py-2">
