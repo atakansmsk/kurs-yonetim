@@ -150,7 +150,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       <div className="bg-white px-5 pt-6 pb-4 rounded-b-[1.5rem] shadow-sm border-b border-slate-100 relative z-20">
         <div className="flex justify-between items-center mb-4">
             <div>
-                {/* Changed Title Here */}
                 <h1 className="font-black text-slate-900 text-lg leading-tight uppercase tracking-tight">VELİ BİLGİLENDİRME SİSTEMİ</h1>
             </div>
             <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
@@ -196,24 +195,20 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* Ödeme Bilgisi Kartı - Gelişmiş */}
+        {/* Ödeme Bilgisi Kartı - Tarihler ve Ders Sayısı */}
         <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col gap-3">
-             <div className="flex items-center justify-between">
-                 <div>
-                     <p className="text-[9px] text-slate-400 font-bold mb-0.5">AYLIK ABONELİK</p>
-                     <p className="text-xl font-black text-slate-900">{student.fee} <span className="text-xs font-bold text-slate-400">TL</span></p>
-                 </div>
-                 {/* Dönem Ders Sayısı Rozeti */}
-                 {student.debtLessonCount > 0 && (
-                    <div className="bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                        <p className="text-[9px] text-slate-400 font-bold">BU AY</p>
-                        <p className="text-xs font-black text-slate-800">{student.debtLessonCount} Ders</p>
+             {/* Dönem Ders Sayısı Rozeti (Varsa) */}
+             {student.debtLessonCount > 0 && (
+                <div className="flex justify-end">
+                    <div className="bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 flex items-center gap-2">
+                        <p className="text-[9px] text-slate-400 font-bold">BU AY:</p>
+                        <p className="text-xs font-black text-slate-800">{student.debtLessonCount} Ders İşlendi</p>
                     </div>
-                 )}
-             </div>
+                </div>
+             )}
 
              {/* Ödeme Tarihleri Izgarası */}
-             <div className="grid grid-cols-2 gap-2 mt-1">
+             <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
                     <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">SON ÖDEME</p>
                     <div className="flex items-center gap-1.5">
