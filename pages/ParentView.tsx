@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
 import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar } from 'lucide-react';
@@ -84,12 +84,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
     return null;
   };
 
-  // Son Ödeme İşlemini Bul
-  const getLastPaymentTx = () => {
-      return student.history.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
-  };
+  // Tüm geçmişi tarihe göre sırala (En yeni en üstte)
+  const allHistorySorted = [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const lastPaymentTx = getLastPaymentTx();
+  // Son Ödeme İşlemini Bul (Notunda Telafi/Deneme geçmeyen, isDebt=false olan)
+  const lastPaymentTx = allHistorySorted.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
 
   const getLastPaymentDateStr = () => {
       if (lastPaymentTx) {
@@ -103,25 +102,32 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       let baseDate = new Date();
       
       if (lastPaymentTx) {
-          // Son ödeme varsa onu baz al
           baseDate = new Date(lastPaymentTx.date);
       } else {
-          // Hiç ödeme yoksa kayıt tarihini baz al
           baseDate = new Date(student.registrationDate);
       }
 
-      // 1 Ay Ekle
       baseDate.setMonth(baseDate.getMonth() + 1);
-      
       return baseDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
   };
+
+  // --- FILTERED HISTORY LOGIC ---
+  // Sadece son ödemeden sonraki işlemleri göster
+  const currentPeriodHistory = useMemo(() => {
+      if (!lastPaymentTx) return allHistorySorted; // Hiç ödeme yoksa hepsini göster
+
+      const paymentTime = new Date(lastPaymentTx.date).getTime();
+      
+      return allHistorySorted.filter(tx => {
+          const txTime = new Date(tx.date).getTime();
+          // Ödeme işleminden DAHA YENİ olanları al (Ödemenin kendisini gösterme, çünkü o geçmiş dönemi kapatır)
+          return txTime > paymentTime;
+      });
+  }, [allHistorySorted, lastPaymentTx]);
 
   const nextLesson = getNextLesson();
   const lastPayment = getLastPaymentDateStr();
   const nextPayment = getNextPaymentDateStr();
-  
-  // Sort history by date descending
-  const sortedHistory = [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800">
@@ -211,15 +217,21 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
              </div>
         </div>
 
-        {/* Geçmiş Hareketler Listesi */}
+        {/* Geçmiş Hareketler Listesi (Filtrelenmiş) */}
         <div>
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2 mt-2">SON AKTİVİTELER</h3>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2 mt-2">DÖNEM HAREKETLERİ</h3>
             <div className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden">
-                {sortedHistory.length === 0 ? (
-                    <p className="text-center text-slate-400 text-[10px] py-6">Henüz kayıt yok.</p>
+                {currentPeriodHistory.length === 0 ? (
+                    <div className="text-center py-8 px-4">
+                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
+                            <Sparkles size={18} />
+                        </div>
+                        <p className="text-slate-900 font-bold text-xs">Yeni Dönem Başladı</p>
+                        <p className="text-slate-400 text-[10px] mt-1">Son ödemeden sonra henüz işlenmiş ders yok.</p>
+                    </div>
                 ) : (
                     <div className="divide-y divide-slate-50">
-                        {sortedHistory.slice(0, 10).map(tx => {
+                        {currentPeriodHistory.map(tx => {
                             const dateObj = new Date(tx.date);
                             const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
                             const time = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
@@ -241,7 +253,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                 statusColor = "text-red-500";
                                 icon = <XCircle size={14} className="text-red-500" />;
                             } else if (!tx.isDebt) {
-                                statusText = "Ödeme Yapıldı";
+                                // Ara ödemeler vs.
+                                statusText = "Ödeme Alındı";
                                 statusColor = "text-emerald-600";
                                 icon = <Banknote size={14} className="text-emerald-500" />;
                             }
