@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 
@@ -137,6 +137,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       setIsMakeupCompleteModalOpen(false);
       setMakeupCompleteDate("");
       setSelectedTx(null);
+  };
+
+  const handleOpenParentPortal = () => {
+      // Veli Portalı Linki Oluştur
+      const baseUrl = window.location.origin + window.location.pathname;
+      const portalUrl = `${baseUrl}?parentView=true&teacherId=${user?.id}&studentId=${student.id}`;
+      window.open(portalUrl, '_blank');
   };
 
   return (
@@ -274,6 +281,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      >
                          <History size={20} />
                          <span className="text-[10px] font-bold">Geçmiş Ödeme</span>
+                     </button>
+
+                     {/* Veli Portalı Butonu */}
+                     <button 
+                        onClick={handleOpenParentPortal}
+                        className="col-span-2 bg-slate-800 text-white rounded-2xl p-3 shadow-lg shadow-slate-300 flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-[0.98] transition-all"
+                     >
+                         <Eye size={18} className="text-slate-300" />
+                         <span className="font-bold text-sm">Veli Portalını Görüntüle (Örnek)</span>
                      </button>
                 </div>
 
