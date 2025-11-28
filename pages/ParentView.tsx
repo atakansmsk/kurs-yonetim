@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
@@ -59,11 +60,18 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       lastPaymentStr,
       nextPaymentStr,
       currentPeriodHistory,
+      SchoolIcon,
+      isCustomLogo,
       safeResources
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "-", nextPaymentStr: "-", currentPeriodHistory: [], safeResources: []
+          nextLesson: null, lastPaymentStr: "-", nextPaymentStr: "-", currentPeriodHistory: [], 
+          SchoolIcon: Sparkles, isCustomLogo: false, safeResources: []
       };
+
+      // Logo Logic
+      const customLogo = appState.schoolIcon.startsWith('data:');
+      const IconComp = !customLogo ? (ICONS[appState.schoolIcon] || Sparkles) : Sparkles;
 
       // Resources Safety Check
       const safeResources = Array.isArray(student.resources) ? student.resources : [];
@@ -133,6 +141,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           lastPaymentStr: lastPaymentDateStr,
           nextPaymentStr: nextPaymentDateStr,
           currentPeriodHistory: filteredHistory,
+          SchoolIcon: IconComp,
+          isCustomLogo: customLogo,
           safeResources
       };
 
@@ -161,14 +171,27 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
+    // UPDATED: max-w-5xl applied for extra wide layout
+    // UPDATED: pb-64 applied to ensure scrolling reaches the very bottom
     <div className="min-h-screen bg-[#F8FAFC] max-w-5xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-64">
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
         
-        {/* LOGO REMOVED HERE - Student Card is now top priority */}
+        {/* LOGO AREA (Centered) - Height h-28 */}
+        <div className="flex justify-center mb-8">
+            <div className="h-28 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
+                {isCustomLogo ? (
+                    <img src={appState.schoolIcon} alt="Logo" className="h-full w-full object-contain drop-shadow-xl" />
+                ) : (
+                    <div className="w-24 h-24 bg-indigo-50 rounded-[2rem] flex items-center justify-center text-indigo-600 shadow-inner">
+                        <SchoolIcon size={48} strokeWidth={1.5} />
+                    </div>
+                )}
+            </div>
+        </div>
 
-        {/* STUDENT IDENTITY CARD (Glass) */}
+        {/* STUDENT IDENTITY CARD (Glass) - Width updated to max-w-4xl */}
         <div className="max-w-4xl mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-slate-800 text-white flex items-center justify-center text-lg font-bold shadow-md">
@@ -270,7 +293,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         
                         {currentPeriodHistory.map((tx, idx) => {
                             const dateObj = new Date(tx.date);
-                            // FULL DATE WITH DAY NAME (e.g., 14 Kasım Perşembe)
+                            // FULL DATE WITH DAY NAME
                             const fullDateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
                             const time = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                             
@@ -361,7 +384,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         <div className="text-center pt-8 opacity-40">
             <div className="inline-flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-white/50 px-3 py-1 rounded-full border border-slate-100">
                 <Sparkles size={10} className="text-indigo-400" />
-                <span>Powered by Kurs Pro</span>
+                <span>Powered by Kurs Pro (v2.5)</span>
             </div>
         </div>
 
