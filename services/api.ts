@@ -1,6 +1,7 @@
+
 import { auth, db } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
-import { doc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, getDoc } from "firebase/firestore";
 import { AppState, User } from '../types';
 
 // --- AUTH SERVİSİ ---
@@ -56,12 +57,25 @@ export const DataService = {
     }
   },
 
+  // Tek Seferlik Veri Çekme (Public View için)
+  async getPublicSchoolData(userId: string): Promise<AppState | null> {
+    try {
+      const docRef = doc(db, "schools", userId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data() as AppState;
+      }
+      return null;
+    } catch (e) {
+      console.error("Fetch error:", e);
+      throw e;
+    }
+  },
+
   // Canlı Dinleme (Realtime Sync)
   subscribeToUserData(userId: string, onUpdate: (data: AppState) => void, onError: (error: any) => void): () => void {
     const docRef = doc(db, "schools", userId);
     
-    // includeMetadataChanges: true ile gelen verinin yerel mi sunucu mu olduğunu anlayabiliriz
-    // ancak ana kontrolü artık timestamp ile CourseContext içinde yapıyoruz.
     const unsubscribe = onSnapshot(docRef, { includeMetadataChanges: true }, 
       (docSnap) => {
         if (docSnap.exists()) {

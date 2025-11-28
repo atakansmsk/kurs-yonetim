@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 
@@ -11,6 +13,7 @@ interface StudentProfileProps {
 
 export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBack }) => {
   const { state, actions } = useCourse();
+  const { user } = useAuth();
   const student = state.students[studentId];
   const [activeTab, setActiveTab] = useState<'STATUS' | 'HISTORY'>('STATUS');
   
