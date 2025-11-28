@@ -82,13 +82,14 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         const dayIndex = today.getDay(); // 0=Pazar
         // FULL DAY NAMES (Display)
         const daysMap = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
-        // DATA KEYS (App State uses Cmt)
-        const appKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
         
         for (let i = 0; i < 7; i++) {
             const checkDayIndex = (dayIndex + i) % 7;
-            const keyDayName = appKeys[checkDayIndex];
             const displayDayName = daysMap[checkDayIndex];
+            
+            // App state keys mapping
+            const appKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
+            const keyDayName = appKeys[checkDayIndex];
             
             const key = `${appState.currentTeacher}|${keyDayName}`;
             const slots = appState.schedule[key] || [];
@@ -171,8 +172,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
-    // UPDATED: max-w-5xl applied for maximum width
-    <div className="min-h-screen bg-[#F8FAFC] max-w-5xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-32">
+    // UPDATED: max-w-4xl and EXTRA bottom padding (pb-48) to fix scroll/visibility issues
+    <div className="min-h-screen bg-[#F8FAFC] max-w-4xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-48">
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
@@ -190,8 +191,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* STUDENT IDENTITY CARD (Glass) - Width updated to max-w-4xl */}
-        <div className="max-w-4xl mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
+        {/* STUDENT IDENTITY CARD (Glass) */}
+        <div className="max-w-3xl mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-slate-800 text-white flex items-center justify-center text-lg font-bold shadow-md">
                     {student.name.charAt(0).toUpperCase()}
@@ -210,8 +211,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
-      {/* CONTENT AREA - Width updated to max-w-5xl */}
-      <div className="max-w-5xl mx-auto px-5 space-y-4">
+      <div className="max-w-4xl mx-auto px-5 space-y-4">
         
         {/* --- NEXT LESSON CARD --- */}
         <div className="group relative bg-slate-900 rounded-[1.5rem] p-5 text-white shadow-xl shadow-slate-200 overflow-hidden cursor-default transition-transform active:scale-[0.99]">
@@ -293,7 +293,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         
                         {currentPeriodHistory.map((tx, idx) => {
                             const dateObj = new Date(tx.date);
-                            // FULL DATE WITH DAY NAME
+                            // FULL DATE WITH DAY NAME (e.g., 14 Kasım Perşembe)
                             const fullDateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
                             const time = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                             
