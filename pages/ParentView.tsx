@@ -85,7 +85,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   };
 
   const getLastPaymentDate = () => {
-      const paymentTx = student.history.find(tx => !tx.isDebt);
+      // Sadece gerçek ödemeleri bul (Notunda Telafi veya Deneme geçmeyen ve isDebt=false olanlar)
+      const paymentTx = student.history.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
       if (paymentTx) {
           return new Date(paymentTx.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       }
@@ -190,23 +191,29 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
                             const time = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                             
-                            // Durum Analizi
+                            // Durum Analizi (Düzeltilmiş Mantık)
                             let statusText = "Katıldı";
                             let statusColor = "text-indigo-600";
                             let icon = <CheckCircle2 size={16} className="text-indigo-500" />;
 
-                            if (!tx.isDebt) {
-                                statusText = "Ödeme Yapıldı";
-                                statusColor = "text-emerald-600";
-                                icon = <Banknote size={16} className="text-emerald-500" />;
-                            } else if (tx.note.includes("Gelmedi")) {
+                            // Önce Not içeriğini kontrol et, çünkü isDebt=false olan Telafi/Deneme dersleri olabilir
+                            if (tx.note.includes("Telafi")) {
+                                statusText = "Telafi Dersi";
+                                statusColor = "text-orange-500";
+                                icon = <Layers size={16} className="text-orange-500" />;
+                            } else if (tx.note.includes("Deneme")) {
+                                statusText = "Deneme Dersi";
+                                statusColor = "text-purple-500";
+                                icon = <Sparkles size={16} className="text-purple-500" />;
+                            } else if (tx.note.includes("Gelmedi") || tx.note.includes("Habersiz")) {
                                 statusText = "Gelmedi";
                                 statusColor = "text-red-500";
                                 icon = <XCircle size={16} className="text-red-500" />;
-                            } else if (tx.note.includes("Telafi")) {
-                                statusText = "Telafi";
-                                statusColor = "text-orange-500";
-                                icon = <Layers size={16} className="text-orange-500" />;
+                            } else if (!tx.isDebt) {
+                                // Eğer borç değilse ve yukarıdaki özel durumlardan biri değilse Ödemedir
+                                statusText = "Ödeme Yapıldı";
+                                statusColor = "text-emerald-600";
+                                icon = <Banknote size={16} className="text-emerald-500" />;
                             }
 
                             return (
