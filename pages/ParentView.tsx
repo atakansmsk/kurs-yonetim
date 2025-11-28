@@ -2,12 +2,21 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
-import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar } from 'lucide-react';
+import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar, Palette, Music, BookOpen, Trophy, Activity } from 'lucide-react';
 
 interface ParentViewProps {
   teacherId: string;
   studentId: string;
 }
+
+const ICONS: Record<string, React.ElementType> = {
+  'sparkles': Sparkles,
+  'palette': Palette,
+  'music': Music,
+  'book': BookOpen,
+  'trophy': Trophy,
+  'activity': Activity
+};
 
 export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) => {
   const [loading, setLoading] = useState(true);
@@ -50,9 +59,18 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       nextLesson,
       lastPaymentStr,
       nextPaymentStr,
-      currentPeriodHistory
+      currentPeriodHistory,
+      SchoolIcon,
+      isCustomLogo
   } = useMemo(() => {
-      if (!student || !appState) return { nextLesson: null, lastPaymentStr: "-", nextPaymentStr: "-", currentPeriodHistory: [] };
+      if (!student || !appState) return { 
+          nextLesson: null, lastPaymentStr: "-", nextPaymentStr: "-", currentPeriodHistory: [], 
+          SchoolIcon: Sparkles, isCustomLogo: false 
+      };
+
+      // Logo Logic
+      const customLogo = appState.schoolIcon.startsWith('data:');
+      const IconComp = !customLogo ? (ICONS[appState.schoolIcon] || Sparkles) : Sparkles;
 
       // 1. Next Lesson Logic
       const getNextLesson = () => {
@@ -78,12 +96,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       const allHistorySorted = [...safeHistory].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       // 3. Payment Logic
-      // Find the LATEST payment that is NOT a debt record and NOT a Lesson/Trial/Makeup note masquerading as payment
       const lastPaymentTx = allHistorySorted.find(tx => 
           !tx.isDebt && 
           !tx.note.includes("Telafi") && 
           !tx.note.includes("Deneme") &&
-          !tx.note.includes("Ders") // Extra safety
+          !tx.note.includes("Ders")
       );
       
       let lastPaymentDateStr = "Henüz Yok";
@@ -94,7 +111,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           lastPaymentDateObj = new Date(lastPaymentTx.date);
           lastPaymentDateStr = lastPaymentDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       } else if (student.registrationDate) {
-          // If no payment found, use registration date as base logic but don't show as payment
           lastPaymentDateObj = new Date(student.registrationDate);
       }
 
@@ -108,7 +124,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       let filteredHistory = allHistorySorted;
       if (lastPaymentTx) {
           const paymentTime = new Date(lastPaymentTx.date).getTime();
-          // Show items that happened strictly AFTER the last payment time
           filteredHistory = allHistorySorted.filter(tx => new Date(tx.date).getTime() > paymentTime);
       }
 
@@ -116,7 +131,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           nextLesson: getNextLesson(),
           lastPaymentStr: lastPaymentDateStr,
           nextPaymentStr: nextPaymentDateStr,
-          currentPeriodHistory: filteredHistory
+          currentPeriodHistory: filteredHistory,
+          SchoolIcon: IconComp,
+          isCustomLogo: customLogo
       };
 
   }, [student, appState]);
@@ -146,14 +163,20 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   return (
     <div className="min-h-screen bg-[#F8FAFC] max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800">
       
-      {/* Header - Compact & Clean - REVISED TITLE */}
+      {/* Header */}
       <div className="bg-white px-5 pt-6 pb-4 rounded-b-[1.5rem] shadow-sm border-b border-slate-100 relative z-20">
         <div className="flex justify-between items-center mb-4">
             <div>
                 <h1 className="font-black text-slate-900 text-lg leading-tight uppercase tracking-tight">VELİ BİLGİLENDİRME SİSTEMİ</h1>
             </div>
-            <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
-                <Sparkles size={16} />
+            
+            {/* LOGO AREA */}
+            <div className="w-12 h-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center shadow-sm overflow-hidden p-1">
+                {isCustomLogo ? (
+                    <img src={appState.schoolIcon} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                    <SchoolIcon size={24} className="text-indigo-600" />
+                )}
             </div>
         </div>
 
@@ -171,7 +194,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
-      {/* Content - Compact Layout */}
+      {/* Content */}
       <div className="p-4 space-y-3 relative z-10">
         
         {/* Gelecek Ders Kartı */}
@@ -195,9 +218,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* Ödeme Bilgisi Kartı - Tarihler ve Ders Sayısı */}
+        {/* Ödeme Bilgisi Kartı */}
         <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col gap-3">
-             {/* Dönem Ders Sayısı Rozeti (Varsa) */}
+             {/* Dönem Ders Sayısı Rozeti */}
              {student.debtLessonCount > 0 && (
                 <div className="flex justify-end">
                     <div className="bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 flex items-center gap-2">
@@ -207,7 +230,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                 </div>
              )}
 
-             {/* Ödeme Tarihleri Izgarası */}
+             {/* Ödeme Tarihleri */}
              <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
                     <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">SON ÖDEME</p>
@@ -226,7 +249,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
              </div>
         </div>
 
-        {/* Geçmiş Hareketler Listesi (Filtrelenmiş - Son Ödemeden Sonra) */}
+        {/* Geçmiş Hareketler Listesi */}
         <div>
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2 mt-2">DÖNEM HAREKETLERİ</h3>
             <div className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden">
@@ -262,8 +285,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                 statusColor = "text-red-500";
                                 icon = <XCircle size={14} className="text-red-500" />;
                             } else if (!tx.isDebt) {
-                                // Bu blok normalde çalışmaz çünkü isDebt=false olanlar zaten ödeme kabul ediliyor ve filtreleniyor
-                                // Ama "ara ödeme" veya "kısmi ödeme" gibi durumlarda buraya düşebilir.
                                 statusText = "Ödeme İşlemi";
                                 statusColor = "text-emerald-600";
                                 icon = <Banknote size={14} className="text-emerald-500" />;
