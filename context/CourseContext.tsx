@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, DAYS, WeekDay } from '../types';
 import { useAuth } from './AuthContext';
@@ -39,7 +40,7 @@ const THEMES: Record<string, Record<string, string>> = {
     500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065' 
   },
   amber: { 
-    50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 
+    50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fb7185', 
     500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' 
   },
   slate: { 
@@ -120,7 +121,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
            const cloudTime = new Date(cloudData.updatedAt || 0).getTime();
            const localTime = new Date(currentState.updatedAt || 0).getTime();
 
-           if (cloudTime > localTime) {
+           // Relaxed logic: If cloud time is newer OR EQUAL, or if we just want to ensure we are in sync.
+           // Using >= instead of > to allow catching up if times are close or clocks are slightly off.
+           // Important: We only update if content is actually different to avoid loops.
+           if (cloudTime >= localTime) {
               const incomingJson = JSON.stringify(cloudData);
               if (incomingJson !== JSON.stringify(currentState)) {
                   console.log("☁️ Bulut verisi indirildi.");
@@ -132,6 +136,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   return { ...INITIAL_STATE, ...cloudData }; 
               }
            } else if (localTime > cloudTime) {
+              // Local is newer, let the saving mechanism handle it
               lastSyncedJson.current = ""; 
            }
            return currentState;

@@ -171,8 +171,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
-    // UPDATED: Increased max-width from max-w-xl to max-w-4xl for significant widening
-    <div className="min-h-screen bg-[#F8FAFC] max-w-4xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-32">
+    // UPDATED: max-w-3xl for wider layout
+    <div className="min-h-screen bg-[#F8FAFC] max-w-3xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-32">
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
