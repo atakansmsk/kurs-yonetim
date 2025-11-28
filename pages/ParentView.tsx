@@ -171,7 +171,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
-    // MAX-W-5XL for Extra Width
+    // FIX APPLIED: max-w-5xl and pb-64
     <div className="min-h-screen bg-[#F8FAFC] max-w-5xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-64">
       
       {/* --- HERO SECTION --- */}
@@ -210,6 +210,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
+      {/* CONTENT AREA - max-w-5xl */}
       <div className="max-w-5xl mx-auto px-5 space-y-4">
         
         {/* --- NEXT LESSON CARD --- */}
@@ -332,6 +333,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         {safeResources.length > 0 && (
             <div>
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1 mt-6">ÖDEVLER & MATERYALLER</h3>
+                {/* 3-Column Grid for Wider Screens */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {safeResources.map(res => (
                         <a 
@@ -391,4 +393,3 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
     </div>
   );
 };
-    
