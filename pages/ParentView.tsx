@@ -42,6 +42,81 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
     fetchData();
   }, [teacherId, studentId]);
 
+  // --- SAFE DATA HANDLING ---
+  const student = data?.student;
+  const appState = data?.appState;
+
+  const {
+      nextLesson,
+      lastPaymentStr,
+      nextPaymentStr,
+      currentPeriodHistory
+  } = useMemo(() => {
+      if (!student || !appState) return { nextLesson: null, lastPaymentStr: "-", nextPaymentStr: "-", currentPeriodHistory: [] };
+
+      // 1. Next Lesson Logic
+      const getNextLesson = () => {
+        const today = new Date();
+        const dayIndex = today.getDay(); // 0=Pazar
+        const daysMap = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
+        
+        for (let i = 0; i < 7; i++) {
+            const checkDayIndex = (dayIndex + i) % 7;
+            const dayName = daysMap[checkDayIndex];
+            const key = `${appState.currentTeacher}|${dayName}`;
+            const slots = appState.schedule[key] || [];
+            const foundSlot = slots.find(s => s.studentId === student.id);
+            if (foundSlot) {
+                return { day: dayName, time: `${foundSlot.start} - ${foundSlot.end}` };
+            }
+        }
+        return null;
+      };
+
+      // 2. History Processing
+      const safeHistory = student.history || [];
+      const allHistorySorted = [...safeHistory].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      // 3. Payment Logic
+      const lastPaymentTx = allHistorySorted.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
+      
+      let lastPaymentDateStr = "Henüz Yok";
+      let nextPaymentDateStr = "-";
+
+      // Calculate Dates
+      if (lastPaymentTx) {
+          const lastDate = new Date(lastPaymentTx.date);
+          lastPaymentDateStr = lastDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+          
+          // Next Payment = Last Payment + 1 Month
+          const nextDate = new Date(lastDate);
+          nextDate.setMonth(nextDate.getMonth() + 1);
+          nextPaymentDateStr = nextDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+      } else if (student.registrationDate) {
+          // If no payment yet, base on registration
+          const regDate = new Date(student.registrationDate);
+          const nextDate = new Date(regDate);
+          nextDate.setMonth(nextDate.getMonth() + 1);
+          nextPaymentDateStr = nextDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+      }
+
+      // 4. Filter History (Show only after last payment)
+      let filteredHistory = allHistorySorted;
+      if (lastPaymentTx) {
+          const paymentTime = new Date(lastPaymentTx.date).getTime();
+          filteredHistory = allHistorySorted.filter(tx => new Date(tx.date).getTime() > paymentTime);
+      }
+
+      return {
+          nextLesson: getNextLesson(),
+          lastPaymentStr: lastPaymentDateStr,
+          nextPaymentStr: nextPaymentDateStr,
+          currentPeriodHistory: filteredHistory
+      };
+
+  }, [student, appState]);
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
@@ -51,7 +126,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
     );
   }
 
-  if (error || !data) {
+  if (error || !student || !appState) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
         <div className="w-12 h-12 bg-red-50 text-red-400 rounded-full flex items-center justify-center mb-4">
@@ -62,75 +137,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       </div>
     );
   }
-
-  const { student, appState } = data;
-
-  // --- Helpers ---
-  const getNextLesson = () => {
-    const today = new Date();
-    const dayIndex = today.getDay(); // 0=Pazar
-    const daysMap = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
-    
-    for (let i = 0; i < 7; i++) {
-        const checkDayIndex = (dayIndex + i) % 7;
-        const dayName = daysMap[checkDayIndex];
-        const key = `${appState.currentTeacher}|${dayName}`;
-        const slots = appState.schedule[key] || [];
-        const foundSlot = slots.find(s => s.studentId === student.id);
-        if (foundSlot) {
-            return { day: dayName, time: `${foundSlot.start} - ${foundSlot.end}` };
-        }
-    }
-    return null;
-  };
-
-  // Safe history access using optional chaining and fallback
-  const safeHistory = student.history || [];
-
-  // Tüm geçmişi tarihe göre sırala (En yeni en üstte)
-  const allHistorySorted = [...safeHistory].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  // Son Ödeme İşlemini Bul (Notunda Telafi/Deneme geçmeyen, isDebt=false olan)
-  const lastPaymentTx = allHistorySorted.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
-
-  const getLastPaymentDateStr = () => {
-      if (lastPaymentTx) {
-          return new Date(lastPaymentTx.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-      }
-      return "Henüz Yok";
-  };
-
-  // Gelecek Ödeme Tarihi Hesapla (Son Ödeme + 1 Ay)
-  const getNextPaymentDateStr = () => {
-      let baseDate = new Date();
-      
-      if (lastPaymentTx) {
-          baseDate = new Date(lastPaymentTx.date);
-      } else if (student.registrationDate) {
-          baseDate = new Date(student.registrationDate);
-      }
-
-      baseDate.setMonth(baseDate.getMonth() + 1);
-      return baseDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-  };
-
-  // --- FILTERED HISTORY LOGIC ---
-  // Sadece son ödemeden sonraki işlemleri göster
-  const currentPeriodHistory = useMemo(() => {
-      if (!lastPaymentTx) return allHistorySorted; // Hiç ödeme yoksa hepsini göster
-
-      const paymentTime = new Date(lastPaymentTx.date).getTime();
-      
-      return allHistorySorted.filter(tx => {
-          const txTime = new Date(tx.date).getTime();
-          // Ödeme işleminden DAHA YENİ olanları al
-          return txTime > paymentTime;
-      });
-  }, [allHistorySorted, lastPaymentTx]);
-
-  const nextLesson = getNextLesson();
-  const lastPayment = getLastPaymentDateStr();
-  const nextPayment = getNextPaymentDateStr();
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800">
@@ -207,14 +213,14 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">SON ÖDEME</p>
                     <div className="flex items-center gap-1.5">
                         <CheckCircle2 size={12} className="text-emerald-500" />
-                        <span className="text-xs font-bold text-emerald-700">{lastPayment}</span>
+                        <span className="text-xs font-bold text-emerald-700">{lastPaymentStr}</span>
                     </div>
                 </div>
                 <div className="bg-indigo-50 p-2 rounded-xl border border-indigo-100">
                     <p className="text-[8px] font-bold text-indigo-400 uppercase mb-1">GELECEK ÖDEME</p>
                     <div className="flex items-center gap-1.5">
                         <Calendar size={12} className="text-indigo-500" />
-                        <span className="text-xs font-bold text-indigo-700">{nextPayment}</span>
+                        <span className="text-xs font-bold text-indigo-700">{nextPaymentStr}</span>
                     </div>
                 </div>
              </div>
