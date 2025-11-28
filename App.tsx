@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CourseProvider, useCourse } from './context/CourseContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -8,6 +7,7 @@ import { WeeklySummary } from './pages/WeeklySummary';
 import { StudentList } from './pages/StudentList';
 import { StudentProfile } from './pages/StudentProfile';
 import { Login } from './pages/Login';
+import { ParentView } from './pages/ParentView';
 import { CalendarRange, LayoutDashboard, Users2, ChevronDown, Home as HomeIcon, Check, Sparkles, Palette, Music, BookOpen, Trophy, Activity } from 'lucide-react';
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
@@ -257,6 +257,17 @@ const NavButton = ({ active, onClick, icon: Icon, label }: any) => (
 );
 
 const App: React.FC = () => {
+  // URL kontrolü: Veli Portalı mı?
+  const params = new URLSearchParams(window.location.search);
+  const isParentView = params.get('parentView') === 'true';
+  const teacherId = params.get('teacherId');
+  const studentId = params.get('studentId');
+
+  // Eğer Veli Portalı linkiyle gelindiyse, Login kontrolünü atla ve direkt o sayfayı göster
+  if (isParentView && teacherId && studentId) {
+      return <ParentView teacherId={teacherId} studentId={studentId} />;
+  }
+
   return (
     <AuthProvider>
       <CourseProvider>

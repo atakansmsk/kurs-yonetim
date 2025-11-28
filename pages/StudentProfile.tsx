@@ -143,6 +143,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       // Veli Portalı Linki Oluştur
       const baseUrl = window.location.origin + window.location.pathname;
       const portalUrl = `${baseUrl}?parentView=true&teacherId=${user?.id}&studentId=${student.id}`;
+      
+      // Kullanıcıya linki kopyalama seçeneği sunabiliriz, şimdilik direkt açıyoruz
       window.open(portalUrl, '_blank');
   };
 
