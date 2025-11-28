@@ -76,22 +76,21 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       const getNextLesson = () => {
         const today = new Date();
         const dayIndex = today.getDay(); // 0=Pazar
-        
-        // GÖRÜNEN İSİMLER (Tam Adlar)
-        const displayDays = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
-        // VERİ ANAHTARLARI (Types.ts ile uyumlu - Cmt)
-        const dataKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
+        // FULL DAY NAMES (Display)
+        const daysMap = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+        // DATA KEYS (App State uses Cmt)
+        const appKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
         
         for (let i = 0; i < 7; i++) {
             const checkDayIndex = (dayIndex + i) % 7;
-            const keyName = dataKeys[checkDayIndex];     // Veritabanında aranan (Cmt)
-            const displayName = displayDays[checkDayIndex]; // Ekranda yazan (Cumartesi)
+            const keyDayName = appKeys[checkDayIndex];
+            const displayDayName = daysMap[checkDayIndex];
             
-            const key = `${appState.currentTeacher}|${keyName}`;
+            const key = `${appState.currentTeacher}|${keyDayName}`;
             const slots = appState.schedule[key] || [];
             const foundSlot = slots.find(s => s.studentId === student.id);
             if (foundSlot) {
-                return { day: displayName, time: `${foundSlot.start} - ${foundSlot.end}` };
+                return { day: displayDayName, time: `${foundSlot.start} - ${foundSlot.end}` };
             }
         }
         return null;
@@ -172,14 +171,14 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
         
-        {/* HUGE LOGO AREA (Centered) */}
+        {/* HUGE LOGO AREA (Centered) - Height Reduced */}
         <div className="flex justify-center mb-8">
-            <div className="h-40 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
+            <div className="h-28 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
                 {isCustomLogo ? (
                     <img src={appState.schoolIcon} alt="Logo" className="h-full w-full object-contain drop-shadow-xl" />
                 ) : (
-                    <div className="w-32 h-32 bg-indigo-50 rounded-[2rem] flex items-center justify-center text-indigo-600 shadow-inner">
-                        <SchoolIcon size={64} strokeWidth={1.5} />
+                    <div className="w-24 h-24 bg-indigo-50 rounded-[2rem] flex items-center justify-center text-indigo-600 shadow-inner">
+                        <SchoolIcon size={48} strokeWidth={1.5} />
                     </div>
                 )}
             </div>

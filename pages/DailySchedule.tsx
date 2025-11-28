@@ -10,7 +10,7 @@ interface DailyScheduleProps {
 }
 
 const SHORT_DAYS: Record<WeekDay, string> = {
-  "Pazartesi": "PAZARTESİ", "Salı": "SALI", "Çarşamba": "ÇARŞAMBA", "Perşembe": "PERŞEMBE", "Cuma": "CUMA", "Cmt": "CUMARTESİ", "Pazar": "PAZAR"
+  "Pazartesi": "PZT", "Salı": "SAL", "Çarşamba": "ÇAR", "Perşembe": "PER", "Cuma": "CUM", "Cmt": "CMT", "Pazar": "PAZ"
 };
 
 const timeToMinutes = (time: string) => {
