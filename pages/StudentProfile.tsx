@@ -152,21 +152,23 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       setIsUploading(true);
 
       try {
-          // 1. Convert to Standard Image Object & Compress
+          // Bellek dostu sıkıştırma (URL.createObjectURL kullanarak)
           const compressImage = (file: File): Promise<Blob> => {
               return new Promise((resolve, reject) => {
                   const img = document.createElement('img');
-                  // Use createObjectURL to avoid loading full file into memory (prevents crashes)
+                  // Dosyayı belleğe yüklemeden referans oluştur (Crash önler)
                   const objectUrl = URL.createObjectURL(file);
                   img.src = objectUrl;
                   
                   img.onload = () => {
-                      URL.revokeObjectURL(objectUrl); // Clean up memory
+                      // İşimiz bitince referansı temizle
+                      URL.revokeObjectURL(objectUrl);
+                      
                       const canvas = document.createElement('canvas');
                       let width = img.width;
                       let height = img.height;
                       
-                      // Max width 1024px limit
+                      // Max width 1024px limit (Telefonda hızlı açılması için)
                       const MAX_WIDTH = 1024;
                       const MAX_HEIGHT = 1024;
 
@@ -187,12 +189,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       const ctx = canvas.getContext('2d');
                       ctx?.drawImage(img, 0, 0, width, height);
                       
-                      // Convert to JPEG Blob (0.7 quality)
+                      // JPEG 0.7 kalite ile sıkıştır
                       canvas.toBlob((blob) => {
                           if (blob) resolve(blob);
-                          else reject(new Error('Canvas to Blob failed'));
+                          else reject(new Error('Canvas conversion failed'));
                       }, 'image/jpeg', 0.7);
                   };
+                  
                   img.onerror = (error) => {
                       URL.revokeObjectURL(objectUrl);
                       reject(error);
@@ -202,10 +205,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
           const processedBlob = await compressImage(file);
 
-          // 2. Upload Processed Blob to Firebase
+          // Storage'a yükle (Dosya adını benzersiz yap)
           const timestamp = new Date().getTime();
-          // Use .jpg extension since we converted it
-          const path = `images/${user.id}/${studentId}/${timestamp}_compressed.jpg`;
+          const path = `images/${user.id}/${studentId}/${timestamp}.jpg`;
           
           const downloadUrl = await StorageService.uploadFile(processedBlob, path);
           
@@ -213,10 +215,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           setResType('IMAGE');
           if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
           
-          // alert("Resim başarıyla yüklendi!"); // Optional feedback
       } catch (error) {
           console.error("Yükleme hatası:", error);
-          alert("Resim işlenirken hata oluştu.");
+          alert("Resim yüklenirken bir sorun oluştu. Lütfen tekrar deneyin.");
       } finally {
           setIsUploading(false);
           if (fileInputRef.current) fileInputRef.current.value = "";

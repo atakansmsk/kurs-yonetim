@@ -171,12 +171,14 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
+    // UPDATED: max-w-5xl applied for extra wide layout
+    // UPDATED: pb-64 applied to ensure scrolling reaches the very bottom
     <div className="min-h-screen bg-[#F8FAFC] max-w-5xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-64">
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
         
-        {/* HUGE LOGO AREA (Centered) */}
+        {/* HUGE LOGO AREA (Centered) - Height h-28 */}
         <div className="flex justify-center mb-8">
             <div className="h-28 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
                 {isCustomLogo ? (
@@ -189,7 +191,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* STUDENT IDENTITY CARD (Glass) */}
+        {/* STUDENT IDENTITY CARD (Glass) - Width updated to max-w-4xl */}
         <div className="max-w-4xl mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-slate-800 text-white flex items-center justify-center text-lg font-bold shadow-md">
@@ -209,6 +211,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
+      {/* CONTENT AREA - Width updated to max-w-5xl */}
       <div className="max-w-5xl mx-auto px-5 space-y-4">
         
         {/* --- NEXT LESSON CARD --- */}
