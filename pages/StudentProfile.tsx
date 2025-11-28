@@ -723,4 +723,3 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
     </div>
   );
 };
-    

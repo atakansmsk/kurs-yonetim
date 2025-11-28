@@ -373,4 +373,3 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
     </div>
   );
 };
-    

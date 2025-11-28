@@ -171,13 +171,12 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
-    // FIX APPLIED: max-w-5xl and pb-64
     <div className="min-h-screen bg-[#F8FAFC] max-w-5xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-64">
       
       {/* --- HERO SECTION --- */}
       <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
         
-        {/* HUGE LOGO AREA (Centered) - Height h-28 */}
+        {/* HUGE LOGO AREA (Centered) */}
         <div className="flex justify-center mb-8">
             <div className="h-28 w-full max-w-[280px] flex items-center justify-center relative transition-transform hover:scale-105 duration-500">
                 {isCustomLogo ? (
@@ -190,7 +189,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* STUDENT IDENTITY CARD (Glass) - max-w-4xl */}
+        {/* STUDENT IDENTITY CARD (Glass) */}
         <div className="max-w-4xl mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-slate-800 text-white flex items-center justify-center text-lg font-bold shadow-md">
@@ -210,7 +209,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
-      {/* CONTENT AREA - max-w-5xl */}
       <div className="max-w-5xl mx-auto px-5 space-y-4">
         
         {/* --- NEXT LESSON CARD --- */}
@@ -333,7 +331,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         {safeResources.length > 0 && (
             <div>
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1 mt-6">ÖDEVLER & MATERYALLER</h3>
-                {/* 3-Column Grid for Wider Screens */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {safeResources.map(res => (
                         <a 
