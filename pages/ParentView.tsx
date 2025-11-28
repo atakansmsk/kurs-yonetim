@@ -78,32 +78,37 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       const allHistorySorted = [...safeHistory].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       // 3. Payment Logic
-      const lastPaymentTx = allHistorySorted.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
+      // Find the LATEST payment that is NOT a debt record and NOT a Lesson/Trial/Makeup note masquerading as payment
+      const lastPaymentTx = allHistorySorted.find(tx => 
+          !tx.isDebt && 
+          !tx.note.includes("Telafi") && 
+          !tx.note.includes("Deneme") &&
+          !tx.note.includes("Ders") // Extra safety
+      );
       
       let lastPaymentDateStr = "Henüz Yok";
       let nextPaymentDateStr = "-";
+      let lastPaymentDateObj: Date | null = null;
 
-      // Calculate Dates
       if (lastPaymentTx) {
-          const lastDate = new Date(lastPaymentTx.date);
-          lastPaymentDateStr = lastDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-          
-          // Next Payment = Last Payment + 1 Month
-          const nextDate = new Date(lastDate);
-          nextDate.setMonth(nextDate.getMonth() + 1);
-          nextPaymentDateStr = nextDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+          lastPaymentDateObj = new Date(lastPaymentTx.date);
+          lastPaymentDateStr = lastPaymentDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       } else if (student.registrationDate) {
-          // If no payment yet, base on registration
-          const regDate = new Date(student.registrationDate);
-          const nextDate = new Date(regDate);
+          // If no payment found, use registration date as base logic but don't show as payment
+          lastPaymentDateObj = new Date(student.registrationDate);
+      }
+
+      if (lastPaymentDateObj) {
+          const nextDate = new Date(lastPaymentDateObj);
           nextDate.setMonth(nextDate.getMonth() + 1);
           nextPaymentDateStr = nextDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       }
 
-      // 4. Filter History (Show only after last payment)
+      // 4. Filter History (Show only AFTER last payment)
       let filteredHistory = allHistorySorted;
       if (lastPaymentTx) {
           const paymentTime = new Date(lastPaymentTx.date).getTime();
+          // Show items that happened strictly AFTER the last payment time
           filteredHistory = allHistorySorted.filter(tx => new Date(tx.date).getTime() > paymentTime);
       }
 
@@ -141,12 +146,12 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   return (
     <div className="min-h-screen bg-[#F8FAFC] max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800">
       
-      {/* Header - Compact */}
+      {/* Header - Compact & Clean - REVISED TITLE */}
       <div className="bg-white px-5 pt-6 pb-4 rounded-b-[1.5rem] shadow-sm border-b border-slate-100 relative z-20">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-center mb-4">
             <div>
-                <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-0.5">VELİ BİLGİLENDİRME</p>
-                <h1 className="font-black text-slate-900 text-lg leading-tight">{appState.schoolName || "Kurs Sistemi"}</h1>
+                {/* Changed Title Here */}
+                <h1 className="font-black text-slate-900 text-lg leading-tight uppercase tracking-tight">VELİ BİLGİLENDİRME SİSTEMİ</h1>
             </div>
             <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
                 <Sparkles size={16} />
@@ -226,7 +231,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
              </div>
         </div>
 
-        {/* Geçmiş Hareketler Listesi (Filtrelenmiş) */}
+        {/* Geçmiş Hareketler Listesi (Filtrelenmiş - Son Ödemeden Sonra) */}
         <div>
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2 mt-2">DÖNEM HAREKETLERİ</h3>
             <div className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden">
@@ -236,7 +241,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             <Sparkles size={18} />
                         </div>
                         <p className="text-slate-900 font-bold text-xs">Yeni Dönem Başladı</p>
-                        <p className="text-slate-400 text-[10px] mt-1">Son ödemeden sonra henüz işlenmiş ders yok.</p>
+                        <p className="text-slate-400 text-[10px] mt-1">Son ödemeden sonra henüz işlem yok.</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-slate-50">
@@ -262,8 +267,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                 statusColor = "text-red-500";
                                 icon = <XCircle size={14} className="text-red-500" />;
                             } else if (!tx.isDebt) {
-                                // Ara ödemeler vs.
-                                statusText = "Ödeme Alındı";
+                                // Bu blok normalde çalışmaz çünkü isDebt=false olanlar zaten ödeme kabul ediliyor ve filtreleniyor
+                                // Ama "ara ödeme" veya "kısmi ödeme" gibi durumlarda buraya düşebilir.
+                                statusText = "Ödeme İşlemi";
                                 statusColor = "text-emerald-600";
                                 icon = <Banknote size={14} className="text-emerald-500" />;
                             }
