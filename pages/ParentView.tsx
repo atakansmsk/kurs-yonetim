@@ -84,8 +84,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
     return null;
   };
 
+  // Safe history access using optional chaining and fallback
+  const safeHistory = student.history || [];
+
   // Tüm geçmişi tarihe göre sırala (En yeni en üstte)
-  const allHistorySorted = [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const allHistorySorted = [...safeHistory].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Son Ödeme İşlemini Bul (Notunda Telafi/Deneme geçmeyen, isDebt=false olan)
   const lastPaymentTx = allHistorySorted.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
@@ -103,7 +106,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       
       if (lastPaymentTx) {
           baseDate = new Date(lastPaymentTx.date);
-      } else {
+      } else if (student.registrationDate) {
           baseDate = new Date(student.registrationDate);
       }
 
@@ -120,7 +123,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       
       return allHistorySorted.filter(tx => {
           const txTime = new Date(tx.date).getTime();
-          // Ödeme işleminden DAHA YENİ olanları al (Ödemenin kendisini gösterme, çünkü o geçmiş dönemi kapatır)
+          // Ödeme işleminden DAHA YENİ olanları al
           return txTime > paymentTime;
       });
   }, [allHistorySorted, lastPaymentTx]);
