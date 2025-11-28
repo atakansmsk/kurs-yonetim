@@ -25,12 +25,46 @@ body {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* Premium Text Selection */
+::selection {
+  background-color: var(--c-200);
+  color: var(--c-900);
+}
+
 input, textarea {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Custom Scrollbar for Desktop */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Hide scrollbar for mobile feel but keep functionality */
+@media (hover: none) and (pointer: coarse) {
+  .no-scrollbar::-webkit-scrollbar, 
+  body::-webkit-scrollbar,
+  div::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 .glass {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);

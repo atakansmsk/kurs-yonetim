@@ -170,8 +170,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                 <h1 className="font-black text-slate-900 text-lg leading-tight uppercase tracking-tight">VELİ BİLGİLENDİRME SİSTEMİ</h1>
             </div>
             
-            {/* LOGO AREA */}
-            <div className="w-12 h-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center shadow-sm overflow-hidden p-1">
+            {/* DYNAMIC LOGO AREA */}
+            <div className="w-12 h-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center shadow-sm overflow-hidden p-1 relative">
                 {isCustomLogo ? (
                     <img src={appState.schoolIcon} alt="Logo" className="w-full h-full object-contain" />
                 ) : (
@@ -218,19 +218,21 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* Ödeme Bilgisi Kartı */}
+        {/* Ödeme Bilgisi Kartı - SADELEŞTİRİLMİŞ (ÜCRET YOK) */}
         <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col gap-3">
-             {/* Dönem Ders Sayısı Rozeti */}
+             
+             {/* Dönem Ders Sayısı (Varsa) */}
              {student.debtLessonCount > 0 && (
-                <div className="flex justify-end">
-                    <div className="bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 flex items-center gap-2">
-                        <p className="text-[9px] text-slate-400 font-bold">BU AY:</p>
-                        <p className="text-xs font-black text-slate-800">{student.debtLessonCount} Ders İşlendi</p>
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                    <AlertCircle size={14} className="text-slate-400" />
+                    <div className="flex flex-col leading-none">
+                        <span className="text-[8px] font-bold text-slate-400 uppercase">BU DÖNEM</span>
+                        <span className="text-xs font-black text-slate-800">{student.debtLessonCount} Ders İşlendi</span>
                     </div>
                 </div>
              )}
 
-             {/* Ödeme Tarihleri */}
+             {/* Ödeme Tarihleri Izgarası */}
              <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
                     <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">SON ÖDEME</p>
@@ -249,7 +251,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
              </div>
         </div>
 
-        {/* Geçmiş Hareketler Listesi */}
+        {/* Geçmiş Hareketler Listesi (Filtrelenmiş) */}
         <div>
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2 mt-2">DÖNEM HAREKETLERİ</h3>
             <div className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden">
