@@ -6,6 +6,14 @@ export interface Transaction {
   amount: number;
 }
 
+export interface Resource {
+  id: string;
+  title: string;
+  url: string;
+  type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE';
+  date: string;
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -15,6 +23,7 @@ export interface Student {
   debtLessonCount: number;
   makeupCredit: number; // Telafi hakkı bakiyesi
   history: Transaction[];
+  resources: Resource[]; // Ödevler ve Materyaller
 }
 
 export interface LessonSlot {
@@ -69,6 +78,8 @@ export interface CourseContextType {
     toggleAutoProcessing: () => void;
     moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => void;
     swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => void;
+    addResource: (studentId: string, title: string, url: string, type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE') => void;
+    deleteResource: (studentId: string, resourceId: string) => void;
   };
 }
 

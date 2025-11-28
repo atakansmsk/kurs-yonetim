@@ -43,17 +43,14 @@ const THEMES: Record<string, Record<string, string>> = {
     500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' 
   },
   slate: { 
-    // Mavi/Gri Antrasit
     50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 
     500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' 
   },
   zinc: { 
-    // Nötr Gri
     50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8', 400: '#a1a1aa', 
     500: '#71717a', 600: '#52525b', 700: '#3f3f46', 800: '#27272a', 900: '#18181b', 950: '#09090b' 
   },
   neutral: { 
-    // Tam Siyah/Monochrome
     50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4', 400: '#a3a3a3', 
     500: '#737373', 600: '#525252', 700: '#404040', 800: '#262626', 900: '#171717', 950: '#0a0a0a' 
   }
@@ -62,7 +59,6 @@ const THEMES: Record<string, Record<string, string>> = {
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
 
-  // 1. State'i Yükle (LocalStorage Öncelikli)
   const [state, setState] = useState<AppState>(() => {
     try {
       const local = localStorage.getItem('course_app_backup');
@@ -72,23 +68,20 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  // REFS: Döngüleri kırmak için state'in en güncel halini ref içinde tutuyoruz
   const stateRef = useRef(state);
   
   useEffect(() => {
     stateRef.current = state;
     
-    // Apply Theme Color
     const themeKey = state.themeColor || 'indigo';
     const theme = THEMES[themeKey] || THEMES.indigo;
     
     const root = document.documentElement;
     Object.keys(theme).forEach(key => {
-        // Special handling for dark themes to make primary action buttons dark/black
         if ((themeKey === 'neutral' || themeKey === 'zinc' || themeKey === 'slate') && (key === '500' || key === '600')) {
-             root.style.setProperty(`--c-${key}`, theme['900']); // Make primary buttons black
+             root.style.setProperty(`--c-${key}`, theme['900']); 
         } else if ((themeKey === 'neutral' || themeKey === 'zinc' || themeKey === 'slate') && key === '50') {
-             root.style.setProperty(`--c-${key}`, '#f8fafc'); // Keep bg light for readability
+             root.style.setProperty(`--c-${key}`, '#f8fafc'); 
         } else {
              root.style.setProperty(`--c-${key}`, theme[key]);
         }
@@ -100,41 +93,33 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const lastSyncedJson = useRef(""); 
   const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'ERROR' | 'SYNCED' | 'OFFLINE' | 'PERMISSION_ERROR'>('IDLE');
 
-  // --- CRITICAL FIX: useCallback ---
-  // setAppState fonksiyonunu hafızaya sabitliyoruz.
   const setAppState = useCallback((updater: (prev: AppState) => AppState) => {
     setState(prev => {
       const newState = updater(prev);
       const withTimestamp = { ...newState, updatedAt: new Date().toISOString() };
-      
       try {
         localStorage.setItem('course_app_backup', JSON.stringify(withTimestamp));
       } catch (e) {
         console.error("Yerel kayıt hatası:", e);
       }
-
       return withTimestamp;
     });
   }, []);
 
-  // --- 2. LISTENER: Sunucudan Gelen Veri ---
   useEffect(() => {
     if (!user) return;
-    if (syncStatus === 'PERMISSION_ERROR') return; // İzin hatası varsa dinlemeyi durdur (Retry ile açılır)
+    if (syncStatus === 'PERMISSION_ERROR') return;
 
     const unsubscribe = DataService.subscribeToUserData(
       user.id,
       (cloudData) => {
         if (!cloudData) return;
-        
-        // Eğer hata durumundaysak ve veri geldiyse düzelt
         setSyncStatus(prev => prev === 'PERMISSION_ERROR' ? 'IDLE' : prev);
 
         setState(currentState => {
            const cloudTime = new Date(cloudData.updatedAt || 0).getTime();
            const localTime = new Date(currentState.updatedAt || 0).getTime();
 
-           // Sadece sunucu verisi KESİN OLARAK daha yeniyse kabul et.
            if (cloudTime > localTime) {
               const incomingJson = JSON.stringify(cloudData);
               if (incomingJson !== JSON.stringify(currentState)) {
@@ -142,15 +127,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   isRemoteUpdate.current = true;
                   lastSyncedJson.current = incomingJson;
                   setSyncStatus('SYNCED');
-                  
-                  // Gelen veriyi de hemen locale yazalım
                   localStorage.setItem('course_app_backup', incomingJson);
-                  
                   setTimeout(() => setSyncStatus('IDLE'), 2000);
                   return { ...INITIAL_STATE, ...cloudData }; 
               }
            } else if (localTime > cloudTime) {
-              // lastSyncedJson'u sıfırla ki sync effect tetiklensin
               lastSyncedJson.current = ""; 
            }
            return currentState;
@@ -158,7 +139,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       },
       (err) => {
           console.warn("Sync hatası:", err);
-          // Firebase hatası "permission-denied" ise özel durum ayarla
           if (err?.code === 'permission-denied' || err?.message?.includes('permission')) {
              setSyncStatus('PERMISSION_ERROR');
           } else {
@@ -168,12 +148,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
 
     return () => unsubscribe();
-  }, [user, syncStatus]); // syncStatus dependency eklendi ki Retry basınca yeniden abone olsun
+  }, [user, syncStatus]);
 
-  // --- 3. WRITER: Yerel Değişiklikleri Sunucuya Yaz ---
   useEffect(() => {
     if (!user) return;
-    if (syncStatus === 'PERMISSION_ERROR') return; // İzin yoksa deneme
+    if (syncStatus === 'PERMISSION_ERROR') return;
 
     if (isRemoteUpdate.current) {
       isRemoteUpdate.current = false;
@@ -181,7 +160,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     const currentJson = JSON.stringify(state);
-    
     if (currentJson === lastSyncedJson.current) return;
 
     const saveToCloud = async () => {
@@ -205,15 +183,13 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   }, [state, user, syncStatus]);
 
-  // --- 4. OTOMATİK DERS İŞLEME SİSTEMİ ---
   useEffect(() => {
     const processDailyLessons = () => {
         const currentState = stateRef.current;
-        
         if (!currentState.autoLessonProcessing || !currentState.currentTeacher) return;
 
         const today = new Date();
-        const dayIndex = (today.getDay() + 6) % 7; // 0=Pazartesi
+        const dayIndex = (today.getDay() + 6) % 7; 
         const todayName = DAYS[dayIndex]; 
         const dateStr = today.toLocaleDateString('tr-TR'); 
 
@@ -226,9 +202,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (slot.studentId) {
                 const student = currentState.students[slot.studentId];
                 if (student) {
-                    // Bu öğrenciye bugün için herhangi bir işlem (ders/telafi/deneme) yapılmış mı?
                     const hasLessonToday = student.history.some(tx => 
-                        // isDebt kontrolünü kaldırdım çünkü deneme dersi isDebt=false olabilir ama yine de bugün işlenmiş sayılmalı
                         new Date(tx.date).toLocaleDateString('tr-TR') === dateStr
                     );
 
@@ -257,13 +231,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                          if (label === 'TRIAL') {
                              note = "Deneme Dersi (Ücretsiz)";
                              isDebt = false;
-                             incrementCount = 0; // Deneme dersi sayacı artırmaz
+                             incrementCount = 0;
                          } else if (label === 'MAKEUP') {
                              note = "Telafi Dersi (Otomatik)";
-                             isDebt = false; // Telafi dersi borç yazmaz (önceden yazılmıştır)
-                             incrementCount = 0; // Telafi dersi sayacı artırmaz
-                             // Otomatik işlenen telafi dersi krediden düşülmeli mi? 
-                             // Genelde planlarken düşeriz ama otomatikte de garantiye alalım:
+                             isDebt = false; 
+                             incrementCount = 0; 
                              if (newMakeupCredit > 0) newMakeupCredit -= 1;
                          }
                          
@@ -292,12 +264,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     processDailyLessons();
     const interval = setInterval(processDailyLessons, 60000);
-    
     return () => clearInterval(interval);
-
   }, [setAppState]);
 
-  // --- DATA SANITIZATION ON LOAD ---
   useEffect(() => {
     const sanitizeAppState = (s: AppState): AppState => {
         const newStudents = { ...s.students };
@@ -305,8 +274,15 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         Object.keys(newStudents).forEach(studId => {
             const student = newStudents[studId];
-            let calculatedDebt = 0;
             
+            // Ensure resources array exists
+            if (!student.resources) {
+                newStudents[studId] = { ...student, resources: [] };
+                hasChanges = true;
+                return;
+            }
+
+            let calculatedDebt = 0;
             const sortedHistory = [...student.history].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
             sortedHistory.forEach(tx => {
@@ -339,8 +315,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [setAppState, state.updatedAt]);
 
-
-  // --- ACTIONS ---
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
   const actions = useMemo(() => ({
@@ -362,7 +336,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const id = generateId();
       setAppState(prev => ({
         ...prev,
-        students: { ...prev.students, [id]: { id, name, phone, fee, registrationDate: new Date().toISOString(), debtLessonCount: 0, makeupCredit: 0, history: [] } }
+        students: { ...prev.students, [id]: { id, name, phone, fee, registrationDate: new Date().toISOString(), debtLessonCount: 0, makeupCredit: 0, history: [], resources: [] } }
       }));
       return id;
     },
@@ -564,15 +538,54 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
     },
 
+    addResource: (studentId: string, title: string, url: string, type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE') => {
+        setAppState(prev => {
+            const student = prev.students[studentId];
+            if(!student) return prev;
+            
+            const newResource = {
+                id: generateId(),
+                title,
+                url,
+                type,
+                date: new Date().toISOString()
+            };
+
+            return {
+                ...prev,
+                students: {
+                    ...prev.students,
+                    [studentId]: {
+                        ...student,
+                        resources: [newResource, ...(student.resources || [])]
+                    }
+                }
+            };
+        });
+    },
+
+    deleteResource: (studentId: string, resourceId: string) => {
+        setAppState(prev => {
+            const student = prev.students[studentId];
+            if(!student) return prev;
+            
+            return {
+                ...prev,
+                students: {
+                    ...prev.students,
+                    [studentId]: {
+                        ...student,
+                        resources: (student.resources || []).filter(r => r.id !== resourceId)
+                    }
+                }
+            };
+        });
+    },
+
     toggleAutoProcessing: () => setAppState(p => ({ ...p, autoLessonProcessing: !p.autoLessonProcessing })),
 
-    moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => {
-       // Placeholder
-    },
-    
-    swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => {
-       // Placeholder
-    }
+    moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => {},
+    swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => {}
 
   }), [setAppState, state]);
 

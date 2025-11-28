@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
-import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar, Palette, Music, BookOpen, Trophy, Activity } from 'lucide-react';
+import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText } from 'lucide-react';
 
 interface ParentViewProps {
   teacherId: string;
@@ -168,11 +168,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         
         {/* LOGO AREA (Large & Centered) */}
         <div className="flex justify-center mb-4">
-            <div className="h-20 w-auto min-w-[100px] px-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden relative">
+            <div className="h-24 w-auto min-w-[120px] px-6 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden relative">
                 {isCustomLogo ? (
                     <img src={appState.schoolIcon} alt="Logo" className="h-full w-full object-contain" />
                 ) : (
-                    <SchoolIcon size={48} className="text-indigo-600" strokeWidth={1.5} />
+                    <SchoolIcon size={60} className="text-indigo-600" strokeWidth={1.5} />
                 )}
             </div>
         </div>
@@ -193,7 +193,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       </div>
 
       {/* Content - Compact Layout */}
-      <div className="p-4 space-y-3 relative z-10 pb-24">
+      <div className="p-4 space-y-3 relative z-10 pb-20">
         
         {/* Gelecek Ders Kartı (Kompakt) */}
         <div className="bg-slate-900 text-white p-4 rounded-[1.2rem] shadow-lg shadow-slate-200 relative overflow-hidden">
@@ -307,7 +307,36 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        <div className="text-center pt-2">
+        {/* Resources / Homework Section */}
+        {(student.resources || []).length > 0 && (
+            <div>
+                <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2 mt-4">MATERYALLER & ÖDEVLER</h3>
+                <div className="space-y-2">
+                    {student.resources.map(res => (
+                        <a 
+                            key={res.id} 
+                            href={res.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-transform"
+                        >
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white ${
+                                res.type === 'VIDEO' ? 'bg-red-500' : 
+                                res.type === 'PDF' ? 'bg-blue-500' : 'bg-slate-500'
+                            }`}>
+                                {res.type === 'VIDEO' ? <Youtube size={20} /> : res.type === 'PDF' ? <FileText size={20} /> : <Link size={20} />}
+                            </div>
+                            <div className="min-w-0">
+                                <h4 className="font-bold text-slate-800 text-xs truncate">{res.title}</h4>
+                                <p className="text-[9px] text-slate-400 font-medium truncate">Görüntülemek için dokunun</p>
+                            </div>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        <div className="text-center pt-6 pb-2">
             <div className="inline-flex items-center gap-1 text-[8px] font-bold text-slate-300 uppercase tracking-widest">
                 <Sparkles size={8} />
                 <span>Powered by Kurs Pro</span>

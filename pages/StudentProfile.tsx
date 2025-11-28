@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 
@@ -15,7 +15,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const { state, actions } = useCourse();
   const { user } = useAuth();
   const student = state.students[studentId];
-  const [activeTab, setActiveTab] = useState<'STATUS' | 'HISTORY'>('STATUS');
+  const [activeTab, setActiveTab] = useState<'STATUS' | 'HISTORY' | 'MATERIALS'>('STATUS');
   
   // Modals
   const [deleteTxId, setDeleteTxId] = useState<string | null>(null);
@@ -24,6 +24,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLessonOptionsOpen, setIsLessonOptionsOpen] = useState(false);
   const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
+  const [isAddResourceModalOpen, setIsAddResourceModalOpen] = useState(false);
   
   // Selection
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
@@ -37,6 +38,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editFee, setEditFee] = useState("");
+
+  // Resource Form
+  const [resTitle, setResTitle] = useState("");
+  const [resUrl, setResUrl] = useState("");
+  const [resType, setResType] = useState<'VIDEO' | 'PDF' | 'LINK'>('LINK');
 
   if (!student) return null;
 
@@ -55,21 +61,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return phone;
   }
 
-  // --- Date Shifter Helper (-1 / +1 Days) ---
   const shiftDate = (dateStr: string, days: number) => {
       const baseDate = dateStr ? new Date(dateStr) : new Date();
       baseDate.setDate(baseDate.getDate() + days);
-      
       const result = baseDate.toISOString().split('T')[0];
       const today = getTodayString();
-      
-      // Gelecek tarihe geçmeyi engelle
       return result > today ? today : result;
   };
   
   const handleWhatsapp = () => {
       const phone = getPhoneClean();
-      // WhatsApp Business link formatı (Universal Link)
       const message = `Merhaba ${student.name},`;
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       window.open(url, '_blank');
@@ -114,7 +115,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       } else if (action === 'MAKEUP_DONE') {
           setIsLessonOptionsOpen(false);
           setIsMakeupCompleteModalOpen(true);
-          // Don't clear selectedTx yet
           return; 
       }
       setIsLessonOptionsOpen(false);
@@ -127,11 +127,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const dateObj = new Date(makeupCompleteDate);
       const dateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       
-      // Notu güncelle: "Telafi Edildi (29 Kasım)"
       const newNote = `Telafi Edildi (${dateStr})`;
-      
-      // Bu işlem Context tarafında "Telafi Bekliyor" notunu değiştirdiği için
-      // otomatik olarak telafi kredisini 1 düşürecektir.
       actions.updateTransaction(studentId, selectedTx.id, newNote);
       
       setIsMakeupCompleteModalOpen(false);
@@ -140,12 +136,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   };
 
   const handleOpenParentPortal = () => {
-      // Veli Portalı Linki Oluştur
       const baseUrl = window.location.origin + window.location.pathname;
       const portalUrl = `${baseUrl}?parentView=true&teacherId=${user?.id}&studentId=${student.id}`;
-      
-      // Kullanıcıya linki kopyalama seçeneği sunabiliriz, şimdilik direkt açıyoruz
       window.open(portalUrl, '_blank');
+  };
+
+  const handleAddResource = () => {
+      if(resTitle && resUrl) {
+          actions.addResource(studentId, resTitle, resUrl, resType as any);
+          setIsAddResourceModalOpen(false);
+          setResTitle(""); setResUrl(""); setResType('LINK');
+      }
   };
 
   return (
@@ -201,21 +202,25 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-6 border-b border-slate-100 mt-4">
-              <button onClick={() => setActiveTab('STATUS')} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === 'STATUS' ? 'text-slate-800' : 'text-slate-400'}`}>
-                  Abonelik Durumu
+        <div className="flex gap-6 border-b border-slate-100 mt-4 overflow-x-auto no-scrollbar">
+              <button onClick={() => setActiveTab('STATUS')} className={`pb-3 text-sm font-bold transition-all relative shrink-0 ${activeTab === 'STATUS' ? 'text-slate-800' : 'text-slate-400'}`}>
+                  Abonelik
                   {activeTab === 'STATUS' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800 rounded-t-full"></div>}
               </button>
-              <button onClick={() => setActiveTab('HISTORY')} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === 'HISTORY' ? 'text-slate-800' : 'text-slate-400'}`}>
-                  Tüm Geçmiş
+              <button onClick={() => setActiveTab('HISTORY')} className={`pb-3 text-sm font-bold transition-all relative shrink-0 ${activeTab === 'HISTORY' ? 'text-slate-800' : 'text-slate-400'}`}>
+                  Geçmiş
                   {activeTab === 'HISTORY' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800 rounded-t-full"></div>}
+              </button>
+              <button onClick={() => setActiveTab('MATERIALS')} className={`pb-3 text-sm font-bold transition-all relative shrink-0 ${activeTab === 'MATERIALS' ? 'text-slate-800' : 'text-slate-400'}`}>
+                  Materyaller
+                  {activeTab === 'MATERIALS' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800 rounded-t-full"></div>}
               </button>
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-5 py-6 bg-[#F8FAFC]">
-        {activeTab === 'STATUS' ? (
+        {activeTab === 'STATUS' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 
                 {/* 2. Lesson Count Focused Card (Subscription Model) */}
@@ -311,7 +316,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         <div className="relative border-l-2 border-slate-100 ml-4 space-y-6 py-2">
                             {student.history
                                 .filter(tx => tx.isDebt) 
-                                .slice(0, student.debtLessonCount + (student.makeupCredit || 0)) // Gösterilen liste sayısı
+                                .slice(0, student.debtLessonCount + (student.makeupCredit || 0)) 
                                 .map((tx, i, arr) => {
                                     const lessonNum = arr.length - i;
                                     const dateObj = new Date(tx.date);
@@ -361,8 +366,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     )}
                 </div>
             </div>
-        ) : (
-            /* History Tab (Payments mostly) */
+        )}
+        
+        {activeTab === 'HISTORY' && (
             <div className="space-y-3 animate-in fade-in duration-300">
                 {student.history.length === 0 ? (
                      <div className="flex flex-col items-center justify-center mt-10 text-slate-300 opacity-50"><Clock size={48} className="mb-4" /><p className="font-bold">İşlem yok.</p></div>
@@ -385,6 +391,42 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         </div>
                     ))
                 )}
+            </div>
+        )}
+
+        {activeTab === 'MATERIALS' && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+                <button onClick={() => setIsAddResourceModalOpen(true)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-slate-200 hover:scale-[1.01] active:scale-95 transition-all">
+                    <Link size={18} /> Yeni Materyal Ekle
+                </button>
+
+                <div className="space-y-2">
+                    {(student.resources || []).length === 0 ? (
+                        <div className="text-center py-10 opacity-50">
+                            <p className="text-sm font-bold text-slate-400">Henüz materyal eklenmemiş.</p>
+                        </div>
+                    ) : (
+                        (student.resources || []).map(res => (
+                            <div key={res.id} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between group">
+                                <a href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white ${
+                                        res.type === 'VIDEO' ? 'bg-red-500' : 
+                                        res.type === 'PDF' ? 'bg-blue-500' : 'bg-slate-500'
+                                    }`}>
+                                        {res.type === 'VIDEO' ? <Youtube size={20} /> : res.type === 'PDF' ? <FileText size={20} /> : <Link size={20} />}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h4 className="font-bold text-slate-800 text-sm truncate">{res.title}</h4>
+                                        <p className="text-[10px] text-slate-400 truncate">{res.url}</p>
+                                    </div>
+                                </a>
+                                <button onClick={() => actions.deleteResource(studentId, res.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         )}
       </div>
@@ -463,7 +505,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
          </div>
       </Dialog>
 
-      {/* Telafi Tamamlama Modal (Tarih Seçimi) */}
+      {/* Telafi Tamamlama Modal */}
       <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Yapıldı"
          actions={
              <>
@@ -480,16 +522,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      <button onClick={() => setMakeupCompleteDate(getTodayString())} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">Bugün</button>
                  </div>
              </div>
-             
-             {/* Date Shifter Input */}
              <div className="flex items-center gap-2">
                  <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
                  <input type="date" max={getTodayString()} value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
                  <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, 1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
              </div>
-
              {makeupCompleteDate && <p className="text-[10px] text-emerald-600 font-bold ml-1 text-center bg-emerald-50 py-1 rounded-lg">{formatDateFriendly(makeupCompleteDate)}</p>}
-             
              <p className="text-[10px] text-slate-400 ml-1 mt-1">Kumbara: <span className="text-slate-600 font-bold">-1 Telafi Hakkı</span> düşülecek.</p>
          </div>
       </Dialog>
@@ -497,8 +535,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       {/* Ders Durum Opsiyonları Modal */}
       <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="Ders Durumu">
          <div className="flex flex-col gap-2 py-2">
-            
-            {/* Özel Durum: Eğer seçili işlem "Telafi Bekliyor" ise, "Telafi Yapıldı" butonunu göster */}
             {selectedTx?.note === "Telafi Bekliyor" && (
                 <button onClick={() => handleLessonAction('MAKEUP_DONE')} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 text-emerald-800 hover:bg-emerald-100 transition-colors mb-2 shadow-sm">
                     <div className="w-6 h-6 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-sm"><CheckCircle2 size={16} /></div>
@@ -508,7 +544,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     </div>
                 </button>
             )}
-
             <button onClick={() => handleLessonAction('DELETE')} className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-red-600 hover:bg-red-50 transition-colors">
                 <Trash2 size={18} />
                 <div className="text-left">
@@ -516,7 +551,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     <div className="text-left text-[10px] opacity-70">Yanlışlıkla işlendiyse silin.</div>
                 </div>
             </button>
-            
             <button onClick={() => handleLessonAction('ABSENT')} className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-slate-800 hover:bg-red-50 transition-colors">
                 <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs">!</div>
                 <div className="text-left">
@@ -524,7 +558,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     <div className="text-[10px] text-slate-500">Ücret iadesi/telafi yapılmaz.</div>
                 </div>
             </button>
-
             <button onClick={() => handleLessonAction('MAKEUP')} className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-slate-800 hover:bg-orange-50 transition-colors">
                  <div className="w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs">T</div>
                 <div className="text-left">
@@ -549,6 +582,28 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
              <div>
                  <input type="number" value={editFee} onChange={e=>setEditFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none focus:border-slate-900" placeholder="Aylık Ücret" />
                  <p className="text-[10px] text-slate-400 mt-1 ml-1">* Sabit aylık abonelik ücreti.</p>
+             </div>
+          </div>
+      </Dialog>
+
+      {/* Add Resource Modal */}
+      <Dialog isOpen={isAddResourceModalOpen} onClose={() => setIsAddResourceModalOpen(false)} title="Materyal Ekle"
+        actions={
+            <>
+                 <button onClick={() => setIsAddResourceModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
+                 <button onClick={handleAddResource} disabled={!resTitle || !resUrl} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95 transition-all">Ekle</button>
+            </>
+        }
+      >
+          <div className="flex flex-col gap-3 py-1">
+             <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="Başlık (Örn: Ödev 1)" autoFocus />
+             <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="Link (YouTube, Drive...)" />
+             <div className="flex gap-2">
+                 {(['LINK', 'VIDEO', 'PDF'] as const).map(t => (
+                     <button key={t} onClick={() => setResType(t)} className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${resType === t ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'}`}>
+                         {t}
+                     </button>
+                 ))}
              </div>
           </div>
       </Dialog>
