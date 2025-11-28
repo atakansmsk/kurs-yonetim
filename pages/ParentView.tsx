@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
@@ -208,6 +209,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
       </div>
 
+      {/* CONTENT AREA - Width updated to max-w-5xl */}
       <div className="max-w-5xl mx-auto px-5 space-y-4">
         
         {/* --- NEXT LESSON CARD --- */}
