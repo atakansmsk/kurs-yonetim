@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus, UploadCloud, X } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 
@@ -42,7 +42,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   // Resource Form
   const [resTitle, setResTitle] = useState("");
   const [resUrl, setResUrl] = useState("");
-  const [resType, setResType] = useState<'VIDEO' | 'PDF' | 'LINK'>('LINK');
+  const [resType, setResType] = useState<'VIDEO' | 'PDF' | 'LINK' | 'IMAGE'>('LINK');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   if (!student) return null;
 
@@ -141,9 +143,62 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
+  // Image Compression and Handling
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) {
+          setIsCompressing(true);
+          const reader = new FileReader();
+          reader.onload = (e) => {
+              const img = document.createElement('img');
+              img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  let width = img.width;
+                  let height = img.height;
+                  
+                  // Max dimensions to keep size low (approx 800px)
+                  const MAX_SIZE = 800;
+                  if (width > height) {
+                      if (width > MAX_SIZE) {
+                          height *= MAX_SIZE / width;
+                          width = MAX_SIZE;
+                      }
+                  } else {
+                      if (height > MAX_SIZE) {
+                          width *= MAX_SIZE / height;
+                          height = MAX_SIZE;
+                      }
+                  }
+
+                  canvas.width = width;
+                  canvas.height = height;
+                  const ctx = canvas.getContext('2d');
+                  ctx?.drawImage(img, 0, 0, width, height);
+                  
+                  // Convert to Base64 (JPEG quality 0.7)
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                  setResUrl(dataUrl);
+                  setResType('IMAGE');
+                  // Auto title if empty
+                  if (!resTitle) setResTitle(`Fotoğraf ${new Date().toLocaleDateString()}`);
+                  setIsCompressing(false);
+              };
+              img.src = e.target?.result as string;
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
   const handleAddResource = () => {
       if(resTitle && resUrl) {
-          actions.addResource(studentId, resTitle, resUrl, resType as any);
+          // Auto detect type for links
+          let finalType = resType;
+          if (finalType === 'LINK') {
+              if (resUrl.includes('youtube.com') || resUrl.includes('youtu.be')) finalType = 'VIDEO';
+              if (resUrl.endsWith('.pdf')) finalType = 'PDF';
+          }
+
+          actions.addResource(studentId, resTitle, resUrl, finalType);
           setResTitle(""); setResUrl(""); setResType('LINK');
       }
   };
@@ -218,9 +273,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         {activeTab === 'STATUS' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 
-                {/* 2. Lesson Count Focused Card (Subscription Model) */}
+                {/* Lesson Count Focused Card */}
                 <div className="relative overflow-hidden rounded-[2rem] bg-slate-900 p-6 text-white shadow-xl shadow-slate-300">
-                     {/* Background Decor */}
                      <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -ml-10 -mb-10"></div>
 
@@ -253,7 +307,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      </div>
                 </div>
 
-                {/* 3. Actions Grid */}
+                {/* Actions Grid */}
                 <div className="grid grid-cols-2 gap-3">
                      <button 
                         onClick={() => { if (student.debtLessonCount > 0) actions.addTransaction(student.id, 'PAYMENT'); }} 
@@ -285,26 +339,26 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                          <span className="text-[10px] font-bold">Geçmiş Ödeme</span>
                      </button>
 
-                     {/* Veli Portalı Butonu */}
-                     <button 
-                        onClick={handleOpenParentPortal}
-                        className="bg-slate-800 text-white rounded-2xl p-3 shadow-lg shadow-slate-300 flex flex-col items-center justify-center gap-1 hover:bg-slate-700 active:scale-[0.98] transition-all"
-                     >
-                         <Eye size={20} className="text-slate-300" />
-                         <span className="font-bold text-[10px]">Veli Portalı</span>
-                     </button>
-
-                     {/* Ödev Ekle Butonu */}
-                     <button 
-                        onClick={() => setIsResourcesModalOpen(true)}
-                        className="bg-indigo-500 text-white rounded-2xl p-3 shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-1 hover:bg-indigo-600 active:scale-[0.98] transition-all"
-                     >
-                         <Link size={20} className="text-indigo-100" />
-                         <span className="font-bold text-[10px]">Ödev Ekle</span>
-                     </button>
+                     {/* Veli & Ödev Combined Grid */}
+                     <div className="col-span-2 grid grid-cols-2 gap-2 bg-white rounded-2xl p-2 border border-slate-200 shadow-sm mt-2">
+                        <button 
+                            onClick={handleOpenParentPortal}
+                            className="bg-slate-100 text-slate-600 rounded-xl p-3 flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-[0.98] transition-all"
+                        >
+                            <Eye size={18} />
+                            <span className="font-bold text-[10px]">Veli Portalı</span>
+                        </button>
+                        <button 
+                            onClick={() => setIsResourcesModalOpen(true)}
+                            className="bg-indigo-100 text-indigo-700 rounded-xl p-3 flex items-center justify-center gap-2 hover:bg-indigo-200 active:scale-[0.98] transition-all"
+                        >
+                            <Link size={18} />
+                            <span className="font-bold text-[10px]">Ödev & Materyal</span>
+                        </button>
+                     </div>
                 </div>
 
-                {/* 4. Lesson History List */}
+                {/* Lesson History List */}
                 <div>
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1 flex items-center justify-between">
                         <span>BU DÖNEMKİ DERSLER</span>
@@ -428,7 +482,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  </div>
              </div>
              
-             {/* Date Shifter Input */}
              <div className="flex items-center gap-2">
                  <button onClick={() => setPastDate(shiftDate(pastDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
                  <input type="date" max={getTodayString()} value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500 text-center" />
@@ -458,7 +511,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     </div>
                 </div>
 
-                {/* Date Shifter Input */}
                 <div className="flex items-center gap-2">
                     <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
                     <input type="date" max={getTodayString()} value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
@@ -562,16 +614,41 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">YENİ EKLE</p>
                  <div className="space-y-2">
-                    <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none" placeholder="Başlık (Örn: Nota, Video)" />
-                    <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none" placeholder="Link (Drive, Youtube...)" />
-                    <div className="flex gap-2">
-                        {(['LINK', 'VIDEO', 'PDF'] as const).map(t => (
-                            <button key={t} onClick={() => setResType(t)} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${resType === t ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'}`}>
-                                {t}
-                            </button>
-                        ))}
+                    <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none focus:border-indigo-500" placeholder="Başlık (Örn: Nota, Video)" />
+                    
+                    {/* Toggle: Link vs Image */}
+                    {resType === 'IMAGE' ? (
+                        <div className="relative">
+                            <div className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+                                <span className="text-xs text-emerald-600 font-bold truncate pr-2">{resUrl ? 'Fotoğraf Seçildi' : 'Dosya Bekleniyor'}</span>
+                                <button onClick={() => { setResUrl(""); setResType('LINK'); }} className="p-1 bg-slate-100 rounded-full text-slate-400 hover:text-red-500"><X size={14}/></button>
+                            </div>
+                            {resUrl && <img src={resUrl} alt="Preview" className="mt-2 h-20 w-auto rounded-lg border border-slate-200 object-cover" />}
+                        </div>
+                    ) : (
+                        <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none focus:border-indigo-500" placeholder="Link (Drive, Youtube...)" />
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                        {/* Hidden File Input */}
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                        
+                        <button 
+                            onClick={() => fileInputRef.current?.click()} 
+                            disabled={isCompressing}
+                            className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs border transition-all active:scale-95 ${resType === 'IMAGE' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                        >
+                            {isCompressing ? <span className="animate-pulse">Sıkıştırılıyor...</span> : <><UploadCloud size={16} /> Fotoğraf Seç</>}
+                        </button>
+
+                        <button 
+                            onClick={handleAddResource} 
+                            disabled={!resTitle || !resUrl || isCompressing} 
+                            className="py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-200 disabled:opacity-50 disabled:shadow-none active:scale-95 transition-all"
+                        >
+                            Ekle
+                        </button>
                     </div>
-                    <button onClick={handleAddResource} disabled={!resTitle || !resUrl} className="w-full py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md disabled:opacity-50">Ekle</button>
                  </div>
              </div>
 
@@ -582,20 +659,24 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     <p className="text-center text-xs text-slate-300 py-4 font-bold">Henüz materyal yok.</p>
                 ) : (
                     (student.resources || []).map(res => (
-                        <div key={res.id} className="flex items-center justify-between p-2 bg-white border border-slate-100 rounded-xl">
-                            <a href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 flex-1 min-w-0">
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 ${
+                        <div key={res.id} className="flex items-center justify-between p-2 bg-white border border-slate-100 rounded-xl group hover:border-indigo-100 transition-colors">
+                            <a href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0 ${
                                     res.type === 'VIDEO' ? 'bg-red-500' : 
-                                    res.type === 'PDF' ? 'bg-blue-500' : 'bg-slate-500'
+                                    res.type === 'PDF' ? 'bg-blue-500' : 
+                                    res.type === 'IMAGE' ? 'bg-emerald-500' : 'bg-slate-500'
                                 }`}>
-                                    {res.type === 'VIDEO' ? <Youtube size={14} /> : res.type === 'PDF' ? <FileText size={14} /> : <Link size={14} />}
+                                    {res.type === 'VIDEO' ? <Youtube size={16} /> : 
+                                     res.type === 'PDF' ? <FileText size={16} /> : 
+                                     res.type === 'IMAGE' ? <Image size={16} /> : <Link size={16} />}
                                 </div>
                                 <div className="min-w-0">
                                     <h4 className="font-bold text-slate-800 text-xs truncate">{res.title}</h4>
+                                    <p className="text-[9px] text-slate-400 font-medium truncate">{res.type === 'LINK' ? 'Web Bağlantısı' : res.type}</p>
                                 </div>
                             </a>
-                            <button onClick={() => actions.deleteResource(studentId, res.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
-                                <Trash2 size={14} />
+                            <button onClick={() => actions.deleteResource(studentId, res.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                <Trash2 size={16} />
                             </button>
                         </div>
                     ))
