@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
-import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar } from 'lucide-react';
 
 interface ParentViewProps {
   teacherId: string;
@@ -84,18 +84,43 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
     return null;
   };
 
-  const getLastPaymentDate = () => {
-      const paymentTx = student.history.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
-      if (paymentTx) {
-          return new Date(paymentTx.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+  // Son Ödeme İşlemini Bul
+  const getLastPaymentTx = () => {
+      return student.history.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme"));
+  };
+
+  const lastPaymentTx = getLastPaymentTx();
+
+  const getLastPaymentDateStr = () => {
+      if (lastPaymentTx) {
+          return new Date(lastPaymentTx.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       }
-      return "Yok";
+      return "Henüz Yok";
+  };
+
+  // Gelecek Ödeme Tarihi Hesapla (Son Ödeme + 1 Ay)
+  const getNextPaymentDateStr = () => {
+      let baseDate = new Date();
+      
+      if (lastPaymentTx) {
+          // Son ödeme varsa onu baz al
+          baseDate = new Date(lastPaymentTx.date);
+      } else {
+          // Hiç ödeme yoksa kayıt tarihini baz al
+          baseDate = new Date(student.registrationDate);
+      }
+
+      // 1 Ay Ekle
+      baseDate.setMonth(baseDate.getMonth() + 1);
+      
+      return baseDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
   };
 
   const nextLesson = getNextLesson();
-  const lastPayment = getLastPaymentDate();
+  const lastPayment = getLastPaymentDateStr();
+  const nextPayment = getNextPaymentDateStr();
   
-  // Sort history by date descending (En yeniden en eskiye)
+  // Sort history by date descending
   const sortedHistory = [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
@@ -151,25 +176,39 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* Ödeme Bilgisi Kartı */}
+        {/* Ödeme Bilgisi Kartı - Gelişmiş */}
         <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col gap-3">
              <div className="flex items-center justify-between">
                  <div>
                      <p className="text-[9px] text-slate-400 font-bold mb-0.5">AYLIK ABONELİK</p>
                      <p className="text-xl font-black text-slate-900">{student.fee} <span className="text-xs font-bold text-slate-400">TL</span></p>
                  </div>
-                 <div className="text-right">
-                     <p className="text-[9px] text-slate-400 font-bold mb-0.5">SON ÖDEME</p>
-                     <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{lastPayment}</p>
-                 </div>
+                 {/* Dönem Ders Sayısı Rozeti */}
+                 {student.debtLessonCount > 0 && (
+                    <div className="bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                        <p className="text-[9px] text-slate-400 font-bold">BU AY</p>
+                        <p className="text-xs font-black text-slate-800">{student.debtLessonCount} Ders</p>
+                    </div>
+                 )}
              </div>
-             
-             {student.debtLessonCount > 0 && (
-                 <div className="bg-slate-50 rounded-lg p-2.5 flex items-center gap-2 border border-slate-100">
-                     <AlertCircle size={14} className="text-slate-400" />
-                     <p className="text-[10px] text-slate-500 font-medium">Bu dönem <strong className="text-slate-900">{student.debtLessonCount} ders</strong> işlendi.</p>
-                 </div>
-             )}
+
+             {/* Ödeme Tarihleri Izgarası */}
+             <div className="grid grid-cols-2 gap-2 mt-1">
+                <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">SON ÖDEME</p>
+                    <div className="flex items-center gap-1.5">
+                        <CheckCircle2 size={12} className="text-emerald-500" />
+                        <span className="text-xs font-bold text-emerald-700">{lastPayment}</span>
+                    </div>
+                </div>
+                <div className="bg-indigo-50 p-2 rounded-xl border border-indigo-100">
+                    <p className="text-[8px] font-bold text-indigo-400 uppercase mb-1">GELECEK ÖDEME</p>
+                    <div className="flex items-center gap-1.5">
+                        <Calendar size={12} className="text-indigo-500" />
+                        <span className="text-xs font-bold text-indigo-700">{nextPayment}</span>
+                    </div>
+                </div>
+             </div>
         </div>
 
         {/* Geçmiş Hareketler Listesi */}
