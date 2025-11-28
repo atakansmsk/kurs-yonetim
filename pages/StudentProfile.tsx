@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
