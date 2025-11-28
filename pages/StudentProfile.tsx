@@ -291,7 +291,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         className="col-span-2 bg-slate-800 text-white rounded-2xl p-3 shadow-lg shadow-slate-300 flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-[0.98] transition-all"
                      >
                          <Eye size={18} className="text-slate-300" />
-                         <span className="font-bold text-sm">Veli Portalını Görüntüle (Örnek)</span>
+                         <span className="font-bold text-sm">Veli Portalını Görüntüle</span>
                      </button>
                 </div>
 
