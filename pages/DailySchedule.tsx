@@ -10,7 +10,7 @@ interface DailyScheduleProps {
 }
 
 const SHORT_DAYS: Record<WeekDay, string> = {
-  "Pazartesi": "Pzt", "Salı": "Sal", "Çarşamba": "Çar", "Perşembe": "Per", "Cuma": "Cum", "Cmt": "Cmt", "Pazar": "Paz"
+  "Pazartesi": "PAZARTESİ", "Salı": "SALI", "Çarşamba": "ÇARŞAMBA", "Perşembe": "PERŞEMBE", "Cuma": "CUMA", "Cmt": "CUMARTESİ", "Pazar": "PAZAR"
 };
 
 const timeToMinutes = (time: string) => {
@@ -138,13 +138,14 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
       <div className="bg-white/90 backdrop-blur-md pt-2 pb-0 px-2 z-20 sticky top-0 border-b border-slate-100 shadow-sm">
-        <div className="flex justify-between items-center bg-slate-50 p-1 rounded-xl">
+        {/* Full Width Day Selector */}
+        <div className="flex overflow-x-auto no-scrollbar gap-1 bg-slate-50 p-1 rounded-xl">
           {DAYS.map(day => (
             <button
               key={day}
               onClick={() => setSelectedDay(day)}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-bold transition-all duration-200 text-center ${
-                selectedDay === day ? 'bg-white text-indigo-600 shadow-sm shadow-slate-200' : 'text-slate-400 hover:text-slate-600'
+              className={`flex-shrink-0 px-4 py-2 rounded-lg text-[10px] font-black tracking-wide transition-all duration-200 text-center ${
+                selectedDay === day ? 'bg-white text-indigo-600 shadow-sm shadow-slate-200 ring-1 ring-black/5' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               {SHORT_DAYS[day]}
