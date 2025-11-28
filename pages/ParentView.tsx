@@ -163,19 +163,16 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   return (
     <div className="min-h-screen bg-[#F8FAFC] max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800">
       
-      {/* Header */}
-      <div className="bg-white px-5 pt-6 pb-4 rounded-b-[1.5rem] shadow-sm border-b border-slate-100 relative z-20">
-        <div className="flex justify-between items-center mb-4">
-            <div>
-                <h1 className="font-black text-slate-900 text-lg leading-tight uppercase tracking-tight">VELİ BİLGİLENDİRME SİSTEMİ</h1>
-            </div>
-            
-            {/* DYNAMIC LOGO AREA */}
-            <div className="w-12 h-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center shadow-sm overflow-hidden p-1 relative">
+      {/* Header - Brand Focused */}
+      <div className="bg-white px-5 pt-8 pb-4 rounded-b-[1.5rem] shadow-sm border-b border-slate-100 relative z-20">
+        
+        {/* LOGO AREA (Centered & Large) */}
+        <div className="flex justify-center mb-6">
+            <div className="h-24 w-auto min-w-[100px] px-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-center shadow-sm overflow-hidden relative">
                 {isCustomLogo ? (
-                    <img src={appState.schoolIcon} alt="Logo" className="w-full h-full object-contain" />
+                    <img src={appState.schoolIcon} alt="Logo" className="h-full w-full object-contain" />
                 ) : (
-                    <SchoolIcon size={24} className="text-indigo-600" />
+                    <SchoolIcon size={48} className="text-indigo-600" strokeWidth={1.5} />
                 )}
             </div>
         </div>
@@ -218,7 +215,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* Ödeme Bilgisi Kartı - SADELEŞTİRİLMİŞ (ÜCRET YOK) */}
+        {/* Ödeme Bilgisi Kartı */}
         <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col gap-3">
              
              {/* Dönem Ders Sayısı (Varsa) */}
