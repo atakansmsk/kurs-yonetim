@@ -76,16 +76,22 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       const getNextLesson = () => {
         const today = new Date();
         const dayIndex = today.getDay(); // 0=Pazar
-        const daysMap = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
+        
+        // GÖRÜNEN İSİMLER (Tam Adlar)
+        const displayDays = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+        // VERİ ANAHTARLARI (Types.ts ile uyumlu - Cmt)
+        const dataKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
         
         for (let i = 0; i < 7; i++) {
             const checkDayIndex = (dayIndex + i) % 7;
-            const dayName = daysMap[checkDayIndex];
-            const key = `${appState.currentTeacher}|${dayName}`;
+            const keyName = dataKeys[checkDayIndex];     // Veritabanında aranan (Cmt)
+            const displayName = displayDays[checkDayIndex]; // Ekranda yazan (Cumartesi)
+            
+            const key = `${appState.currentTeacher}|${keyName}`;
             const slots = appState.schedule[key] || [];
             const foundSlot = slots.find(s => s.studentId === student.id);
             if (foundSlot) {
-                return { day: dayName, time: `${foundSlot.start} - ${foundSlot.end}` };
+                return { day: displayName, time: `${foundSlot.start} - ${foundSlot.end}` };
             }
         }
         return null;
@@ -281,7 +287,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         
                         {currentPeriodHistory.map((tx, idx) => {
                             const dateObj = new Date(tx.date);
-                            const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+                            // FULL DATE WITH DAY NAME (e.g., 14 Kasım Perşembe)
+                            const fullDateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
                             const time = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                             
                             let statusText = "Ders Yapıldı";
@@ -304,7 +311,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                     <div className="flex justify-between items-start pr-2">
                                         <div>
                                             <div className={`text-xs font-bold ${statusColor}`}>{statusText}</div>
-                                            <div className="text-[10px] font-medium text-slate-400 mt-0.5">{day} • {time}</div>
+                                            {/* FULL DATE DISPLAY */}
+                                            <div className="text-[10px] font-medium text-slate-400 mt-0.5">{fullDateStr} • {time}</div>
                                         </div>
                                     </div>
                                 </div>
