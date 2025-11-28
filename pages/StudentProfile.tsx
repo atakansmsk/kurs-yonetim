@@ -1,10 +1,10 @@
-
 import React, { useState, useRef } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus, UploadCloud, X } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
+import { StorageService } from '../services/api';
 
 interface StudentProfileProps {
   studentId: string;
@@ -44,7 +44,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [resUrl, setResUrl] = useState("");
   const [resType, setResType] = useState<'VIDEO' | 'PDF' | 'LINK' | 'IMAGE'>('LINK');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isCompressing, setIsCompressing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!student) return null;
 
@@ -143,49 +143,33 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  // Image Compression and Handling
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // --- CLOUD STORAGE UPLOAD LOGIC ---
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (file) {
-          setIsCompressing(true);
-          const reader = new FileReader();
-          reader.onload = (e) => {
-              const img = document.createElement('img');
-              img.onload = () => {
-                  const canvas = document.createElement('canvas');
-                  let width = img.width;
-                  let height = img.height;
-                  
-                  // Max dimensions to keep size low (approx 800px)
-                  const MAX_SIZE = 800;
-                  if (width > height) {
-                      if (width > MAX_SIZE) {
-                          height *= MAX_SIZE / width;
-                          width = MAX_SIZE;
-                      }
-                  } else {
-                      if (height > MAX_SIZE) {
-                          width *= MAX_SIZE / height;
-                          height = MAX_SIZE;
-                      }
-                  }
+      if (!file || !user) return;
 
-                  canvas.width = width;
-                  canvas.height = height;
-                  const ctx = canvas.getContext('2d');
-                  ctx?.drawImage(img, 0, 0, width, height);
-                  
-                  // Convert to Base64 (JPEG quality 0.7)
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                  setResUrl(dataUrl);
-                  setResType('IMAGE');
-                  // Auto title if empty
-                  if (!resTitle) setResTitle(`Fotoğraf ${new Date().toLocaleDateString()}`);
-                  setIsCompressing(false);
-              };
-              img.src = e.target?.result as string;
-          };
-          reader.readAsDataURL(file);
+      setIsUploading(true);
+      try {
+          // Benzersiz bir dosya adı oluştur
+          const timestamp = new Date().getTime();
+          // Path: images/USER_ID/STUDENT_ID/TIMESTAMP_FILENAME
+          const path = `images/${user.id}/${studentId}/${timestamp}_${file.name}`;
+          
+          // Firebase Storage'a yükle
+          const downloadUrl = await StorageService.uploadFile(file, path);
+          
+          setResUrl(downloadUrl);
+          setResType('IMAGE');
+          if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
+          
+          alert("Resim başarıyla yüklendi!");
+      } catch (error) {
+          console.error("Yükleme hatası:", error);
+          alert("Resim yüklenemedi. Lütfen Firebase Storage kurallarının açık olduğundan ve internet bağlantınızdan emin olun.");
+      } finally {
+          setIsUploading(false);
+          // Inputu temizle ki aynı dosyayı tekrar seçebilelim
+          if (fileInputRef.current) fileInputRef.current.value = "";
       }
   };
 
@@ -588,6 +572,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
          </div>
       </Dialog>
 
+      {/* Edit Student Modal */}
       <Dialog isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Bilgileri Düzenle"
         actions={
             <>
@@ -635,15 +620,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         
                         <button 
                             onClick={() => fileInputRef.current?.click()} 
-                            disabled={isCompressing}
+                            disabled={isUploading}
                             className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs border transition-all active:scale-95 ${resType === 'IMAGE' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                         >
-                            {isCompressing ? <span className="animate-pulse">Sıkıştırılıyor...</span> : <><UploadCloud size={16} /> Fotoğraf Seç</>}
+                            {isUploading ? <><Loader2 size={16} className="animate-spin"/> Yükleniyor</> : <><UploadCloud size={16} /> Fotoğraf Seç</>}
                         </button>
 
                         <button 
                             onClick={handleAddResource} 
-                            disabled={!resTitle || !resUrl || isCompressing} 
+                            disabled={!resTitle || !resUrl || isUploading} 
                             className="py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-200 disabled:opacity-50 disabled:shadow-none active:scale-95 transition-all"
                         >
                             Ekle

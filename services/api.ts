@@ -1,7 +1,7 @@
-
-import { auth, db } from '../firebaseConfig';
+import { auth, db, storage } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
 import { doc, setDoc, onSnapshot, getDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AppState, User } from '../types';
 
 // --- AUTH SERVİSİ ---
@@ -89,5 +89,26 @@ export const DataService = {
     );
 
     return unsubscribe;
+  }
+};
+
+// --- STORAGE SERVİSİ (DOSYA YÜKLEME) ---
+export const StorageService = {
+  async uploadFile(file: File, path: string): Promise<string> {
+    try {
+      // 1. Storage Referansı Oluştur (images/userID/timestamp_filename)
+      const storageRef = ref(storage, path);
+      
+      // 2. Dosyayı Yükle
+      const snapshot = await uploadBytes(storageRef, file);
+      
+      // 3. İndirme Linkini Al
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error("Dosya yükleme hatası:", error);
+      throw error;
+    }
   }
 };
