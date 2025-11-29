@@ -47,36 +47,54 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // --- STATS CALCULATION (Memoized) ---
-  const currentPeriodLessons = useMemo(() => {
+  // --- SORTER ---
+  // Tarihe göre her zaman yeniden sırala (En yeni en üstte)
+  const sortedHistory = useMemo(() => {
       if (!student) return [];
-      const sortedHistory = [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [student]);
+
+  // --- STATS CALCULATION (Memoized) ---
+  const currentPeriodStats = useMemo(() => {
+      if (!student) return { lessons: [], debtCount: 0 };
       
       // Son ödemeyi bul (Telafi veya Ders olmayan, borç düşmeyen işlem)
-      const lastPayment = sortedHistory.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Ders"));
+      // Ödeme işlemi: isDebt = false
+      const lastPaymentIndex = sortedHistory.findIndex(tx => !tx.isDebt);
       
-      let periodLessons = [];
+      let periodLessons: Transaction[] = [];
 
-      if (lastPayment) {
-          const payTime = new Date(lastPayment.date).getTime();
-          // Ödemeden sonraki dersleri al
-          periodLessons = sortedHistory.filter(tx => tx.isDebt && new Date(tx.date).getTime() > payTime);
+      if (lastPaymentIndex !== -1) {
+          // Ödemeden önceki (tarih olarak sonraki) tüm işlemler
+          periodLessons = sortedHistory.slice(0, lastPaymentIndex);
       } else {
-          // Hiç ödeme yoksa tüm dersleri al
-          periodLessons = sortedHistory.filter(tx => tx.isDebt);
+          // Hiç ödeme yoksa tüm liste
+          periodLessons = sortedHistory;
       }
-      return periodLessons;
-  }, [student]);
+
+      // Borç sayacı: Sadece "Normal Ders" ve "İşlendi" olanlar.
+      // Telafiler genelde önceki bir borcun karşılığıdır, ekstra borç yazmaz (sistem tasarımına göre değişebilir ama genelde böyledir)
+      // Deneme dersi borç yazmaz.
+      const debtLessons = periodLessons.filter(tx => 
+          tx.isDebt && 
+          !tx.note.toLowerCase().includes("telafi") && 
+          !tx.note.toLowerCase().includes("deneme")
+      );
+
+      return { lessons: debtLessons, debtCount: debtLessons.length };
+  }, [sortedHistory]);
   
   // Lesson Number Map Calculation
+  // İşlenen dersleri 1. Ders, 2. Ders diye numaralandır
   const lessonNumberMap = useMemo(() => {
       if (!student) return new Map();
       const map = new Map<string, number>();
       
-      // Filter strictly for "Regular Lessons" to number them properly (1. Ders, 2. Ders)
-      // Only number lessons in the CURRENT PERIOD (since last payment) or ALL TIME?
-      // Usually "1. Ders" refers to the current billing cycle.
-      const regularLessons = currentPeriodLessons.filter(tx => 
+      // Sadece bu ödeme dönemindeki normal dersleri numaralandır
+      // Veya tüm zamanların derslerini mi? Genelde "Bu ayki 3. ders" mantığı kullanılır.
+      // Şimdilik "Son ödemeden sonraki dersler" mantığını koruyoruz.
+      
+      const regularLessons = currentPeriodStats.lessons.filter(tx => 
         tx.isDebt && 
         !tx.note.toLowerCase().includes("telafi") && 
         !tx.note.toLowerCase().includes("deneme") && 
@@ -84,14 +102,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         !tx.note.toLowerCase().includes("gelmedi")
       );
       
-      // Sort oldest to newest to assign numbers 1, 2, 3...
-      regularLessons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // Eskiden yeniye sırala ki 1, 2, 3 diye gitsin
+      const ascLessons = [...regularLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      regularLessons.forEach((tx, index) => {
+      ascLessons.forEach((tx, index) => {
           map.set(tx.id, index + 1);
       });
       return map;
-  }, [currentPeriodLessons, student]);
+  }, [currentPeriodStats]);
 
   if (!student) return null;
 
@@ -237,11 +255,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       }
   };
 
-  // UI Count based on calculation
-  const displayedLessonCount = currentPeriodLessons.filter(tx => 
-        !tx.note.toLowerCase().includes("telafi") && 
-        !tx.note.toLowerCase().includes("deneme")
-  ).length;
+  const displayedLessonCount = currentPeriodStats.lessons.length;
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
@@ -313,16 +327,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                           <Wallet size={14} />
                           <span className="text-[9px] font-bold uppercase tracking-widest">Ödeme Durumu</span>
                       </div>
-                      {student.debtLessonCount > 0 ? (
+                      {currentPeriodStats.debtCount > 0 ? (
                         <div className="text-xl font-black text-slate-800">
-                           {student.debtLessonCount} Ders <span className="text-sm font-bold text-orange-500">Birikti</span>
+                           {currentPeriodStats.debtCount} Ders <span className="text-sm font-bold text-orange-500">Birikti</span>
                         </div>
                       ) : (
                         <div className="text-xl font-black text-emerald-500">Tamamlandı</div>
                       )}
                    </div>
                    
-                   {student.debtLessonCount > 0 ? (
+                   {currentPeriodStats.debtCount > 0 ? (
                        <div className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg self-start flex items-center gap-1 mt-1">
                            <AlertCircle size={10} /> Ödeme Bekleniyor
                        </div>
@@ -397,12 +411,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
                {/* TIMELINE LIST */}
                <div className="relative space-y-4 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-6">
-                  {student.history.length === 0 ? (
+                  {sortedHistory.length === 0 ? (
                       <div className="text-center py-10 opacity-50">
                           <p className="text-sm font-bold text-slate-400">Henüz kayıt yok.</p>
                       </div>
                   ) : (
-                      student.history.map((tx) => {
+                      sortedHistory.map((tx) => {
                           const isPayment = !tx.isDebt;
                           const dateObj = new Date(tx.date);
                           const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
@@ -435,7 +449,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                icon = <XCircle size={16} />;
                                iconClass = "bg-red-50 text-red-600";
                           } else {
-                              // Numbered Lesson
+                              // Numbered Lesson (Only for regular lessons)
                               const num = lessonNumberMap.get(tx.id);
                               if (num) title = `${num}. Ders`;
                           }
