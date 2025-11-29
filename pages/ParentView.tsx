@@ -282,99 +282,98 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* --- TIMELINE HISTORY (IMPROVED) --- */}
+        {/* --- TIMELINE HISTORY (COMPACT & CLEAN) --- */}
         <div>
-            <div className="flex items-center justify-between mb-4 px-2 mt-4">
+            <div className="flex items-center justify-between mb-3 px-2 mt-4">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Activity size={14} />
                     GEÇMİŞ HAREKETLER
                 </h3>
             </div>
             
-            <div className="flex flex-col gap-3">
+            <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10">
                 {currentPeriodHistory.length === 0 ? (
-                    <div className="bg-white rounded-[2rem] border border-slate-100 border-dashed p-8 text-center shadow-sm">
-                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
-                            <Calendar size={20} />
+                    <div className="bg-white rounded-[1.5rem] border border-slate-100 border-dashed p-6 text-center shadow-sm">
+                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
+                            <Calendar size={18} />
                         </div>
-                        <p className="text-slate-900 font-bold text-sm">Hareket Yok</p>
-                        <p className="text-slate-400 text-xs mt-1">Bu dönem henüz ders veya ödeme kaydı girilmedi.</p>
+                        <p className="text-slate-900 font-bold text-xs">Hareket Yok</p>
+                        <p className="text-slate-400 text-[10px] mt-0.5">Bu dönem henüz işlem yapılmadı.</p>
                     </div>
                 ) : (
                     currentPeriodHistory.map((tx) => {
                         const dateObj = new Date(tx.date);
                         const dayNumber = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
-                        const monthName = dateObj.toLocaleDateString('tr-TR', { month: 'long' });
+                        const monthName = dateObj.toLocaleDateString('tr-TR', { month: 'short' }); // Short month
                         
-                        // --- Smart Title Logic ---
-                        let title = "Ders Tamamlandı";
-                        let subtitle = "Başarıyla işlendi.";
+                        // --- Simplified Logic ---
+                        let title = "";
+                        let subtitle = "";
                         let iconColor = "text-indigo-600 bg-indigo-50";
                         let Icon = UserCheck;
                         let showAmount = false;
 
-                        // Clean logic to determine type
                         const lowerNote = tx.note.toLowerCase();
 
                         if (!tx.isDebt) {
                             // PAYMENT
                             title = "Ödeme Alındı";
-                            subtitle = "Bakiyeden düşüldü.";
+                            subtitle = "Teşekkürler";
                             iconColor = "text-emerald-600 bg-emerald-50";
                             Icon = Banknote;
                             showAmount = true;
                         } else if (lowerNote.includes("telafi")) {
                             // MAKEUP
                             title = "Telafi Dersi";
-                            subtitle = "Telafi hakkı kullanılarak işlendi.";
+                            subtitle = "Tamamlandı";
                             iconColor = "text-orange-600 bg-orange-50";
                             Icon = Layers;
                         } else if (lowerNote.includes("gelmedi") || lowerNote.includes("iptal")) {
                             // ABSENT
-                            title = "Katılım Sağlanmadı";
-                            subtitle = "Ders işlenmedi (İptal/Devamsızlık).";
+                            title = "Katılım Yok";
+                            subtitle = "Habersiz";
                             iconColor = "text-red-600 bg-red-50";
                             Icon = XCircle;
                         } else if (lowerNote.includes("deneme")) {
                             // TRIAL
                             title = "Deneme Dersi";
-                            subtitle = "Tanışma dersi tamamlandı.";
+                            subtitle = "Tamamlandı";
                             iconColor = "text-purple-600 bg-purple-50";
                             Icon = Sparkles;
                         } else {
                             // REGULAR LESSON
-                            // Extract numbers if present (e.g. "3. Ders")
+                            // Extract just the logic part e.g. "3. Ders"
                             const match = tx.note.match(/(\d+)\./);
                             if (match) {
-                                subtitle = `${match[1]}. Ders başarıyla tamamlandı.`;
+                                title = `${match[1]}. Ders`;
                             } else {
-                                subtitle = "Ders başarıyla tamamlandı.";
+                                title = "Ders";
                             }
+                            subtitle = "Tamamlandı";
                         }
 
                         return (
-                            <div key={tx.id} className="group flex items-stretch bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:border-indigo-100 transition-all active:scale-[0.99]">
-                                
-                                {/* Date Box */}
-                                <div className="w-16 bg-slate-50 flex flex-col items-center justify-center border-r border-slate-100 shrink-0 group-hover:bg-indigo-50/30 transition-colors">
-                                    <span className="text-xl font-black text-slate-800 leading-none">{dayNumber}</span>
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wide">{monthName.slice(0,3)}</span>
+                            <div key={tx.id} className="flex gap-3 items-center">
+                                {/* Compact Date Column */}
+                                <div className="flex flex-col items-center justify-center w-[42px] shrink-0 bg-white py-1 rounded-lg border border-slate-50 shadow-sm z-10">
+                                    <span className="text-sm font-black text-slate-700 leading-none">{dayNumber}</span>
+                                    <span className="text-[8px] font-bold text-slate-400 uppercase leading-none mt-0.5">{monthName}</span>
                                 </div>
 
-                                {/* Content */}
-                                <div className="flex-1 p-3 flex items-center justify-between gap-2">
+                                {/* Compact Card */}
+                                <div className="flex-1 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between gap-2 active:scale-[0.99] transition-transform">
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white shadow-sm ${iconColor}`}>
-                                            <Icon size={16} strokeWidth={2.5} />
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconColor}`}>
+                                            <Icon size={14} strokeWidth={2.5} />
                                         </div>
                                         <div>
-                                            <h4 className="text-sm font-bold text-slate-900 leading-tight mb-0.5">{title}</h4>
-                                            <p className="text-[10px] font-medium text-slate-400 leading-tight">{subtitle}</p>
+                                            <h4 className="text-sm font-bold text-slate-800 leading-none mb-1">{title}</h4>
+                                            <p className="text-[10px] font-medium text-slate-400 leading-none">{subtitle}</p>
                                         </div>
                                     </div>
 
                                     {showAmount && (
-                                        <div className="text-xs font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+                                        <div className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 mr-1">
                                             +{tx.amount}₺
                                         </div>
                                     )}
