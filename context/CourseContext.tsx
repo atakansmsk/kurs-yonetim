@@ -225,16 +225,25 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (isDebt) {
               newDebtCount += 1;
           } else {
-              // Payment resets debt counter
-              newDebtCount = 0;
+              // Eğer özel bir tarih girilmediyse (yani şimdi ödeme alınıyorsa) sayacı sıfırla.
+              // Geçmişe dönük ödeme ekleniyorsa (customDate varsa) mevcut sayacı bozma.
+              if (!customDate) {
+                 newDebtCount = 0;
+              }
           }
+
+          // Miktar 0 olabilir, bu yüzden undefined kontrolü yapıyoruz.
+          // Eğer miktar belirtilmemişse: Borç ise 0, Ödeme ise öğrenci ücreti varsayılır.
+          const finalAmount = (amount !== undefined && amount !== null) 
+              ? amount 
+              : (isDebt ? 0 : student.fee);
 
           const newTx: Transaction = {
               id: Math.random().toString(36).substr(2, 9),
               note: isDebt ? `${newDebtCount}. Ders İşlendi` : 'Ödeme Alındı',
               date,
               isDebt,
-              amount: amount || (isDebt ? 0 : student.fee)
+              amount: finalAmount
           };
 
           return {

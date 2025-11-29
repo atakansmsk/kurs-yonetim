@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
 import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2 } from 'lucide-react';
@@ -46,6 +46,27 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // --- STATS CALCULATION (Memoized) ---
+  const currentPeriodLessons = useMemo(() => {
+      if (!student) return [];
+      const sortedHistory = [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      // Son ödemeyi bul (Telafi veya Ders olmayan, borç düşmeyen işlem)
+      const lastPayment = sortedHistory.find(tx => !tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Ders"));
+      
+      let periodLessons = [];
+
+      if (lastPayment) {
+          const payTime = new Date(lastPayment.date).getTime();
+          // Ödemeden sonraki dersleri al
+          periodLessons = sortedHistory.filter(tx => tx.isDebt && new Date(tx.date).getTime() > payTime);
+      } else {
+          // Hiç ödeme yoksa tüm dersleri al
+          periodLessons = sortedHistory.filter(tx => tx.isDebt);
+      }
+      return periodLessons;
+  }, [student]);
+
   if (!student) return null;
 
   // Helpers for Dates
@@ -90,7 +111,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   };
 
   const handleAddPastPayment = () => {
-      if (pastPaymentDate && pastPaymentAmount) {
+      if (pastPaymentDate && pastPaymentAmount !== "") {
           actions.addTransaction(studentId, 'PAYMENT', pastPaymentDate, parseFloat(pastPaymentAmount));
           setIsPastPaymentModalOpen(false);
           setPastPaymentDate("");
@@ -143,7 +164,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  // --- OPTIMIZED CLOUD STORAGE UPLOAD LOGIC ---
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file || !user) return;
@@ -151,23 +171,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       setIsUploading(true);
 
       try {
-          // Bellek dostu sıkıştırma (URL.createObjectURL kullanarak)
           const compressImage = (file: File): Promise<Blob> => {
               return new Promise((resolve, reject) => {
                   const img = document.createElement('img');
-                  // Dosyayı belleğe yüklemeden referans oluştur (Crash önler)
                   const objectUrl = URL.createObjectURL(file);
                   img.src = objectUrl;
                   
                   img.onload = () => {
-                      // İşimiz bitince referansı temizle
                       URL.revokeObjectURL(objectUrl);
-                      
                       const canvas = document.createElement('canvas');
                       let width = img.width;
                       let height = img.height;
-                      
-                      // Max width 1024px limit (Telefonda hızlı açılması için)
                       const MAX_WIDTH = 1024;
                       const MAX_HEIGHT = 1024;
 
@@ -188,7 +202,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       const ctx = canvas.getContext('2d');
                       ctx?.drawImage(img, 0, 0, width, height);
                       
-                      // JPEG 0.7 kalite ile sıkıştır
                       canvas.toBlob((blob) => {
                           if (blob) resolve(blob);
                           else reject(new Error('Canvas conversion failed'));
@@ -203,11 +216,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           };
 
           const processedBlob = await compressImage(file);
-
-          // Storage'a yükle (Dosya adını benzersiz yap)
           const timestamp = new Date().getTime();
           const path = `images/${user.id}/${studentId}/${timestamp}.jpg`;
-          
           const downloadUrl = await StorageService.uploadFile(processedBlob, path);
           
           setResUrl(downloadUrl);
@@ -225,7 +235,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleAddResource = () => {
       if(resTitle && resUrl) {
-          // Auto detect type for links
           let finalType = resType;
           if (finalType === 'LINK') {
               if (resUrl.includes('youtube.com') || resUrl.includes('youtu.be')) finalType = 'VIDEO';
@@ -399,17 +408,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Yoklama</span>
                     </h3>
                     
-                    {student.debtLessonCount === 0 ? (
+                    {currentPeriodLessons.length === 0 ? (
                         <div className="py-8 flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
                              <Calendar size={32} className="mb-2 opacity-50" />
                              <p className="text-xs font-bold">Bu dönem henüz ders işlenmedi.</p>
+                             <p className="text-[9px] mt-1 opacity-70">Son ödemeden sonraki dersler burada görünür.</p>
                         </div>
                     ) : (
                         <div className="relative border-l-2 border-slate-100 ml-4 space-y-6 py-2">
-                            {student.history
-                                .filter(tx => tx.isDebt) 
-                                .slice(0, student.debtLessonCount + (student.makeupCredit || 0)) 
-                                .map((tx, i, arr) => {
+                            {currentPeriodLessons.map((tx, i, arr) => {
                                     const lessonNum = arr.length - i;
                                     const dateObj = new Date(tx.date);
                                     const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
@@ -531,7 +538,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         actions={
             <>
                  <button onClick={() => setIsPastPaymentModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-                 <button onClick={handleAddPastPayment} disabled={!pastPaymentDate || !pastPaymentAmount} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
+                 <button onClick={handleAddPastPayment} disabled={!pastPaymentDate || pastPaymentAmount === ""} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
             </>
         }
       >
