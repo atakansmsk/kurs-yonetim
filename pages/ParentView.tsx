@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
-import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight } from 'lucide-react';
+import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight, UserCheck } from 'lucide-react';
 
 interface ParentViewProps {
   teacherId: string;
@@ -226,7 +226,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     <div>
                         <div className="flex items-center gap-1.5 mb-2 opacity-80">
                             <Clock size={12} />
-                            <span className="text-[9px] font-bold uppercase tracking-widest">SIRADAKİ</span>
+                            <span className="text-[9px] font-bold uppercase tracking-widest">GELECEK DERS</span>
                         </div>
                         
                         {nextLesson ? (
@@ -287,7 +287,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             <div className="flex items-center justify-between mb-4 px-2 mt-4">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Activity size={14} />
-                    DERS & ÖDEME GEÇMİŞİ
+                    GEÇMİŞ HAREKETLER
                 </h3>
             </div>
             
@@ -308,9 +308,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         
                         // --- Smart Title Logic ---
                         let title = "Ders Tamamlandı";
-                        let subtitle = "Normal program dahilinde işlendi.";
+                        let subtitle = "Başarıyla işlendi.";
                         let iconColor = "text-indigo-600 bg-indigo-50";
-                        let Icon = CalendarCheck;
+                        let Icon = UserCheck;
                         let showAmount = false;
 
                         // Clean logic to determine type
@@ -331,8 +331,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             Icon = Layers;
                         } else if (lowerNote.includes("gelmedi") || lowerNote.includes("iptal")) {
                             // ABSENT
-                            title = "Devamsızlık";
-                            subtitle = "Derse katılım sağlanmadı.";
+                            title = "Katılım Sağlanmadı";
+                            subtitle = "Ders işlenmedi (İptal/Devamsızlık).";
                             iconColor = "text-red-600 bg-red-50";
                             Icon = XCircle;
                         } else if (lowerNote.includes("deneme")) {
@@ -353,19 +353,19 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         }
 
                         return (
-                            <div key={tx.id} className="group flex items-stretch bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:border-indigo-100 transition-all">
+                            <div key={tx.id} className="group flex items-stretch bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:border-indigo-100 transition-all active:scale-[0.99]">
                                 
                                 {/* Date Box */}
-                                <div className="w-20 bg-slate-50 flex flex-col items-center justify-center border-r border-slate-100 shrink-0 group-hover:bg-indigo-50/30 transition-colors">
-                                    <span className="text-2xl font-black text-slate-800 leading-none">{dayNumber}</span>
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-1">{monthName.slice(0,3)}</span>
+                                <div className="w-16 bg-slate-50 flex flex-col items-center justify-center border-r border-slate-100 shrink-0 group-hover:bg-indigo-50/30 transition-colors">
+                                    <span className="text-xl font-black text-slate-800 leading-none">{dayNumber}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wide">{monthName.slice(0,3)}</span>
                                 </div>
 
                                 {/* Content */}
-                                <div className="flex-1 p-4 flex items-center justify-between gap-3">
+                                <div className="flex-1 p-3 flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconColor}`}>
-                                            <Icon size={20} strokeWidth={2} />
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white shadow-sm ${iconColor}`}>
+                                            <Icon size={16} strokeWidth={2.5} />
                                         </div>
                                         <div>
                                             <h4 className="text-sm font-bold text-slate-900 leading-tight mb-0.5">{title}</h4>
@@ -374,7 +374,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                     </div>
 
                                     {showAmount && (
-                                        <div className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">
+                                        <div className="text-xs font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
                                             +{tx.amount}₺
                                         </div>
                                     )}
