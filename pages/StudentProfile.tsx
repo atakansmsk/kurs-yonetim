@@ -324,7 +324,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   };
 
   const displayedLessonCount = debtCount;
-  const totalDebtAmount = displayedLessonCount * (student.fee || 0);
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
@@ -385,29 +384,30 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                           <span className="text-[9px] font-bold uppercase tracking-widest">Ders Sayacı</span>
                       </div>
                       <div className="text-3xl font-black">{displayedLessonCount}</div>
-                      <div className="text-[10px] opacity-80 font-medium mt-1">Ödeme sonrası</div>
+                      <div className="text-[10px] opacity-80 font-medium mt-1">Son ödemeden beri</div>
                   </div>
               </div>
 
-              {/* Güncel Tutar (Replacement for Payment Status) */}
+              {/* Aylık Abonelik Ücreti (Fixed Display) */}
               <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group hover:scale-[1.02] transition-transform">
                    <div>
                       <div className="flex items-center gap-1.5 text-slate-400 mb-2">
-                          <Calculator size={14} />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Güncel Tutar</span>
+                          <Wallet size={14} />
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Aylık Ücret</span>
                       </div>
-                      <div className={`text-xl font-black ${totalDebtAmount > 0 ? 'text-slate-800' : 'text-emerald-500'}`}>
-                         {totalDebtAmount > 0 ? `${totalDebtAmount.toLocaleString('tr-TR')} ₺` : '0 ₺'}
+                      <div className="text-xl font-black text-slate-800">
+                         {student.fee.toLocaleString('tr-TR')} ₺
                       </div>
+                      <div className="text-[10px] text-slate-400 font-medium mt-0.5">Sabit Abonelik</div>
                    </div>
                    
-                   {totalDebtAmount > 0 ? (
-                       <div className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg self-start flex items-center gap-1 mt-1">
-                           <AlertCircle size={10} /> Ödeme Bekleniyor
+                   {displayedLessonCount > 0 ? (
+                       <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg self-start flex items-center gap-1 mt-1">
+                           <Activity size={10} /> {displayedLessonCount} Ders Birikti
                        </div>
                    ) : (
                        <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg self-start flex items-center gap-1 mt-1">
-                           <CheckCircle2 size={10} /> Hesap Kapalı
+                           <CheckCircle2 size={10} /> Yeni Dönem
                        </div>
                    )}
               </div>
