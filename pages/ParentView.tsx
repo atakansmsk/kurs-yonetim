@@ -58,12 +58,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   const {
       nextLesson,
       lastPaymentStr,
-      nextPaymentStr,
       currentPeriodHistory,
       safeResources
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "-", nextPaymentStr: "-", currentPeriodHistory: [], safeResources: []
+          nextLesson: null, lastPaymentStr: "-", currentPeriodHistory: [], safeResources: []
       };
 
       // Resources Safety Check
@@ -107,7 +106,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       );
       
       let lastPaymentDateStr = "Kayıt Yok";
-      let nextPaymentDateStr = "-";
       let lastPaymentDateObj: Date | null = null;
 
       if (lastPaymentTx) {
@@ -116,12 +114,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       } else if (student.registrationDate) {
           lastPaymentDateObj = new Date(student.registrationDate);
           lastPaymentDateStr = "Kayıt Tarihi";
-      }
-
-      if (lastPaymentDateObj) {
-          const nextDate = new Date(lastPaymentDateObj);
-          nextDate.setMonth(nextDate.getMonth() + 1);
-          nextPaymentDateStr = nextDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       }
 
       // 4. Filter History (Show only AFTER last payment)
@@ -134,7 +126,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       return {
           nextLesson: getNextLesson(),
           lastPaymentStr: lastPaymentDateStr,
-          nextPaymentStr: nextPaymentDateStr,
           currentPeriodHistory: filteredHistory,
           safeResources
       };
@@ -244,11 +235,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         <div className="flex justify-between items-center">
                             <span className="text-xs font-bold text-slate-500">Son Ödeme</span>
                             <span className="text-sm font-bold text-slate-800">{lastPaymentStr}</span>
-                        </div>
-                        <div className="w-full h-px bg-slate-50"></div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Gelecek Ödeme</span>
-                            <span className="text-sm font-bold text-indigo-600">{nextPaymentStr}</span>
                         </div>
                     </div>
                  </div>
