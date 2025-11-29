@@ -245,8 +245,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       }
   };
 
-  // UI Count based on calculation, not stored state to ensure sync
-  const displayedLessonCount = currentPeriodLessons.length;
+  // UI Count based on calculation: Exclude Makeup and Trial lessons from the count
+  const displayedLessonCount = useMemo(() => {
+    return currentPeriodLessons.filter(tx => 
+        !tx.note.toLowerCase().includes("telafi") && 
+        !tx.note.toLowerCase().includes("deneme")
+    ).length;
+  }, [currentPeriodLessons]);
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
