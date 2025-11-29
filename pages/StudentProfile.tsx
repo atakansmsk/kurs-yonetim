@@ -210,6 +210,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   };
                   img.onerror = reject;
               });
+          } else if (file.type === 'application/pdf') {
+              fileType = 'PDF';
+              blobToUpload = file; // Direct upload for PDF
           }
 
           // Path generation
@@ -234,13 +237,20 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const handleAddResource = () => {
       if(resTitle && resUrl) {
           let finalType = resType;
+          let finalUrl = resUrl;
+
+          // Add protocol check for links
           if (resTab === 'LINK') {
               finalType = 'LINK';
-              if (resUrl.includes('youtube.com') || resUrl.includes('youtu.be')) finalType = 'VIDEO';
-              if (resUrl.endsWith('.pdf')) finalType = 'PDF';
+              if (finalUrl.includes('youtube.com') || finalUrl.includes('youtu.be')) finalType = 'VIDEO';
+              if (finalUrl.endsWith('.pdf')) finalType = 'PDF';
+              
+              if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+                  finalUrl = `https://${finalUrl}`;
+              }
           }
 
-          actions.addResource(studentId, resTitle, resUrl, finalType);
+          actions.addResource(studentId, resTitle, finalUrl, finalType);
           setResTitle(""); setResUrl(""); setResType('LINK');
       }
   };

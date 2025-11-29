@@ -163,10 +163,17 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
     );
   }
 
+  // Helper for safe links
+  const getSafeUrl = (url: string) => {
+      if (!url) return '#';
+      if (url.startsWith('http://') || url.startsWith('https://')) return url;
+      return `https://${url}`;
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24 pt-6">
       
-      {/* --- STUDENT HEADER --- */}
+      {/* --- STUDENT HEADER (SIMPLIFIED) --- */}
       <div className="px-5 mb-6 animate-slide-up">
             <div className="bg-white rounded-[2rem] p-5 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)] border border-slate-100 flex items-center gap-4 relative overflow-hidden">
                  {/* Background Decor */}
@@ -334,7 +341,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     {safeResources.map(res => (
                         <a 
                             key={res.id} 
-                            href={res.url} 
+                            href={getSafeUrl(res.url)}
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="group flex items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all active:scale-[0.99]"

@@ -227,14 +227,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               newDebtCount += 1;
           } else {
               // Ödeme işlemi
+              // Sadece "Şimdi Ödeme Al" dendiğinde (tarih yoksa) sayacı sıfırla.
               if (!customDate) {
-                 // Sadece "Şimdi Ödeme Al" dendiğinde (tarih yoksa) sayacı sıfırla.
                  newDebtCount = 0;
               }
               // Eğer geçmiş bir ödeme elle giriliyorsa (customDate varsa) sayaç değişmez.
           }
 
-          // Miktar 0 olabilir (örn: sembolik ödeme veya düzeltme)
+          // Miktar 0 olabilir, validasyon UI tarafında yapılır veya 0 kabul edilir.
           const finalAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 
               ? Number(amount)
               : (isDebt ? 0 : student.fee);
