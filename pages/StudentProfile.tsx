@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Calendar, UserCheck, AlertCircle } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Calendar, UserCheck, AlertCircle, Calculator, History, Archive } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { StorageService } from '../services/api';
@@ -25,6 +25,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isLessonOptionsOpen, setIsLessonOptionsOpen] = useState(false);
   const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
   const [isResourcesModalOpen, setIsResourcesModalOpen] = useState(false);
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   
   // Selection
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
@@ -63,42 +64,45 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [student]);
 
-  // --- STATS CALCULATION (Memoized) ---
-  const currentPeriodStats = useMemo(() => {
-      if (!student) return { lessons: [], debtCount: 0 };
+  // --- HISTORY SPLITTER (CURRENT vs ARCHIVE) ---
+  const { currentHistory, archivedHistory, debtCount } = useMemo(() => {
+      if (!student) return { currentHistory: [], archivedHistory: [], debtCount: 0 };
       
       // Son ödemeyi bul (Telafi veya Ders olmayan, borç düşmeyen işlem)
       // Ödeme işlemi: isDebt = false
       const lastPaymentIndex = sortedHistory.findIndex(tx => !tx.isDebt);
       
-      let periodLessons: Transaction[] = [];
+      let current: Transaction[] = [];
+      let archived: Transaction[] = [];
 
       if (lastPaymentIndex !== -1) {
-          // Ödemeden önceki (tarih olarak sonraki) tüm işlemler
-          periodLessons = sortedHistory.slice(0, lastPaymentIndex);
+          // Ödemeden önceki (tarih olarak sonraki) tüm işlemler = GÜNCEL LİSTE
+          current = sortedHistory.slice(0, lastPaymentIndex);
+          // Ödeme ve sonrası = ARŞİV
+          archived = sortedHistory.slice(lastPaymentIndex);
       } else {
-          // Hiç ödeme yoksa tüm liste
-          periodLessons = sortedHistory;
+          // Hiç ödeme yoksa hepsi güncel
+          current = sortedHistory;
       }
 
       // Borç sayacı: Sadece "Normal Ders" ve "İşlendi" olanlar.
-      // Telafiler genelde önceki bir borcun karşılığıdır, ekstra borç yazmaz.
-      // Deneme dersi borç yazmaz.
-      const debtLessons = periodLessons.filter(tx => 
+      const debtLessons = current.filter(tx => 
           tx.isDebt && 
           !tx.note.toLowerCase().includes("telafi") && 
-          !tx.note.toLowerCase().includes("deneme")
+          !tx.note.toLowerCase().includes("deneme") &&
+          !tx.note.toLowerCase().includes("gelmedi")
       );
 
-      return { lessons: debtLessons, debtCount: debtLessons.length };
+      return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
   }, [sortedHistory]);
   
-  // Lesson Number Map Calculation
+  // Lesson Number Map Calculation (For display 1. Ders, 2. Ders)
   const lessonNumberMap = useMemo(() => {
       if (!student) return new Map();
       const map = new Map<string, number>();
       
-      const regularLessons = currentPeriodStats.lessons.filter(tx => 
+      // Sadece borç sayılan dersleri numaralandır (arşiv dahil tüm tarihçe için)
+      const allRegularLessons = sortedHistory.filter(tx => 
         tx.isDebt && 
         !tx.note.toLowerCase().includes("telafi") && 
         !tx.note.toLowerCase().includes("deneme") && 
@@ -106,14 +110,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         !tx.note.toLowerCase().includes("gelmedi")
       );
       
-      // Eskiden yeniye sırala ki 1, 2, 3 diye gitsin
-      const ascLessons = [...regularLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // Eskiden yeniye sırala
+      const ascLessons = [...allRegularLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       ascLessons.forEach((tx, index) => {
           map.set(tx.id, index + 1);
       });
       return map;
-  }, [currentPeriodStats]);
+  }, [sortedHistory]);
 
   if (!student) return null;
   
@@ -255,7 +259,72 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       }
   };
 
-  const displayedLessonCount = currentPeriodStats.lessons.length;
+  // Helper to render a transaction item
+  const renderTransactionItem = (tx: Transaction) => {
+      const isPayment = !tx.isDebt;
+      const dateObj = new Date(tx.date);
+      const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
+      const month = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
+      
+      // Smart Title Logic
+      let title = tx.note;
+      let sub = isPayment ? "Ödeme" : "Tamamlandı";
+      let icon = <Check size={16} />;
+      let iconClass = "bg-indigo-50 text-indigo-600";
+      let showAmount = isPayment;
+      
+      if (isPayment) {
+          title = "Ödeme Alındı";
+          icon = <Banknote size={16} />;
+          iconClass = "bg-emerald-50 text-emerald-600";
+      } else if (tx.note.includes('Telafi')) {
+          icon = <RefreshCcw size={16} />;
+          iconClass = "bg-orange-50 text-orange-600";
+          if (tx.note.includes('Bekliyor')) {
+              title = "Telafi Hakkı";
+              sub = "Planlanacaktır";
+          } else {
+              title = "Telafi Dersi";
+              sub = "Yapıldı";
+          }
+      } else if (tx.note.includes('Gelmedi')) {
+           title = "Katılım Yok";
+           sub = "Habersiz";
+           icon = <XCircle size={16} />;
+           iconClass = "bg-red-50 text-red-600";
+      } else {
+          // Numbered Lesson
+          const num = lessonNumberMap.get(tx.id);
+          if (num) title = `${num}. Ders`;
+      }
+
+      return (
+          <div key={tx.id} className="flex gap-3 animate-slide-up">
+              <div className="flex flex-col items-center justify-center w-[42px] shrink-0 bg-white py-1 rounded-lg border border-slate-50 shadow-sm z-10 h-10 self-start mt-0.5">
+                  <span className="text-sm font-black text-slate-700 leading-none">{day}</span>
+                  <span className="text-[8px] font-bold text-slate-400 uppercase leading-none mt-0.5">{month}</span>
+              </div>
+              
+              <div onClick={() => { setSelectedTx(tx); setIsLessonOptionsOpen(true); }} className="flex-1 bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-indigo-200 transition-colors active:scale-[0.99]">
+                  <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconClass}`}>
+                          {icon}
+                      </div>
+                      <div>
+                          <h4 className="text-sm font-bold text-slate-800 leading-none mb-1">{title}</h4>
+                          <p className="text-[10px] font-medium text-slate-400 leading-none">{sub}</p>
+                      </div>
+                  </div>
+                  {showAmount && (
+                      <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">+{tx.amount}₺</span>
+                  )}
+              </div>
+          </div>
+      );
+  };
+
+  const displayedLessonCount = debtCount;
+  const totalDebtAmount = displayedLessonCount * (student.fee || 0);
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
@@ -294,10 +363,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
             <div>
                 <h2 className="text-xl font-black text-slate-900 leading-tight">{student.name}</h2>
                 <div className="flex items-center gap-2 mt-1">
-                     <span className="text-xs font-bold text-slate-400">{getPhoneClean()}</span>
-                     <div className="w-1 h-1 rounded-full bg-slate-300"></div>
                      <button onClick={handleOpenParentPortal} className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors">
-                        <Globe size={10} /> Veli Portalı
+                        <Globe size={10} /> Veli Bilgilendirme Linki
                      </button>
                 </div>
             </div>
@@ -309,6 +376,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           
           {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-3">
+              {/* Ders Sayacı */}
               <div className="bg-indigo-600 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden group hover:scale-[1.02] transition-transform">
                   <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6"></div>
                   <div className="relative z-10">
@@ -317,32 +385,29 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                           <span className="text-[9px] font-bold uppercase tracking-widest">Ders Sayacı</span>
                       </div>
                       <div className="text-3xl font-black">{displayedLessonCount}</div>
-                      <div className="text-[10px] opacity-80 font-medium mt-1">Bu dönem işlenen</div>
+                      <div className="text-[10px] opacity-80 font-medium mt-1">Ödeme sonrası</div>
                   </div>
               </div>
 
+              {/* Güncel Tutar (Replacement for Payment Status) */}
               <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group hover:scale-[1.02] transition-transform">
                    <div>
                       <div className="flex items-center gap-1.5 text-slate-400 mb-2">
-                          <Wallet size={14} />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Ödeme Durumu</span>
+                          <Calculator size={14} />
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Güncel Tutar</span>
                       </div>
-                      {currentPeriodStats.debtCount > 0 ? (
-                        <div className="text-xl font-black text-slate-800">
-                           {currentPeriodStats.debtCount} Ders <span className="text-sm font-bold text-orange-500">Birikti</span>
-                        </div>
-                      ) : (
-                        <div className="text-xl font-black text-emerald-500">Tamamlandı</div>
-                      )}
+                      <div className={`text-xl font-black ${totalDebtAmount > 0 ? 'text-slate-800' : 'text-emerald-500'}`}>
+                         {totalDebtAmount > 0 ? `${totalDebtAmount.toLocaleString('tr-TR')} ₺` : '0 ₺'}
+                      </div>
                    </div>
                    
-                   {currentPeriodStats.debtCount > 0 ? (
+                   {totalDebtAmount > 0 ? (
                        <div className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg self-start flex items-center gap-1 mt-1">
                            <AlertCircle size={10} /> Ödeme Bekleniyor
                        </div>
                    ) : (
                        <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg self-start flex items-center gap-1 mt-1">
-                           <CheckCircle2 size={10} /> Borç Görünmüyor
+                           <CheckCircle2 size={10} /> Hesap Kapalı
                        </div>
                    )}
               </div>
@@ -395,7 +460,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           <div>
                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <RefreshCcw size={14} /> Geçmiş Hareketler
+                    <RefreshCcw size={14} /> Güncel Hareketler
                   </h3>
                </div>
                
@@ -409,77 +474,27 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     </button>
                </div>
 
-               {/* TIMELINE LIST */}
+               {/* TIMELINE LIST - ONLY CURRENT PERIOD */}
                <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-6">
-                  {sortedHistory.length === 0 ? (
+                  {currentHistory.length === 0 ? (
                       <div className="text-center py-10 opacity-50">
-                          <p className="text-sm font-bold text-slate-400">Henüz kayıt yok.</p>
+                          <p className="text-sm font-bold text-slate-400">Yeni dönem için kayıt yok.</p>
                       </div>
                   ) : (
-                      sortedHistory.map((tx) => {
-                          const isPayment = !tx.isDebt;
-                          const dateObj = new Date(tx.date);
-                          const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
-                          const month = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
-                          
-                          // Smart Title Logic
-                          let title = tx.note;
-                          let sub = isPayment ? "Ödeme" : "Tamamlandı";
-                          let icon = <Check size={16} />;
-                          let iconClass = "bg-indigo-50 text-indigo-600";
-                          let showAmount = isPayment;
-                          
-                          if (isPayment) {
-                              title = "Ödeme Alındı";
-                              icon = <Banknote size={16} />;
-                              iconClass = "bg-emerald-50 text-emerald-600";
-                          } else if (tx.note.includes('Telafi')) {
-                              icon = <RefreshCcw size={16} />;
-                              iconClass = "bg-orange-50 text-orange-600";
-                              if (tx.note.includes('Bekliyor')) {
-                                  title = "Telafi Hakkı";
-                                  sub = "Planlanacaktır";
-                              } else {
-                                  title = "Telafi Dersi";
-                                  sub = "Yapıldı";
-                              }
-                          } else if (tx.note.includes('Gelmedi')) {
-                               title = "Katılım Yok";
-                               sub = "Habersiz";
-                               icon = <XCircle size={16} />;
-                               iconClass = "bg-red-50 text-red-600";
-                          } else {
-                              // Numbered Lesson
-                              const num = lessonNumberMap.get(tx.id);
-                              if (num) title = `${num}. Ders`;
-                          }
-
-                          return (
-                              <div key={tx.id} className="flex gap-3 animate-slide-up">
-                                  <div className="flex flex-col items-center justify-center w-[42px] shrink-0 bg-white py-1 rounded-lg border border-slate-50 shadow-sm z-10 h-10 self-start mt-0.5">
-                                      <span className="text-sm font-black text-slate-700 leading-none">{day}</span>
-                                      <span className="text-[8px] font-bold text-slate-400 uppercase leading-none mt-0.5">{month}</span>
-                                  </div>
-                                  
-                                  <div onClick={() => { setSelectedTx(tx); setIsLessonOptionsOpen(true); }} className="flex-1 bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-indigo-200 transition-colors active:scale-[0.99]">
-                                      <div className="flex items-center gap-3">
-                                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconClass}`}>
-                                              {icon}
-                                          </div>
-                                          <div>
-                                              <h4 className="text-sm font-bold text-slate-800 leading-none mb-1">{title}</h4>
-                                              <p className="text-[10px] font-medium text-slate-400 leading-none">{sub}</p>
-                                          </div>
-                                      </div>
-                                      {showAmount && (
-                                          <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">+{tx.amount}₺</span>
-                                      )}
-                                  </div>
-                              </div>
-                          );
-                      })
+                      currentHistory.map(renderTransactionItem)
                   )}
                </div>
+
+               {/* ARCHIVE BUTTON */}
+               {archivedHistory.length > 0 && (
+                   <button 
+                    onClick={() => setIsArchiveModalOpen(true)}
+                    className="w-full py-3 mt-2 mb-6 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors"
+                   >
+                       <Archive size={16} />
+                       Geçmiş Dönem Arşivi ({archivedHistory.length} kayıt)
+                   </button>
+               )}
           </div>
       </div>
 
@@ -607,6 +622,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                    </div>
                )}
           </div>
+      </Dialog>
+
+      {/* 7. Archive Modal */}
+      <Dialog isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)} title="Geçmiş Arşivi">
+        <div className="py-2 max-h-[60vh] overflow-y-auto pr-1">
+             <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-2">
+                {archivedHistory.map(renderTransactionItem)}
+             </div>
+        </div>
       </Dialog>
 
     </div>
