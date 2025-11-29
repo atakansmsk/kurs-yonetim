@@ -36,7 +36,11 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
     DAYS.forEach(day => {
         const key = `${state.currentTeacher}|${day}`;
         (state.schedule[key] || []).forEach(s => {
-            if (s.studentId) uniqueStudentIds.add(s.studentId);
+            // Telafi (MAKEUP) veya Deneme (TRIAL) derslerini kazanç hesabına katma
+            // Sadece normal ders programı olan öğrencilerin ücretini topla
+            if (s.studentId && s.label !== 'MAKEUP' && s.label !== 'TRIAL') {
+                uniqueStudentIds.add(s.studentId);
+            }
         });
     });
 
