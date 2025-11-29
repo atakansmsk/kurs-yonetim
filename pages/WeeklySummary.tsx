@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay } from '../types';
-import { CalendarCheck, Banknote, Printer, X, Clock, Star, RefreshCcw } from 'lucide-react';
+import { CalendarCheck, Banknote, Clock, Star, RefreshCcw } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface WeeklySummaryProps {
@@ -11,10 +11,6 @@ interface WeeklySummaryProps {
 
 const SHORT_DAYS: Record<WeekDay, string> = {
   "Pazartesi": "PZT", "Salı": "SAL", "Çarşamba": "ÇAR", "Perşembe": "PER", "Cuma": "CUM", "Cmt": "CMT", "Pazar": "PAZ"
-};
-
-const FULL_DAYS: Record<WeekDay, string> = {
-  "Pazartesi": "PAZARTESİ", "Salı": "SALI", "Çarşamba": "ÇARŞAMBA", "Perşembe": "PERŞEMBE", "Cuma": "CUMA", "Cmt": "CUMARTESİ", "Pazar": "PAZAR"
 };
 
 const timeToMinutes = (time: string) => {
@@ -32,7 +28,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
   const { state, actions } = useCourse();
   
   // UI States
-  const [isPrintMode, setIsPrintMode] = useState(false);
   const [gapModalData, setGapModalData] = useState<{day: WeekDay, gaps: string[]} | null>(null);
 
   // --- STATS & EARNINGS ---
@@ -65,8 +60,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
   };
 
   const handleDayClick = (day: WeekDay) => {
-      if (isPrintMode) return;
-
       const slots = getDaySlots(day);
       const foundGaps: string[] = [];
       
@@ -107,109 +100,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
       }
   };
 
-  const handlePrint = () => {
-      window.print();
-  };
-
-  // --- PRINT VIEW RENDERER ---
-  if (isPrintMode) {
-      return (
-          <div className="min-h-screen bg-white text-black p-0 m-0 print:p-0">
-               {/* Print Toolbar (Hidden on Paper) */}
-               <div className="print:hidden sticky top-0 left-0 right-0 bg-slate-800 text-white p-4 flex justify-between items-center z-50 shadow-md">
-                   <div>
-                       <h2 className="font-bold text-lg">Yazdırma Önizleme</h2>
-                       <p className="text-xs text-slate-300">Yatay (Landscape) yazdırmanız önerilir.</p>
-                   </div>
-                   <div className="flex gap-3">
-                       <button onClick={() => setIsPrintMode(false)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-bold flex items-center gap-2">
-                           <X size={16} /> Kapat
-                       </button>
-                       <button onClick={handlePrint} className="px-6 py-2 bg-white text-slate-900 hover:bg-slate-100 rounded-lg text-sm font-bold flex items-center gap-2">
-                           <Printer size={16} /> Yazdır / PDF
-                       </button>
-                   </div>
-               </div>
-
-               {/* A4 Paper Container */}
-               <div className="max-w-[1100px] mx-auto bg-white p-8 print:p-0 print:w-full print:max-w-none">
-                    
-                    {/* Document Header */}
-                    <div className="text-center mb-6 border-b-2 border-black pb-4">
-                        <h1 className="text-2xl font-black uppercase tracking-widest mb-1">{state.schoolName}</h1>
-                        <p className="text-sm font-bold uppercase">{state.currentTeacher} — HAFTALIK DERS PROGRAMI</p>
-                    </div>
-
-                    {/* The Grid Table */}
-                    <div className="border-2 border-black">
-                        {/* Table Header */}
-                        <div className="grid grid-cols-7 border-b-2 border-black bg-gray-100 print:bg-gray-100">
-                            {DAYS.map((day) => (
-                                <div key={day} className="py-2 text-center border-r border-black last:border-r-0">
-                                    <span className="block font-black text-sm uppercase">{FULL_DAYS[day]}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Table Body */}
-                        <div className="grid grid-cols-7 min-h-[600px]">
-                            {DAYS.map((day) => {
-                                const slots = getDaySlots(day);
-                                return (
-                                    <div key={day} className="border-r border-black last:border-r-0 flex flex-col">
-                                        {slots.length === 0 ? (
-                                            <div className="flex-1"></div> // Empty Column
-                                        ) : (
-                                            slots.map((slot) => {
-                                                const isOccupied = !!slot.studentId;
-                                                const student = isOccupied ? state.students[slot.studentId!] : null;
-                                                const isMakeup = slot.label === 'MAKEUP';
-                                                const isTrial = slot.label === 'TRIAL';
-                                                
-                                                if (!isOccupied) return null;
-
-                                                const firstName = student?.name.trim() || "";
-
-                                                return (
-                                                    <div key={slot.id} className="border-b border-black p-1.5 flex flex-col justify-start relative min-h-[50px]">
-                                                        <div className="flex justify-between items-start mb-0.5">
-                                                            <span className="text-[10px] font-bold font-mono bg-black text-white px-1 rounded-sm">
-                                                                {slot.start}
-                                                            </span>
-                                                            <div className="flex gap-0.5">
-                                                                {isMakeup && <span className="text-[9px] font-bold border border-black px-1 rounded-sm">T</span>}
-                                                                {isTrial && <span className="text-[9px] font-bold border border-black px-1 rounded-sm">D</span>}
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-xs font-bold leading-tight uppercase truncate">
-                                                            {firstName}
-                                                        </span>
-                                                        <span className="text-[9px] text-slate-600 truncate mt-0.5">
-                                                            {student?.phone}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })
-                                        )}
-                                        {/* Filler to keep column lines going down if needed */}
-                                        <div className="flex-1"></div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Document Footer */}
-                    <div className="mt-4 flex justify-between items-center text-[10px] font-medium text-slate-500 border-t border-black pt-2">
-                        <span>Oluşturulma: {new Date().toLocaleDateString('tr-TR')}</span>
-                        <span>Kurs Yönetim Pro</span>
-                    </div>
-               </div>
-          </div>
-      );
-  }
-
-  // --- APP VIEW RENDERER (Original Interactive UI) ---
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
         {/* Header */}
@@ -226,15 +116,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                         </div>
                     </div>
             </div>
-            
-            <button 
-                onClick={() => setIsPrintMode(true)}
-                className="p-2 bg-slate-50 text-slate-500 rounded-xl border border-slate-200 hover:bg-slate-100 transition-all active:scale-95 flex items-center gap-2 group"
-                title="Yazdır / Tablo Görünümü"
-            >
-                <Printer size={18} className="group-hover:text-indigo-600" />
-                <span className="text-xs font-bold hidden sm:block">Tablo Görünümü</span>
-            </button>
         </div>
 
         {/* Grid Content */}
