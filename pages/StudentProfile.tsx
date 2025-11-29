@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Calendar, UserCheck, AlertCircle, Calculator, History, Archive } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { StorageService } from '../services/api';
