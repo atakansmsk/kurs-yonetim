@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2 } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { StorageService } from '../services/api';
@@ -43,6 +44,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [resTitle, setResTitle] = useState("");
   const [resUrl, setResUrl] = useState("");
   const [resType, setResType] = useState<'VIDEO' | 'PDF' | 'LINK' | 'IMAGE'>('LINK');
+  const [resTab, setResTab] = useState<'LINK' | 'UPLOAD'>('LINK');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -111,6 +113,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   };
 
   const handleAddPastPayment = () => {
+      // 0 TL ödeme yapılabilir, sadece boş olmamalı
       if (pastPaymentDate && pastPaymentAmount !== "") {
           actions.addTransaction(studentId, 'PAYMENT', pastPaymentDate, parseFloat(pastPaymentAmount));
           setIsPastPaymentModalOpen(false);
@@ -164,15 +167,21 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file || !user) return;
 
       setIsUploading(true);
 
       try {
-          const compressImage = (file: File): Promise<Blob> => {
-              return new Promise((resolve, reject) => {
+          const timestamp = new Date().getTime();
+          let blobToUpload: Blob = file;
+          let fileType: 'IMAGE' | 'PDF' = 'PDF';
+
+          if (file.type.startsWith('image/')) {
+               fileType = 'IMAGE';
+               // Image compression
+               blobToUpload = await new Promise((resolve, reject) => {
                   const img = document.createElement('img');
                   const objectUrl = URL.createObjectURL(file);
                   img.src = objectUrl;
@@ -183,18 +192,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       let width = img.width;
                       let height = img.height;
                       const MAX_WIDTH = 1024;
-                      const MAX_HEIGHT = 1024;
 
-                      if (width > height) {
-                          if (width > MAX_WIDTH) {
-                              height *= MAX_WIDTH / width;
-                              width = MAX_WIDTH;
-                          }
-                      } else {
-                          if (height > MAX_HEIGHT) {
-                              width *= MAX_HEIGHT / height;
-                              height = MAX_HEIGHT;
-                          }
+                      if (width > MAX_WIDTH) {
+                          height *= MAX_WIDTH / width;
+                          width = MAX_WIDTH;
                       }
 
                       canvas.width = width;
@@ -202,31 +203,28 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       const ctx = canvas.getContext('2d');
                       ctx?.drawImage(img, 0, 0, width, height);
                       
-                      canvas.toBlob((blob) => {
-                          if (blob) resolve(blob);
-                          else reject(new Error('Canvas conversion failed'));
-                      }, 'image/jpeg', 0.7);
+                      canvas.toBlob((b) => {
+                          if (b) resolve(b);
+                          else reject(new Error('Canvas failed'));
+                      }, 'image/jpeg', 0.8);
                   };
-                  
-                  img.onerror = (error) => {
-                      URL.revokeObjectURL(objectUrl);
-                      reject(error);
-                  };
+                  img.onerror = reject;
               });
-          };
+          }
 
-          const processedBlob = await compressImage(file);
-          const timestamp = new Date().getTime();
-          const path = `images/${user.id}/${studentId}/${timestamp}.jpg`;
-          const downloadUrl = await StorageService.uploadFile(processedBlob, path);
+          // Path generation
+          const extension = fileType === 'IMAGE' ? 'jpg' : 'pdf';
+          const path = `resources/${user.id}/${studentId}/${timestamp}.${extension}`;
+          
+          const downloadUrl = await StorageService.uploadFile(blobToUpload, path);
           
           setResUrl(downloadUrl);
-          setResType('IMAGE');
-          if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
+          setResType(fileType);
+          if (!resTitle) setResTitle(`${fileType === 'IMAGE' ? 'Görsel' : 'Dosya'} ${new Date().toLocaleDateString('tr-TR')}`);
           
       } catch (error) {
           console.error("Yükleme hatası:", error);
-          alert("Resim yüklenirken bir sorun oluştu. Lütfen tekrar deneyin.");
+          alert("Dosya yüklenemedi. Lütfen tekrar deneyin.");
       } finally {
           setIsUploading(false);
           if (fileInputRef.current) fileInputRef.current.value = "";
@@ -236,7 +234,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const handleAddResource = () => {
       if(resTitle && resUrl) {
           let finalType = resType;
-          if (finalType === 'LINK') {
+          if (resTab === 'LINK') {
+              finalType = 'LINK';
               if (resUrl.includes('youtube.com') || resUrl.includes('youtu.be')) finalType = 'VIDEO';
               if (resUrl.endsWith('.pdf')) finalType = 'PDF';
           }
@@ -405,7 +404,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                 <div>
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1 flex items-center justify-between">
                         <span>BU DÖNEMKİ DERSLER</span>
-                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Yoklama</span>
+                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Veli Görünümü</span>
                     </h3>
                     
                     {currentPeriodLessons.length === 0 ? (
@@ -561,7 +560,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
              </div>
              <div>
                 <p className="text-xs text-slate-500 mb-1">Tutar (TL)</p>
-                <input type="number" value={pastPaymentAmount} onChange={(e) => setPastPaymentAmount(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500" />
+                <input type="number" value={pastPaymentAmount} onChange={(e) => setPastPaymentAmount(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500" placeholder="0" />
+                <p className="text-[9px] text-slate-400 mt-1 ml-1">Eğer sıfır TL girmek isterseniz 0 yazın.</p>
              </div>
          </div>
       </Dialog>
@@ -654,49 +654,49 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
              
              {/* ADD NEW */}
              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">YENİ EKLE</p>
+                 <div className="flex items-center gap-4 mb-3 border-b border-slate-200 pb-2">
+                     <button onClick={() => setResTab('LINK')} className={`text-xs font-bold transition-colors ${resTab === 'LINK' ? 'text-indigo-600' : 'text-slate-400'}`}>WEB LİNKİ</button>
+                     <button onClick={() => setResTab('UPLOAD')} className={`text-xs font-bold transition-colors ${resTab === 'UPLOAD' ? 'text-indigo-600' : 'text-slate-400'}`}>DOSYA YÜKLE</button>
+                 </div>
+
                  <div className="space-y-2">
-                    <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none focus:border-indigo-500" placeholder="Başlık (Örn: Nota, Video)" />
+                    <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none focus:border-indigo-500" placeholder="Başlık (Örn: Nota, Ödev PDF)" />
                     
-                    {/* Toggle: Link vs Image */}
-                    {resType === 'IMAGE' ? (
+                    {resTab === 'UPLOAD' ? (
                         <div className="relative">
                             <div className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
-                                <span className="text-xs text-emerald-600 font-bold truncate pr-2">{resUrl ? 'Fotoğraf Seçildi' : 'Dosya Bekleniyor'}</span>
-                                <button onClick={() => { setResUrl(""); setResType('LINK'); }} className="p-1 bg-slate-100 rounded-full text-slate-400 hover:text-red-500"><X size={14}/></button>
+                                <span className={`text-xs font-bold truncate pr-2 ${resUrl ? 'text-emerald-600' : 'text-slate-400'}`}>{resUrl ? (resType === 'IMAGE' ? 'Fotoğraf Seçildi' : 'Dosya Seçildi') : 'Dosya Bekleniyor...'}</span>
+                                {resUrl && <button onClick={() => { setResUrl(""); setResType('LINK'); }} className="p-1 bg-slate-100 rounded-full text-slate-400 hover:text-red-500"><X size={14}/></button>}
                             </div>
-                            {resUrl && <img src={resUrl} alt="Preview" className="mt-2 h-20 w-auto rounded-lg border border-slate-200 object-cover" />}
+                            
+                            {/* Hidden File Input */}
+                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
+                            
+                            <button 
+                                onClick={() => fileInputRef.current?.click()} 
+                                disabled={isUploading}
+                                className={`w-full mt-2 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs border border-dashed transition-all active:scale-95 ${resUrl ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'}`}
+                            >
+                                {isUploading ? <><Loader2 size={16} className="animate-spin"/> Yükleniyor...</> : <><UploadCloud size={16} /> {resUrl ? 'Tekrar Seç' : 'PDF veya Resim Seç'}</>}
+                            </button>
                         </div>
                     ) : (
-                        <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none focus:border-indigo-500" placeholder="Link (Drive, Youtube...)" />
+                        <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none focus:border-indigo-500" placeholder="https://..." />
                     )}
 
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                        {/* Hidden File Input */}
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                        
-                        <button 
-                            onClick={() => fileInputRef.current?.click()} 
-                            disabled={isUploading}
-                            className={`flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs border transition-all active:scale-95 ${resType === 'IMAGE' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                        >
-                            {isUploading ? <><Loader2 size={16} className="animate-spin"/> Yükleniyor</> : <><UploadCloud size={16} /> Fotoğraf Seç</>}
-                        </button>
-
-                        <button 
-                            onClick={handleAddResource} 
-                            disabled={!resTitle || !resUrl || isUploading} 
-                            className="py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-200 disabled:opacity-50 disabled:shadow-none active:scale-95 transition-all"
-                        >
-                            Ekle
-                        </button>
-                    </div>
+                    <button 
+                        onClick={handleAddResource} 
+                        disabled={!resTitle || !resUrl || isUploading} 
+                        className="w-full mt-2 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-200 disabled:opacity-50 disabled:shadow-none active:scale-95 transition-all"
+                    >
+                        Ekle
+                    </button>
                  </div>
              </div>
 
              {/* LIST EXISTING */}
              <div className="max-h-[30vh] overflow-y-auto space-y-2 pr-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">EKLENENLER</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">LİSTE</p>
                 {(student.resources || []).length === 0 ? (
                     <p className="text-center text-xs text-slate-300 py-4 font-bold">Henüz materyal yok.</p>
                 ) : (
@@ -705,16 +705,18 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                             <a href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0 ${
                                     res.type === 'VIDEO' ? 'bg-red-500' : 
-                                    res.type === 'PDF' ? 'bg-blue-500' : 
-                                    res.type === 'IMAGE' ? 'bg-emerald-500' : 'bg-slate-500'
+                                    res.type === 'PDF' ? 'bg-orange-500' : 
+                                    res.type === 'IMAGE' ? 'bg-emerald-500' : 'bg-blue-500'
                                 }`}>
                                     {res.type === 'VIDEO' ? <Youtube size={16} /> : 
                                      res.type === 'PDF' ? <FileText size={16} /> : 
-                                     res.type === 'IMAGE' ? <Image size={16} /> : <Link size={16} />}
+                                     res.type === 'IMAGE' ? <Image size={16} /> : <Globe size={16} />}
                                 </div>
                                 <div className="min-w-0">
                                     <h4 className="font-bold text-slate-800 text-xs truncate">{res.title}</h4>
-                                    <p className="text-[9px] text-slate-400 font-medium truncate">{res.type === 'LINK' ? 'Web Bağlantısı' : res.type}</p>
+                                    <p className="text-[9px] text-slate-400 font-medium truncate">
+                                        {res.type === 'LINK' ? 'Web Bağlantısı' : res.type === 'IMAGE' ? 'Görsel Dosya' : res.type === 'PDF' ? 'PDF Belgesi' : 'Video'}
+                                    </p>
                                 </div>
                             </a>
                             <button onClick={() => actions.deleteResource(studentId, res.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">

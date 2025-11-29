@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource } from '../types';
 import { useAuth } from './AuthContext';
@@ -225,17 +226,17 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (isDebt) {
               newDebtCount += 1;
           } else {
-              // Eğer özel bir tarih girilmediyse (yani şimdi ödeme alınıyorsa) sayacı sıfırla.
-              // Geçmişe dönük ödeme ekleniyorsa (customDate varsa) mevcut sayacı bozma.
+              // Ödeme işlemi
               if (!customDate) {
+                 // Sadece "Şimdi Ödeme Al" dendiğinde (tarih yoksa) sayacı sıfırla.
                  newDebtCount = 0;
               }
+              // Eğer geçmiş bir ödeme elle giriliyorsa (customDate varsa) sayaç değişmez.
           }
 
-          // Miktar 0 olabilir, bu yüzden undefined kontrolü yapıyoruz.
-          // Eğer miktar belirtilmemişse: Borç ise 0, Ödeme ise öğrenci ücreti varsayılır.
-          const finalAmount = (amount !== undefined && amount !== null) 
-              ? amount 
+          // Miktar 0 olabilir (örn: sembolik ödeme veya düzeltme)
+          const finalAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 
+              ? Number(amount)
               : (isDebt ? 0 : student.fee);
 
           const newTx: Transaction = {
@@ -269,8 +270,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
              newMakeupCredit += 1;
           } else if (note.includes("Telafi Edildi")) {
               // Usually handled at booking, but if manually marking
-              // This logic depends on workflow details.
-              // We assume credit adjustments for booking are done in bookSlot.
           }
 
           const updatedHistory = student.history.map(tx => {
@@ -319,8 +318,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       toggleAutoProcessing: () => updateState(s => ({ ...s, autoLessonProcessing: !s.autoLessonProcessing })),
 
-      moveSlot: (fromDay, fromSlotId, toDay, toSlotId) => updateState(s => s), // Implementation deferred
-      swapSlots: (dayA, slotIdA, dayB, slotIdB) => updateState(s => s), // Implementation deferred
+      moveSlot: (fromDay, fromSlotId, toDay, toSlotId) => updateState(s => s), 
+      swapSlots: (dayA, slotIdA, dayB, slotIdB) => updateState(s => s),
 
       addResource: (studentId, title, url, type) => updateState(s => {
           const student = s.students[studentId];

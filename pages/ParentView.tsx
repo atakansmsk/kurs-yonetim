@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
-import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, School } from 'lucide-react';
+import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink } from 'lucide-react';
 
 interface ParentViewProps {
   teacherId: string;
@@ -85,7 +85,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             const slots = appState.schedule[key] || [];
             const foundSlot = slots.find(s => s.studentId === student.id);
             if (foundSlot) {
-                // Eğer bugünse ve saat geçmediyse veya gelecek günse
                 const isToday = i === 0;
                 if (!isToday || (isToday)) {
                     return { day: isToday ? "Bugün" : displayDayName, time: `${foundSlot.start} - ${foundSlot.end}` };
@@ -165,44 +164,40 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24 pt-6">
       
-      {/* --- HERO / HEADER SECTION --- */}
-      <div className="bg-white pb-6 pt-8 px-6 rounded-b-[2.5rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] mb-6 border-b border-slate-100 animate-slide-up relative overflow-hidden">
-         {/* Dekoratif Arkaplan */}
-         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
-         
-         <div className="relative z-10 max-w-2xl mx-auto text-center">
-            
-            {/* Öğrenci Kartı */}
-            <div className="bg-white/60 backdrop-blur-md border border-slate-200/60 rounded-2xl p-4 shadow-sm flex items-center gap-4 text-left mx-auto max-w-sm">
-                 <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-black shrink-0">
+      {/* --- STUDENT HEADER --- */}
+      <div className="px-5 mb-6 animate-slide-up">
+            <div className="bg-white rounded-[2rem] p-5 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)] border border-slate-100 flex items-center gap-4 relative overflow-hidden">
+                 {/* Background Decor */}
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+
+                 <div className="w-16 h-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-xl font-black shrink-0 shadow-lg shadow-slate-200 z-10">
                     {student.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">ÖĞRENCİ</p>
-                    <h2 className="text-lg font-black text-slate-800 leading-tight">{student.name}</h2>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="z-10">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">ÖĞRENCİ PORTALI</p>
+                    <h2 className="text-xl font-black text-slate-900 leading-tight">{student.name}</h2>
+                    <div className="flex items-center gap-1.5 mt-1">
                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                         <span className="text-xs font-bold text-emerald-600">Eğitim Devam Ediyor</span>
+                         <span className="text-xs font-bold text-emerald-600">Aktif Öğrenci</span>
                     </div>
                 </div>
             </div>
-         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-5 space-y-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+      <div className="max-w-2xl mx-auto px-5 space-y-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
         
         {/* --- GRID: DERS & ÖDEME --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* NEXT LESSON CARD */}
-            <div className="relative overflow-hidden rounded-[2rem] bg-slate-900 p-6 text-white shadow-xl shadow-slate-200 flex flex-col justify-between min-h-[160px] group">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 rounded-full blur-[60px] -mr-10 -mt-10"></div>
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-[50px] -ml-10 -mb-10"></div>
+            <div className="relative overflow-hidden rounded-[2rem] bg-indigo-600 p-6 text-white shadow-xl shadow-indigo-200 flex flex-col justify-between min-h-[160px] group">
+                <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-[40px] -mr-10 -mt-10"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/20 rounded-full blur-[30px] -ml-5 -mb-5"></div>
                 
                 <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-4 opacity-60">
+                    <div className="flex items-center gap-2 mb-4 opacity-70">
                         <Clock size={14} />
                         <span className="text-[10px] font-bold uppercase tracking-widest">SIRADAKİ DERS</span>
                     </div>
@@ -210,18 +205,18 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     {nextLesson ? (
                         <div>
                             <div className="text-3xl font-black tracking-tighter mb-1">{nextLesson.day}</div>
-                            <div className="text-lg font-medium text-indigo-200">{nextLesson.time}</div>
+                            <div className="text-lg font-medium text-indigo-100">{nextLesson.time}</div>
                         </div>
                     ) : (
                         <div>
                             <div className="text-xl font-bold opacity-90">Ders Planı Yok</div>
-                            <p className="text-xs text-slate-400 mt-1">Lütfen eğitmenle iletişime geçiniz.</p>
+                            <p className="text-xs text-indigo-200 mt-1">Planlama için eğitmenle görüşünüz.</p>
                         </div>
                     )}
                 </div>
                 {nextLesson && (
                     <div className="relative z-10 mt-auto pt-4 flex justify-end">
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition-transform">
+                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition-transform">
                             <ChevronRight size={20} />
                         </div>
                     </div>
@@ -229,13 +224,13 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
 
             {/* PAYMENT STATUS CARD */}
-            <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-lg shadow-slate-200/50 flex flex-col justify-between">
+            <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
                  <div>
                     <div className="flex items-center gap-2 mb-4">
                         <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                             <Banknote size={16} />
                         </div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">FİNANSAL DURUM</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">DURUM</span>
                     </div>
 
                     <div className="space-y-4">
@@ -243,7 +238,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             <span className="text-xs font-bold text-slate-500">Son Ödeme</span>
                             <span className="text-sm font-bold text-slate-800">{lastPaymentStr}</span>
                         </div>
-                        <div className="w-full h-px bg-slate-100"></div>
+                        <div className="w-full h-px bg-slate-50"></div>
                         <div className="flex justify-between items-center">
                             <span className="text-xs font-bold text-slate-500">Gelecek Ödeme</span>
                             <span className="text-sm font-bold text-indigo-600">{nextPaymentStr}</span>
@@ -267,7 +262,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
 
         {/* --- TIMELINE HISTORY --- */}
         <div>
-            <div className="flex items-center justify-between mb-4 px-2">
+            <div className="flex items-center justify-between mb-4 px-2 mt-4">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Activity size={14} />
                     DÖNEM HAREKETLERİ
@@ -280,7 +275,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-300">
                             <Layers size={24} />
                         </div>
-                        <p className="text-slate-900 font-bold text-sm">Yeni Dönem Başlangıcı</p>
+                        <p className="text-slate-900 font-bold text-sm">Yeni Dönem</p>
                         <p className="text-slate-400 text-xs mt-1">Son ödemeden sonra henüz ders işlenmedi.</p>
                     </div>
                 ) : (
@@ -293,16 +288,15 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             
                             let statusText = "Ders İşlendi";
                             let statusColor = "text-slate-700";
-                            let iconColor = "bg-indigo-50 text-indigo-600";
                             
                             if (tx.note.includes("Telafi")) {
-                                statusText = "Telafi Dersi"; statusColor = "text-orange-700"; iconColor = "bg-orange-50 text-orange-600";
+                                statusText = "Telafi Dersi"; statusColor = "text-orange-700";
                             } else if (tx.note.includes("Deneme")) {
-                                statusText = "Deneme Dersi"; statusColor = "text-purple-700"; iconColor = "bg-purple-50 text-purple-600";
+                                statusText = "Deneme Dersi"; statusColor = "text-purple-700";
                             } else if (tx.note.includes("Gelmedi")) {
-                                statusText = "Derse Gelmedi"; statusColor = "text-red-700"; iconColor = "bg-red-50 text-red-600";
+                                statusText = "Derse Gelmedi"; statusColor = "text-red-700";
                             } else if (!tx.isDebt) {
-                                statusText = "Ödeme Alındı"; statusColor = "text-emerald-700"; iconColor = "bg-emerald-50 text-emerald-600";
+                                statusText = "Ödeme Alındı"; statusColor = "text-emerald-700";
                             }
 
                             return (
@@ -363,7 +357,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                 <h4 className="font-bold text-slate-800 text-sm group-hover:text-indigo-700 transition-colors truncate">{res.title}</h4>
                                 <div className="flex items-center gap-2 mt-1">
                                     <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md uppercase tracking-wide">{res.type}</span>
-                                    <span className="text-[10px] text-slate-300 font-medium truncate max-w-[150px]">Bağlantıyı aç</span>
+                                    <span className="text-[10px] text-slate-300 font-medium truncate max-w-[150px]">Görüntüle</span>
                                 </div>
                             </div>
                             
@@ -377,9 +371,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         )}
 
         {/* Footer */}
-        <div className="text-center pt-10 pb-6 opacity-60">
-            <p className="text-[10px] font-bold text-slate-400">
-                Bu sayfa {appState.schoolName} tarafından oluşturulmuştur.
+        <div className="text-center pt-10 pb-6 opacity-40">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                {appState.schoolName}
             </p>
         </div>
 
