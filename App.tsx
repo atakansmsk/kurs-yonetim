@@ -265,7 +265,8 @@ const App: React.FC = () => {
 
   // Eğer Veli Portalı linkiyle gelindiyse, Login kontrolünü atla ve direkt o sayfayı göster
   if (isParentView && teacherId && studentId) {
-      return <ParentView teacherId={teacherId} studentId={studentId} />;
+      // Key prop ekleyerek React'i yeniden render etmeye zorluyoruz (Cache bust)
+      return <ParentView key={Date.now()} teacherId={teacherId} studentId={studentId} />;
   }
 
   return (
