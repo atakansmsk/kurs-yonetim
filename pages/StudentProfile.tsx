@@ -119,6 +119,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return map;
   }, [sortedHistory]);
 
+  const currentMonthName = useMemo(() => {
+      return new Date().toLocaleDateString('tr-TR', { month: 'long' });
+  }, []);
+
   if (!student) return null;
   
   const getPhoneClean = () => {
@@ -375,10 +379,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           
           {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-3">
-              {/* Ders Sayacı */}
-              <div className="bg-indigo-600 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden group hover:scale-[1.02] transition-transform">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6"></div>
-                  <div className="relative z-10">
+              {/* Ders Sayacı (Koyu Kart) */}
+              <div className="bg-indigo-600 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden flex flex-col justify-between group">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
+                  
+                  <div className="relative z-10 mb-4">
                       <div className="flex items-center gap-1.5 opacity-80 mb-3">
                           <Layers size={14} />
                           <span className="text-[9px] font-bold uppercase tracking-widest">Ders Sayacı</span>
@@ -386,10 +391,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       <div className="text-3xl font-black">{displayedLessonCount}</div>
                       <div className="text-[10px] opacity-80 font-medium mt-1">Son ödemeden beri</div>
                   </div>
+
+                  <button 
+                     onClick={() => setIsPastLessonModalOpen(true)}
+                     className="relative z-10 w-full py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-white/20 flex items-center justify-center gap-2 transition-colors"
+                  >
+                     <Check size={12} /> Geçmiş Ders Ekle
+                  </button>
               </div>
 
-              {/* Aylık Abonelik Ücreti (Fixed Display) */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group hover:scale-[1.02] transition-transform">
+              {/* Aylık Abonelik Ücreti (Beyaz Kart) */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group">
                    <div>
                       <div className="flex items-center gap-1.5 text-slate-400 mb-2">
                           <Wallet size={14} />
@@ -398,18 +410,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       <div className="text-xl font-black text-slate-800">
                          {student.fee.toLocaleString('tr-TR')} ₺
                       </div>
-                      <div className="text-[10px] text-slate-400 font-medium mt-0.5">Sabit Abonelik</div>
                    </div>
-                   
-                   {displayedLessonCount > 0 ? (
-                       <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg self-start flex items-center gap-1 mt-1">
-                           <Activity size={10} /> {displayedLessonCount} Ders Birikti
-                       </div>
-                   ) : (
-                       <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg self-start flex items-center gap-1 mt-1">
-                           <CheckCircle2 size={10} /> Yeni Dönem
-                       </div>
-                   )}
+
+                   <button 
+                       onClick={() => setIsPastPaymentModalOpen(true)}
+                       className="w-full py-2 mt-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl text-[10px] font-bold border border-emerald-100 flex items-center justify-center gap-2 transition-colors"
+                   >
+                        <Banknote size={12} /> Ödeme Al
+                   </button>
               </div>
           </div>
 
@@ -460,20 +468,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           <div>
                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <RefreshCcw size={14} /> Güncel Hareketler
+                    <RefreshCcw size={14} /> {currentMonthName} Ayı Ders Tarihleri
                   </h3>
                </div>
                
-               {/* Action Buttons */}
-               <div className="grid grid-cols-2 gap-3 mb-6">
-                    <button onClick={() => setIsPastLessonModalOpen(true)} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
-                        <Check size={16} className="text-indigo-500" /> Geçmiş Ders Ekle
-                    </button>
-                    <button onClick={() => setIsPastPaymentModalOpen(true)} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
-                        <Banknote size={16} className="text-emerald-500" /> Ödeme Ekle
-                    </button>
-               </div>
-
                {/* TIMELINE LIST - ONLY CURRENT PERIOD */}
                <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-6">
                   {currentHistory.length === 0 ? (
