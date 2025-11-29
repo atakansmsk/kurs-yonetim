@@ -72,21 +72,37 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       const getNextLesson = () => {
         const today = new Date();
         const dayIndex = today.getDay(); // 0=Pazar
-        const daysMap = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+        // App keys used in state.schedule
         const appKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
         
         for (let i = 0; i < 7; i++) {
             const checkDayIndex = (dayIndex + i) % 7;
             const keyDayName = appKeys[checkDayIndex];
-            const displayDayName = daysMap[checkDayIndex];
             
             const key = `${appState.currentTeacher}|${keyDayName}`;
             const slots = appState.schedule[key] || [];
             const foundSlot = slots.find(s => s.studentId === student.id);
+            
             if (foundSlot) {
                 const isToday = i === 0;
+                // Calculate actual date
+                const targetDate = new Date();
+                targetDate.setDate(today.getDate() + i);
+                
+                const formattedDate = targetDate.toLocaleDateString('tr-TR', { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    weekday: 'long' 
+                });
+
+                // Special format for today: "Bugün, 12 Ekim"
+                // Normal format: "14 Ekim Pazartesi"
+                const displayDate = isToday 
+                    ? `Bugün, ${targetDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}` 
+                    : formattedDate;
+
                 if (!isToday || (isToday)) {
-                    return { day: isToday ? "Bugün" : displayDayName, time: `${foundSlot.start} - ${foundSlot.end}` };
+                    return { day: displayDate, time: `${foundSlot.start} - ${foundSlot.end}` };
                 }
             }
         }
@@ -202,8 +218,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     
                     {nextLesson ? (
                         <div>
-                            <div className="text-3xl font-black tracking-tighter mb-1">{nextLesson.day}</div>
-                            <div className="text-lg font-medium text-indigo-100">{nextLesson.time}</div>
+                            <div className="text-2xl font-black tracking-tight mb-1 leading-none">{nextLesson.day}</div>
+                            <div className="text-lg font-medium text-indigo-100 mt-2">{nextLesson.time}</div>
                         </div>
                     ) : (
                         <div>
