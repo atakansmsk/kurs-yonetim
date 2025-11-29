@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
-import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink } from 'lucide-react';
+import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar } from 'lucide-react';
 
 interface ParentViewProps {
   teacherId: string;
@@ -269,61 +269,70 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         </div>
 
-        {/* --- TIMELINE HISTORY --- */}
+        {/* --- TIMELINE HISTORY (COMPACT) --- */}
         <div>
             <div className="flex items-center justify-between mb-4 px-2 mt-4">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Activity size={14} />
-                    DÖNEM HAREKETLERİ
+                    GEÇMİŞ HAREKETLER
                 </h3>
             </div>
             
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-1">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
                 {currentPeriodHistory.length === 0 ? (
-                    <div className="text-center py-10">
-                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-300">
-                            <Layers size={24} />
+                    <div className="text-center py-10 px-6">
+                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
+                            <Calendar size={20} />
                         </div>
-                        <p className="text-slate-900 font-bold text-sm">Yeni Dönem</p>
-                        <p className="text-slate-400 text-xs mt-1">Son ödemeden sonra henüz ders işlenmedi.</p>
+                        <p className="text-slate-900 font-bold text-sm">Hareket Yok</p>
+                        <p className="text-slate-400 text-xs mt-1">Bu dönem henüz ders kaydı girilmedi.</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col divide-y divide-slate-50">
                         {currentPeriodHistory.map((tx, idx) => {
                             const dateObj = new Date(tx.date);
-                            const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
-                            const month = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
-                            const weekday = dateObj.toLocaleDateString('tr-TR', { weekday: 'long' });
+                            const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
                             
-                            let statusText = "Ders İşlendi";
-                            let statusColor = "text-slate-700";
+                            let StatusIcon = CheckCircle2;
+                            let iconBg = "bg-indigo-50 text-indigo-600";
+                            let statusText = "Ders";
                             
                             if (tx.note.includes("Telafi")) {
-                                statusText = "Telafi Dersi"; statusColor = "text-orange-700";
+                                StatusIcon = Layers;
+                                iconBg = "bg-orange-50 text-orange-600";
+                                statusText = "Telafi";
                             } else if (tx.note.includes("Deneme")) {
-                                statusText = "Deneme Dersi"; statusColor = "text-purple-700";
+                                StatusIcon = Sparkles;
+                                iconBg = "bg-purple-50 text-purple-600";
+                                statusText = "Deneme";
                             } else if (tx.note.includes("Gelmedi")) {
-                                statusText = "Derse Gelmedi"; statusColor = "text-red-700";
+                                StatusIcon = Ban;
+                                iconBg = "bg-red-50 text-red-600";
+                                statusText = "Gelmedi";
                             } else if (!tx.isDebt) {
-                                statusText = "Ödeme Alındı"; statusColor = "text-emerald-700";
+                                StatusIcon = Banknote;
+                                iconBg = "bg-emerald-50 text-emerald-600";
+                                statusText = "Ödeme";
                             }
 
                             return (
-                                <div key={tx.id} className="group flex items-center p-4 hover:bg-slate-50 transition-colors rounded-[1.5rem] relative">
-                                    {/* Date Box */}
-                                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 font-bold shrink-0 mr-4 border border-slate-200">
-                                        <span className="text-lg leading-none">{day}</span>
-                                        <span className="text-[9px] uppercase">{month}</span>
+                                <div key={tx.id} className="flex items-center justify-between py-4 px-5 hover:bg-slate-50/50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}>
+                                            <StatusIcon size={18} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-800 leading-tight">
+                                                {tx.note.replace(statusText, '').replace(/[()]/g, '').trim() || statusText}
+                                            </h4>
+                                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                {statusText} İşlemi
+                                            </p>
+                                        </div>
                                     </div>
-
-                                    {/* Content */}
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className={`text-sm font-bold ${statusColor}`}>{statusText}</h4>
-                                        <p className="text-xs text-slate-400 font-medium truncate">{weekday} • {tx.note.replace(statusText, '').replace(/[()]/g, '').trim() || 'Normal Program'}</p>
+                                    <div className="text-xs font-bold text-slate-500 text-right whitespace-nowrap">
+                                        {day}
                                     </div>
-                                    
-                                    {/* Status Dot */}
-                                    <div className={`w-2 h-2 rounded-full ${tx.isDebt ? 'bg-indigo-400' : 'bg-emerald-400'}`}></div>
                                 </div>
                             );
                         })}
