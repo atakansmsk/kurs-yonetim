@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, Clock, MessageCircle, Pencil, Wallet, CalendarDays, Calendar, RefreshCcw, MoreHorizontal, History, Layers, CheckCircle2, ChevronLeft, ChevronRight, Share2, Eye, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { StorageService } from '../services/api';
@@ -97,6 +97,21 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const handleWhatsapp = () => {
       const phone = getPhoneClean();
       const message = `Merhaba ${student.name},`;
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+  };
+
+  const handlePaymentReminder = () => {
+      const phone = getPhoneClean();
+      const currentMonth = new Date().toLocaleDateString('tr-TR', { month: 'long' });
+      const message = `Merhaba ${student.name}, ${currentMonth} ayı için ödeme hatırlatması yapmak istedim. Müsait olduğunuzda yardımcı olabilirseniz sevinirim. Teşekkürler! 🌸`;
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+  };
+
+  const handleShareResource = (title: string, resourceUrl: string) => {
+      const phone = getPhoneClean();
+      const message = `Merhaba ${student.name}, senin için yeni bir materyal ekledim. Buradan ulaşabilirsin:\n\n*${title}*\n${resourceUrl}`;
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       window.open(url, '_blank');
   };
@@ -277,6 +292,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  <button onClick={handleCall} className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors" title="Ara">
                     <Phone size={18} />
                 </button>
+                <button onClick={handlePaymentReminder} className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors" title="Ödeme Hatırlat (WhatsApp)">
+                    <BellRing size={18} />
+                </button>
                 <button onClick={handleWhatsapp} className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors" title="WhatsApp Mesaj Gönder">
                     <MessageCircle size={18} />
                 </button>
@@ -300,453 +318,295 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                 {student.name.charAt(0).toUpperCase()}
             </div>
             <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none">{student.name}</h1>
-                <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
-                        Aylık {student.fee} ₺
-                    </span>
-                    {(student.makeupCredit || 0) > 0 && (
-                        <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100 flex items-center gap-1">
-                            <Layers size={10} />
-                            {student.makeupCredit} Telafi Hakkı
-                        </span>
-                    )}
+                <h2 className="text-xl font-black text-slate-900 leading-tight">{student.name}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                     <span className="text-xs font-bold text-slate-400">{getPhoneClean()}</span>
+                     <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                     <button onClick={handleOpenParentPortal} className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors">
+                        <Globe size={10} /> Veli Portalı
+                     </button>
                 </div>
             </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-6 border-b border-slate-100 mt-4 overflow-x-auto no-scrollbar">
-              <button onClick={() => setActiveTab('STATUS')} className={`pb-3 text-sm font-bold transition-all relative shrink-0 ${activeTab === 'STATUS' ? 'text-slate-800' : 'text-slate-400'}`}>
-                  Abonelik & Durum
-                  {activeTab === 'STATUS' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800 rounded-t-full"></div>}
-              </button>
-              <button onClick={() => setActiveTab('HISTORY')} className={`pb-3 text-sm font-bold transition-all relative shrink-0 ${activeTab === 'HISTORY' ? 'text-slate-800' : 'text-slate-400'}`}>
-                  Hesap Geçmişi
-                  {activeTab === 'HISTORY' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800 rounded-t-full"></div>}
-              </button>
+        <div className="flex p-1 bg-slate-100/80 rounded-xl mb-0">
+             <button 
+                onClick={() => setActiveTab('STATUS')} 
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'STATUS' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+                Durum & Materyal
+            </button>
+            <button 
+                onClick={() => setActiveTab('HISTORY')} 
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'HISTORY' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+                Geçmiş & Ödemeler
+            </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-6 bg-[#F8FAFC]">
-        {activeTab === 'STATUS' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                
-                {/* Lesson Count Focused Card */}
-                <div className="relative overflow-hidden rounded-[2rem] bg-slate-900 p-6 text-white shadow-xl shadow-slate-300">
-                     <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -ml-10 -mb-10"></div>
+      {/* 2. Content Scrollable */}
+      <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10">
+          
+          {activeTab === 'STATUS' && (
+              <div className="space-y-6 animate-slide-up">
+                  {/* Status Cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-indigo-600 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden">
+                          <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6"></div>
+                          <div className="relative z-10">
+                              <div className="flex items-center gap-1.5 opacity-80 mb-3">
+                                  <Layers size={14} />
+                                  <span className="text-[9px] font-bold uppercase tracking-widest">Ders Sayacı</span>
+                              </div>
+                              <div className="text-3xl font-black">{displayedLessonCount}</div>
+                              <div className="text-[10px] opacity-80 font-medium mt-1">Bu dönem işlenen</div>
+                          </div>
+                      </div>
 
-                     <div className="relative z-10 flex justify-between items-end mb-6">
-                        <div>
-                            <p className="text-slate-400 text-[10px] font-black tracking-widest uppercase mb-1">BU AY YAPILAN</p>
-                            <div className="flex items-baseline gap-2">
-                                <h2 className="text-6xl font-black tracking-tighter">
-                                    {displayedLessonCount}
-                                </h2>
-                                <span className="text-xl font-bold text-slate-500 tracking-normal">Ders</span>
-                            </div>
-                            
-                            {(student.makeupCredit || 0) > 0 && (
-                                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-200">
-                                    <Layers size={12} />
-                                    <span className="text-[10px] font-bold">+{student.makeupCredit} Telafi Bekliyor</span>
-                                </div>
-                            )}
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/5 text-right">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-0.5">AYLIK ÜCRET</p>
-                            <div className="text-lg font-bold text-white tabular-nums">{student.fee} ₺</div>
-                        </div>
-                     </div>
+                      <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                           <div>
+                              <div className="flex items-center gap-1.5 text-slate-400 mb-2">
+                                  <Wallet size={14} />
+                                  <span className="text-[9px] font-bold uppercase tracking-widest">Bakiye</span>
+                              </div>
+                              <div className={`text-2xl font-black ${student.debtLessonCount > 0 ? 'text-orange-500' : 'text-emerald-500'}`}>
+                                  {student.debtLessonCount > 0 ? `-${student.debtLessonCount * student.fee}₺` : '0₺'}
+                              </div>
+                           </div>
+                           {student.debtLessonCount > 0 ? (
+                               <div className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg self-start">
+                                   {student.debtLessonCount} Ders Borçlu
+                               </div>
+                           ) : (
+                               <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg self-start flex items-center gap-1">
+                                   <CheckCircle2 size={10} /> Ödemeler Tam
+                               </div>
+                           )}
+                      </div>
+                  </div>
 
-                     <div className="relative z-10 flex items-center gap-2 text-xs font-medium text-slate-400 bg-black/20 p-3 rounded-xl">
-                         <RefreshCcw size={14} className="text-emerald-400" />
-                         <span>Aylık abonelik sistemi aktiftir. <span className="text-white font-bold">Haftada 1</span> ders planlanır.</span>
-                     </div>
-                </div>
+                  {/* Resources Section */}
+                  <div>
+                      <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Materyaller</h3>
+                          <button onClick={() => setIsResourcesModalOpen(true)} className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-700 transition-colors shadow-md shadow-slate-200">
+                              <Plus size={16} />
+                          </button>
+                      </div>
 
-                {/* Actions Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                     <button 
-                        onClick={() => { if (displayedLessonCount > 0) actions.addTransaction(student.id, 'PAYMENT'); }} 
-                        disabled={displayedLessonCount === 0}
-                        className="col-span-2 bg-emerald-500 text-white rounded-2xl p-4 shadow-lg shadow-emerald-200 hover:bg-emerald-600 active:scale-[0.98] transition-all flex items-center justify-between disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed group"
-                     >
-                         <div className="flex flex-col items-start">
-                             <span className="font-black text-lg">Aylık Ödeme Al</span>
-                             <span className="text-xs text-emerald-100 font-bold opacity-90">Sayacı sıfırla & ayı kapat</span>
-                         </div>
-                         <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform">
-                             <Check size={24} />
-                         </div>
-                     </button>
+                      <div className="space-y-3">
+                          {student.resources.length === 0 ? (
+                              <div className="text-center py-8 border-2 border-dashed border-slate-100 rounded-2xl">
+                                  <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
+                                      <Link size={20} />
+                                  </div>
+                                  <p className="text-xs font-bold text-slate-400">Henüz materyal eklenmedi.</p>
+                              </div>
+                          ) : (
+                              student.resources.map(res => (
+                                  <div key={res.id} className="group bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3 relative">
+                                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                                          res.type === 'VIDEO' ? 'bg-red-50 text-red-500' : 
+                                          res.type === 'PDF' ? 'bg-blue-50 text-blue-500' : 
+                                          res.type === 'IMAGE' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-500'
+                                      }`}>
+                                          {res.type === 'VIDEO' ? <Youtube size={20} /> : res.type === 'PDF' ? <FileText size={20} /> : res.type === 'IMAGE' ? <Image size={20} /> : <Link size={20} />}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          <h4 className="font-bold text-slate-800 text-xs truncate mb-1">{res.title}</h4>
+                                          <div className="flex gap-2">
+                                              <a href={res.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded hover:bg-indigo-100 transition-colors">Aç</a>
+                                              <button onClick={() => handleShareResource(res.title, res.url)} className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded hover:bg-emerald-100 transition-colors flex items-center gap-1"><Share2 size={10} /> Paylaş</button>
+                                          </div>
+                                      </div>
+                                      <button onClick={() => actions.deleteResource(studentId, res.id)} className="absolute top-2 right-2 text-slate-300 hover:text-red-500 p-1">
+                                          <X size={14} />
+                                      </button>
+                                  </div>
+                              ))
+                          )}
+                      </div>
+                  </div>
+              </div>
+          )}
 
-                     <button 
-                        onClick={() => { setPastDate(getTodayString()); setIsPastLessonModalOpen(true); }}
-                        className="bg-white border border-slate-200 text-slate-500 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 active:scale-95 transition-all shadow-sm"
-                     >
-                         <CalendarDays size={20} />
-                         <span className="text-[10px] font-bold">Geçmiş Ders</span>
-                     </button>
+          {activeTab === 'HISTORY' && (
+              <div className="animate-slide-up space-y-4">
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                      <button onClick={() => setIsPastLessonModalOpen(true)} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
+                          <History size={16} className="text-indigo-500" /> Geçmiş Ders
+                      </button>
+                      <button onClick={() => setIsPastPaymentModalOpen(true)} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-center gap-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">
+                          <Banknote size={16} className="text-emerald-500" /> Ödeme Ekle
+                      </button>
+                  </div>
 
-                     <button 
-                        onClick={() => { setPastPaymentDate(getTodayString()); setPastPaymentAmount(student.fee.toString()); setIsPastPaymentModalOpen(true); }}
-                        className="bg-white border border-slate-200 text-slate-500 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-100 active:scale-95 transition-all shadow-sm"
-                     >
-                         <History size={20} />
-                         <span className="text-[10px] font-bold">Geçmiş Ödeme</span>
-                     </button>
-
-                     {/* Veli & Ödev Combined Grid */}
-                     <div className="col-span-2 grid grid-cols-2 gap-2 bg-white rounded-2xl p-2 border border-slate-200 shadow-sm mt-2">
-                        <button 
-                            onClick={handleOpenParentPortal}
-                            className="bg-slate-100 text-slate-600 rounded-xl p-3 flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-[0.98] transition-all"
-                        >
-                            <Eye size={18} />
-                            <span className="font-bold text-[10px]">Veli Portalı</span>
-                        </button>
-                        <button 
-                            onClick={() => setIsResourcesModalOpen(true)}
-                            className="bg-indigo-100 text-indigo-700 rounded-xl p-3 flex items-center justify-center gap-2 hover:bg-indigo-200 active:scale-[0.98] transition-all"
-                        >
-                            <Link size={18} />
-                            <span className="font-bold text-[10px]">Ödev & Materyal</span>
-                        </button>
-                     </div>
-                </div>
-
-                {/* Lesson History List */}
-                <div>
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 ml-1 flex items-center justify-between">
-                        <span>BU DÖNEMKİ DERSLER</span>
-                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Veli Görünümü</span>
-                    </h3>
-                    
-                    {currentPeriodLessons.length === 0 ? (
-                        <div className="py-8 flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-                             <Calendar size={32} className="mb-2 opacity-50" />
-                             <p className="text-xs font-bold">Bu dönem henüz ders işlenmedi.</p>
-                             <p className="text-[9px] mt-1 opacity-70">Son ödemeden sonraki dersler burada görünür.</p>
-                        </div>
-                    ) : (
-                        <div className="relative border-l-2 border-slate-100 ml-4 space-y-6 py-2">
-                            {currentPeriodLessons.map((tx, i, arr) => {
-                                    const lessonNum = arr.length - i;
-                                    const dateObj = new Date(tx.date);
-                                    const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
-                                    const month = dateObj.toLocaleDateString('tr-TR', { month: 'long' });
-                                    
-                                    const isAbsent = tx.note.includes("Habersiz");
-                                    const isMakeupWait = tx.note.includes("Telafi Bekliyor");
-                                    const isMakeupDone = tx.note.includes("Telafi Edildi");
-                                    
-                                    return (
-                                        <div key={tx.id} className="relative pl-6 group">
-                                            {/* Timeline Dot */}
-                                            <div className={`absolute -left-[9px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-4 border-white shadow-sm z-10 ${isAbsent ? 'bg-red-500' : isMakeupWait ? 'bg-orange-400' : isMakeupDone ? 'bg-emerald-400' : 'bg-indigo-500'}`}></div>
-                                            
-                                            <div 
-                                                onClick={() => { setSelectedTx(tx); setIsLessonOptionsOpen(true); }}
-                                                className={`p-3 rounded-xl border shadow-sm flex items-center justify-between active:scale-[0.99] transition-all cursor-pointer ${
-                                                    isAbsent ? 'bg-red-50 border-red-100' :
-                                                    isMakeupWait ? 'bg-orange-50 border-orange-100' :
-                                                    isMakeupDone ? 'bg-emerald-50 border-emerald-100' :
-                                                    'bg-white border-slate-100 hover:border-indigo-100'
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg border text-slate-700 ${isAbsent ? 'bg-white border-red-100' : isMakeupWait ? 'bg-white border-orange-100' : isMakeupDone ? 'bg-white border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
-                                                        <span className="text-lg font-black leading-none">{day}</span>
-                                                        <span className="text-[8px] font-bold uppercase">{month.slice(0,3)}</span>
-                                                    </div>
-                                                    <div>
-                                                        <div className={`font-bold text-sm flex items-center gap-2 ${isAbsent ? 'text-red-700' : isMakeupWait ? 'text-orange-700' : isMakeupDone ? 'text-emerald-700' : 'text-slate-800'}`}>
-                                                            {isAbsent ? 'Habersiz Gelmedi' : isMakeupWait ? 'Telafi Bekliyor' : isMakeupDone ? 'Telafi Edildi' : `${lessonNum}. Ders İşlendi`}
-                                                            {tx.note.includes("Otomatik") && !isAbsent && !isMakeupWait && !isMakeupDone && <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">OTO</span>}
-                                                        </div>
-                                                        <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                                            {isMakeupDone ? tx.note.split('(')[1]?.replace(')', '') || 'Tamamlandı' : `${new Date(tx.date).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`} - Düzenle
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <MoreHorizontal size={16} className="text-slate-300" />
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            }
-                        </div>
-                    )}
-                </div>
-            </div>
-        )}
-        
-        {activeTab === 'HISTORY' && (
-            <div className="space-y-3 animate-in fade-in duration-300">
-                {student.history.length === 0 ? (
-                     <div className="flex flex-col items-center justify-center mt-10 text-slate-300 opacity-50"><Clock size={48} className="mb-4" /><p className="font-bold">İşlem yok.</p></div>
-                ) : (
-                    student.history.map((tx, idx) => (
-                        <div key={tx.id} className={`p-4 rounded-2xl shadow-sm border flex justify-between items-center group ${tx.isDebt ? 'bg-slate-50 border-slate-100 opacity-70' : 'bg-white border-emerald-100'}`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.isDebt ? 'bg-slate-200 text-slate-500' : 'bg-emerald-50 text-emerald-500'}`}>
-                                    {tx.isDebt ? <Check size={18} strokeWidth={3} /> : <Banknote size={18} strokeWidth={2.5} />}
-                                </div>
-                                <div>
-                                    <div className={`font-bold text-sm ${tx.isDebt ? 'text-slate-600' : 'text-emerald-600'}`}>{tx.note}</div>
-                                    <div className="text-[10px] text-slate-400 font-bold mt-0.5">{new Date(tx.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {!tx.isDebt && <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{tx.amount} ₺</span>}
-                                <button onClick={() => setDeleteTxId(tx.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-        )}
+                  {/* Timeline */}
+                  <div className="relative space-y-4 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10">
+                      {student.history.map((tx) => {
+                          const isPayment = !tx.isDebt;
+                          const dateObj = new Date(tx.date);
+                          const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
+                          const month = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
+                          
+                          return (
+                              <div key={tx.id} className="flex gap-3">
+                                  <div className="flex flex-col items-center justify-center w-10 shrink-0 bg-white py-1 rounded-lg border border-slate-100 shadow-sm z-10 h-10 self-start mt-1">
+                                      <span className="text-xs font-black text-slate-700 leading-none">{day}</span>
+                                      <span className="text-[8px] font-bold text-slate-400 uppercase leading-none mt-0.5">{month}</span>
+                                  </div>
+                                  
+                                  <div onClick={() => { setSelectedTx(tx); setIsLessonOptionsOpen(true); }} className="flex-1 bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-indigo-200 transition-colors active:scale-[0.99]">
+                                      <div className="flex items-center gap-3">
+                                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isPayment ? 'bg-emerald-50 text-emerald-600' : (tx.note.includes('Telafi') ? 'bg-orange-50 text-orange-600' : 'bg-indigo-50 text-indigo-600')}`}>
+                                              {isPayment ? <Banknote size={16} /> : (tx.note.includes('Telafi') ? <RefreshCcw size={16} /> : <Check size={16} />)}
+                                          </div>
+                                          <div>
+                                              <h4 className="text-xs font-bold text-slate-800">{tx.note}</h4>
+                                              <p className="text-[10px] font-medium text-slate-400">{isPayment ? 'Ödeme' : 'Ders İşlendi'}</p>
+                                          </div>
+                                      </div>
+                                      {isPayment && (
+                                          <span className="text-xs font-black text-emerald-600">+{tx.amount}₺</span>
+                                      )}
+                                  </div>
+                              </div>
+                          );
+                      })}
+                  </div>
+              </div>
+          )}
       </div>
-      
-      {/* Dialogs */}
-      <Dialog isOpen={!!deleteTxId} onClose={() => setDeleteTxId(null)} title="İşlemi Sil" actions={
-            <>
-             <button onClick={() => setDeleteTxId(null)} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-50 rounded-xl text-sm">Vazgeç</button>
-             <button onClick={handleDeleteTx} className="px-6 py-2 bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-200 text-sm">Sil</button>
-            </>
-        }
-      >
-        <p className="text-slate-600 text-sm font-medium">Bu kayıt kalıcı olarak silinecek.</p>
-      </Dialog>
 
-      {/* Geçmiş Ders Modal */}
-      <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle"
-        actions={
-            <>
-                 <button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-                 <button onClick={handleAddPastLesson} disabled={!pastDate} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95 transition-all">Ekle</button>
-            </>
-        }
-      >
-         <div className="py-2 flex flex-col gap-3">
-             <div className="flex justify-between items-center mb-1">
-                 <p className="text-xs text-slate-500">Tarih Seçin</p>
-                 <div className="flex gap-2">
-                     <button onClick={() => setPastDate(shiftDate(pastDate, -7))} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">-1 Hafta</button>
-                     <button onClick={() => setPastDate(getTodayString())} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">Bugün</button>
-                 </div>
-             </div>
-             
-             <div className="flex items-center gap-2">
-                 <button onClick={() => setPastDate(shiftDate(pastDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
-                 <input type="date" max={getTodayString()} value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500 text-center" />
-                 <button onClick={() => setPastDate(shiftDate(pastDate, 1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
-             </div>
+      {/* --- MODALS --- */}
 
-             {pastDate && <p className="text-[10px] text-indigo-600 font-bold ml-1 text-center bg-indigo-50 py-1 rounded-lg">{formatDateFriendly(pastDate)}</p>}
-         </div>
-      </Dialog>
-      
-      {/* Geçmiş Ödeme Modal */}
-      <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Geçmiş Ödeme"
-        actions={
-            <>
-                 <button onClick={() => setIsPastPaymentModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-                 <button onClick={handleAddPastPayment} disabled={!pastPaymentDate || pastPaymentAmount === ""} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
-            </>
-        }
-      >
-         <div className="py-2 flex flex-col gap-3">
-             <div>
-                <div className="flex justify-between items-center mb-1">
-                    <p className="text-xs text-slate-500">Ödeme Tarihi</p>
-                    <div className="flex gap-2">
-                        <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, -7))} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">-1 Hafta</button>
-                        <button onClick={() => setPastPaymentDate(getTodayString())} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">Bugün</button>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
-                    <input type="date" max={getTodayString()} value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
-                    <button onClick={() => setPastPaymentDate(shiftDate(pastPaymentDate, 1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
-                </div>
-                {pastPaymentDate && <p className="text-[10px] text-emerald-600 font-bold ml-1 mt-1 text-center bg-emerald-50 py-1 rounded-lg">{formatDateFriendly(pastPaymentDate)}</p>}
-             </div>
-             <div>
-                <p className="text-xs text-slate-500 mb-1">Tutar (TL)</p>
-                <input type="number" value={pastPaymentAmount} onChange={(e) => setPastPaymentAmount(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500" placeholder="0" />
-                <p className="text-[9px] text-slate-400 mt-1 ml-1">Eğer sıfır TL girmek isterseniz 0 yazın.</p>
-             </div>
-         </div>
-      </Dialog>
-
-      {/* Telafi Tamamlama Modal */}
-      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Yapıldı"
-         actions={
-             <>
-                <button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-                <button onClick={handleMakeupComplete} disabled={!makeupCompleteDate} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
-             </>
-         }
-      >
-         <div className="py-2 flex flex-col gap-3">
-             <div className="flex justify-between items-center mb-1">
-                 <p className="text-sm text-slate-600 font-medium">Hangi tarihte yapıldı?</p>
-                 <div className="flex gap-2">
-                     <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, -7))} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">-1 Hafta</button>
-                     <button onClick={() => setMakeupCompleteDate(getTodayString())} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-colors">Bugün</button>
-                 </div>
-             </div>
-             <div className="flex items-center gap-2">
-                 <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, -1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronLeft size={20} /></button>
-                 <input type="date" max={getTodayString()} value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-emerald-500 text-center" />
-                 <button onClick={() => setMakeupCompleteDate(shiftDate(makeupCompleteDate, 1))} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-transform"><ChevronRight size={20} /></button>
-             </div>
-             {makeupCompleteDate && <p className="text-[10px] text-emerald-600 font-bold ml-1 text-center bg-emerald-50 py-1 rounded-lg">{formatDateFriendly(makeupCompleteDate)}</p>}
-             <p className="text-[10px] text-slate-400 ml-1 mt-1">Kumbara: <span className="text-slate-600 font-bold">-1 Telafi Hakkı</span> düşülecek.</p>
-         </div>
-      </Dialog>
-
-      {/* Ders Durum Opsiyonları Modal */}
-      <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="Ders Durumu">
-         <div className="flex flex-col gap-2 py-2">
-            {selectedTx?.note === "Telafi Bekliyor" && (
-                <button onClick={() => handleLessonAction('MAKEUP_DONE')} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 text-emerald-800 hover:bg-emerald-100 transition-colors mb-2 shadow-sm">
-                    <div className="w-6 h-6 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-sm"><CheckCircle2 size={16} /></div>
-                    <div className="text-left">
-                        <div className="font-bold text-sm">Telafisi Yapıldı</div>
-                        <div className="text-[10px] text-emerald-600 opacity-80">Tarih girerek tamamlandı işaretle.</div>
-                    </div>
-                </button>
-            )}
-            <button onClick={() => handleLessonAction('DELETE')} className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-red-600 hover:bg-red-50 transition-colors">
-                <Trash2 size={18} />
-                <div className="text-left">
-                    <div className="font-bold text-sm">Dersi İptal Et (Sil)</div>
-                    <div className="text-left text-[10px] opacity-70">Yanlışlıkla işlendiyse silin.</div>
-                </div>
-            </button>
-            <button onClick={() => handleLessonAction('ABSENT')} className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-slate-800 hover:bg-red-50 transition-colors">
-                <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs">!</div>
-                <div className="text-left">
-                    <div className="font-bold text-sm">Habersiz Gelmedi</div>
-                    <div className="text-[10px] text-slate-500">Ücret iadesi/telafi yapılmaz.</div>
-                </div>
-            </button>
-            <button onClick={() => handleLessonAction('MAKEUP')} className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-slate-800 hover:bg-orange-50 transition-colors">
-                 <div className="w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs">T</div>
-                <div className="text-left">
-                    <div className="font-bold text-sm">Telafi Yapılacak</div>
-                    <div className="text-[10px] text-slate-500">Kumbara: <span className="text-orange-600 font-bold">+1 Telafi Hakkı</span> eklenir.</div>
-                </div>
-            </button>
-         </div>
-      </Dialog>
-
-      {/* Edit Student Modal */}
-      <Dialog isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Bilgileri Düzenle"
-        actions={
-            <>
-                 <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-                 <button onClick={handleUpdateStudent} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-md shadow-slate-300 active:scale-95 transition-all">Güncelle</button>
-            </>
-        }
-      >
-          <div className="flex flex-col gap-3 py-1">
-             <input type="text" value={editName} onChange={e=>setEditName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none focus:border-slate-900" placeholder="Ad Soyad" />
-             <input type="tel" value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none focus:border-slate-900" placeholder="Telefon" />
-             <div>
-                 <input type="number" value={editFee} onChange={e=>setEditFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none focus:border-slate-900" placeholder="Aylık Ücret" />
-                 <p className="text-[10px] text-slate-400 mt-1 ml-1">* Sabit aylık abonelik ücreti.</p>
-             </div>
+      {/* 1. Edit Student */}
+      <Dialog isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Öğrenci Düzenle" actions={
+          <>
+            <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
+            <button onClick={handleUpdateStudent} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button>
+          </>
+      }>
+          <div className="space-y-3 py-2">
+              <input type="text" value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Ad Soyad" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+              <input type="tel" value={editPhone} onChange={e=>setEditPhone(e.target.value)} placeholder="Telefon" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+              <input type="number" value={editFee} onChange={e=>setEditFee(e.target.value)} placeholder="Aylık Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-400">Kalıcı olarak sil</span>
+                  <button onClick={() => { actions.deleteStudent(studentId); onBack(); }} className="text-xs font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg hover:bg-red-100">Öğrenciyi Sil</button>
+              </div>
           </div>
       </Dialog>
 
-      {/* Add/Manage Resource Modal */}
-      <Dialog isOpen={isResourcesModalOpen} onClose={() => setIsResourcesModalOpen(false)} title="Ödevler & Materyaller">
-          <div className="flex flex-col gap-4 py-1">
-             
-             {/* ADD NEW */}
-             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                 <div className="flex items-center gap-4 mb-3 border-b border-slate-200 pb-2">
-                     <button onClick={() => setResTab('LINK')} className={`text-xs font-bold transition-colors ${resTab === 'LINK' ? 'text-indigo-600' : 'text-slate-400'}`}>WEB LİNKİ</button>
-                     <button onClick={() => setResTab('UPLOAD')} className={`text-xs font-bold transition-colors ${resTab === 'UPLOAD' ? 'text-indigo-600' : 'text-slate-400'}`}>DOSYA YÜKLE</button>
-                 </div>
+      {/* 2. Past Lesson */}
+      <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" actions={
+          <>
+            <button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
+            <button onClick={handleAddPastLesson} disabled={!pastDate} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>
+          </>
+      }>
+          <div className="py-4">
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TARİH</label>
+              <input type="date" value={pastDate} onChange={e=>setPastDate(e.target.value)} max={getTodayString()} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+          </div>
+      </Dialog>
 
-                 <div className="space-y-2">
-                    <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none focus:border-indigo-500" placeholder="Başlık (Örn: Nota, Ödev PDF)" />
-                    
-                    {resTab === 'UPLOAD' ? (
-                        <div className="relative">
-                            <div className="w-full p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
-                                <span className={`text-xs font-bold truncate pr-2 ${resUrl ? 'text-emerald-600' : 'text-slate-400'}`}>{resUrl ? (resType === 'IMAGE' ? 'Fotoğraf Seçildi' : 'Dosya Seçildi') : 'Dosya Bekleniyor...'}</span>
-                                {resUrl && <button onClick={() => { setResUrl(""); setResType('LINK'); }} className="p-1 bg-slate-100 rounded-full text-slate-400 hover:text-red-500"><X size={14}/></button>}
-                            </div>
-                            
-                            {/* Hidden File Input */}
-                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
-                            
-                            <button 
-                                onClick={() => fileInputRef.current?.click()} 
-                                disabled={isUploading}
-                                className={`w-full mt-2 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs border border-dashed transition-all active:scale-95 ${resUrl ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'}`}
-                            >
-                                {isUploading ? <><Loader2 size={16} className="animate-spin"/> Yükleniyor...</> : <><UploadCloud size={16} /> {resUrl ? 'Tekrar Seç' : 'PDF veya Resim Seç'}</>}
-                            </button>
-                        </div>
-                    ) : (
-                        <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs outline-none focus:border-indigo-500" placeholder="https://..." />
-                    )}
+      {/* 3. Payment */}
+      <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Ödeme Ekle" actions={
+          <>
+            <button onClick={() => setIsPastPaymentModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
+            <button onClick={handleAddPastPayment} disabled={!pastPaymentDate || !pastPaymentAmount} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Kaydet</button>
+          </>
+      }>
+          <div className="py-2 space-y-3">
+              <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TARİH</label>
+                  <input type="date" value={pastPaymentDate} onChange={e=>setPastPaymentDate(e.target.value)} max={getTodayString()} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+              </div>
+              <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">MİKTAR (TL)</label>
+                  <input type="number" value={pastPaymentAmount} onChange={e=>setPastPaymentAmount(e.target.value)} placeholder="0.00" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+              </div>
+          </div>
+      </Dialog>
 
-                    <button 
-                        onClick={handleAddResource} 
-                        disabled={!resTitle || !resUrl || isUploading} 
-                        className="w-full mt-2 py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-200 disabled:opacity-50 disabled:shadow-none active:scale-95 transition-all"
-                    >
-                        Ekle
+      {/* 4. Lesson Options */}
+      <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="İşlem Detayı">
+          <div className="flex flex-col gap-2 py-1">
+              {selectedTx?.isDebt && !selectedTx.note.includes("Telafi Bekliyor") && (
+                  <>
+                    <button onClick={() => handleLessonAction('ABSENT')} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-sm flex items-center gap-2">
+                        <XCircle size={16} /> Gelmedi Olarak İşaretle
                     </button>
-                 </div>
-             </div>
+                    <button onClick={() => handleLessonAction('MAKEUP')} className="p-3 bg-orange-50 text-orange-700 rounded-xl font-bold text-sm flex items-center gap-2">
+                        <RefreshCcw size={16} /> Telafi Hakkı Tanımla
+                    </button>
+                  </>
+              )}
+               
+              {selectedTx?.note.includes("Telafi Bekliyor") && (
+                   <button onClick={() => handleLessonAction('MAKEUP_DONE')} className="p-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Telafi Yapıldı Olarak İşaretle
+                   </button>
+              )}
 
-             {/* LIST EXISTING */}
-             <div className="max-h-[30vh] overflow-y-auto space-y-2 pr-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">LİSTE</p>
-                {(student.resources || []).length === 0 ? (
-                    <p className="text-center text-xs text-slate-300 py-4 font-bold">Henüz materyal yok.</p>
-                ) : (
-                    (student.resources || []).map(res => (
-                        <div key={res.id} className="flex items-center justify-between p-2 bg-white border border-slate-100 rounded-xl group hover:border-indigo-100 transition-colors">
-                            <a href={res.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0 ${
-                                    res.type === 'VIDEO' ? 'bg-red-500' : 
-                                    res.type === 'PDF' ? 'bg-orange-500' : 
-                                    res.type === 'IMAGE' ? 'bg-emerald-500' : 'bg-blue-500'
-                                }`}>
-                                    {res.type === 'VIDEO' ? <Youtube size={16} /> : 
-                                     res.type === 'PDF' ? <FileText size={16} /> : 
-                                     res.type === 'IMAGE' ? <Image size={16} /> : <Globe size={16} />}
-                                </div>
-                                <div className="min-w-0">
-                                    <h4 className="font-bold text-slate-800 text-xs truncate">{res.title}</h4>
-                                    <p className="text-[9px] text-slate-400 font-medium truncate">
-                                        {res.type === 'LINK' ? 'Web Bağlantısı' : res.type === 'IMAGE' ? 'Görsel Dosya' : res.type === 'PDF' ? 'PDF Belgesi' : 'Video'}
-                                    </p>
-                                </div>
-                            </a>
-                            <button onClick={() => actions.deleteResource(studentId, res.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                <Trash2 size={16} />
-                            </button>
-                        </div>
-                    ))
-                )}
-             </div>
-
+              <button onClick={() => handleLessonAction('DELETE')} className="p-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm flex items-center gap-2 mt-2">
+                  <Trash2 size={16} /> Kaydı Sil
+              </button>
           </div>
       </Dialog>
+
+      {/* 5. Makeup Complete Date Picker */}
+      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Tarihi" actions={
+           <>
+             <button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
+             <button onClick={handleMakeupComplete} disabled={!makeupCompleteDate} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Onayla</button>
+           </>
+      }>
+          <div className="py-4">
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TELAFİ YAPILAN TARİH</label>
+              <input type="date" value={makeupCompleteDate} onChange={e=>setMakeupCompleteDate(e.target.value)} max={getTodayString()} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+          </div>
+      </Dialog>
+
+      {/* 6. Resources Modal */}
+      <Dialog isOpen={isResourcesModalOpen} onClose={() => setIsResourcesModalOpen(false)} title="Materyal Ekle" actions={
+          <>
+            <button onClick={() => setIsResourcesModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">Kapat</button>
+            <button onClick={handleAddResource} disabled={!resTitle || !resUrl} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>
+          </>
+      }>
+          <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
+              <button onClick={() => setResTab('LINK')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'LINK' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>Link</button>
+              <button onClick={() => setResTab('UPLOAD')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'UPLOAD' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>Dosya Yükle</button>
+          </div>
+
+          <div className="space-y-3">
+               <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} placeholder="Başlık (Örn: Ödev 1)" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+               
+               {resTab === 'LINK' ? (
+                   <input type="url" value={resUrl} onChange={e=>setResUrl(e.target.value)} placeholder="Link (YouTube, Drive vb.)" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+               ) : (
+                   <div className="flex gap-2">
+                       <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex-1 p-8 border-2 border-dashed border-indigo-200 rounded-xl bg-indigo-50 text-indigo-500 flex flex-col items-center justify-center gap-2 hover:bg-indigo-100 transition-colors disabled:opacity-50">
+                           {isUploading ? <Loader2 size={24} className="animate-spin" /> : <UploadCloud size={24} />}
+                           <span className="text-xs font-bold">{isUploading ? 'Yükleniyor...' : 'Dosya Seç (Resim/PDF)'}</span>
+                       </button>
+                       <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
+                   </div>
+               )}
+               
+               {resUrl && resTab === 'UPLOAD' && (
+                   <div className="text-xs font-bold text-emerald-600 bg-emerald-50 p-2 rounded-lg flex items-center gap-2">
+                       <Check size={14} /> Dosya başarıyla yüklendi
+                   </div>
+               )}
+          </div>
+      </Dialog>
+
     </div>
   );
 };

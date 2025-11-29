@@ -324,10 +324,16 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             showAmount = true;
                         } else if (lowerNote.includes("telafi")) {
                             // MAKEUP
-                            title = "Telafi Dersi";
-                            subtitle = "Tamamlandı";
                             iconColor = "text-orange-600 bg-orange-50";
                             Icon = Layers;
+                            
+                            if (lowerNote.includes("bekliyor")) {
+                                title = "Telafi Hakkı";
+                                subtitle = "Planlanacaktır";
+                            } else {
+                                title = "Telafi Dersi";
+                                subtitle = "Tamamlandı";
+                            }
                         } else if (lowerNote.includes("gelmedi") || lowerNote.includes("iptal")) {
                             // ABSENT
                             title = "Katılım Yok";
