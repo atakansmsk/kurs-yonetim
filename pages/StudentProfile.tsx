@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
 import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Calendar, UserCheck, AlertCircle } from 'lucide-react';
@@ -30,10 +30,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   // Form Data
-  const [pastDate, setPastDate] = useState("");
-  const [pastPaymentDate, setPastPaymentDate] = useState("");
+  const getTodayString = () => new Date().toISOString().split('T')[0];
+
+  const [pastDate, setPastDate] = useState(getTodayString());
+  const [pastPaymentDate, setPastPaymentDate] = useState(getTodayString());
   const [pastPaymentAmount, setPastPaymentAmount] = useState("");
-  const [makeupCompleteDate, setMakeupCompleteDate] = useState("");
+  const [makeupCompleteDate, setMakeupCompleteDate] = useState(getTodayString());
 
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -46,6 +48,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [resTab, setResTab] = useState<'LINK' | 'UPLOAD'>('LINK');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Auto-fill payment amount when modal opens
+  useEffect(() => {
+      if (isPastPaymentModalOpen && student) {
+          setPastPaymentAmount(student.fee.toString());
+      }
+  }, [isPastPaymentModalOpen, student]);
 
   // --- SORTER ---
   // Tarihe göre her zaman yeniden sırala (En yeni en üstte)
@@ -73,7 +82,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       }
 
       // Borç sayacı: Sadece "Normal Ders" ve "İşlendi" olanlar.
-      // Telafiler genelde önceki bir borcun karşılığıdır, ekstra borç yazmaz (sistem tasarımına göre değişebilir ama genelde böyledir)
+      // Telafiler genelde önceki bir borcun karşılığıdır, ekstra borç yazmaz.
       // Deneme dersi borç yazmaz.
       const debtLessons = periodLessons.filter(tx => 
           tx.isDebt && 
@@ -85,14 +94,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   }, [sortedHistory]);
   
   // Lesson Number Map Calculation
-  // İşlenen dersleri 1. Ders, 2. Ders diye numaralandır
   const lessonNumberMap = useMemo(() => {
       if (!student) return new Map();
       const map = new Map<string, number>();
-      
-      // Sadece bu ödeme dönemindeki normal dersleri numaralandır
-      // Veya tüm zamanların derslerini mi? Genelde "Bu ayki 3. ders" mantığı kullanılır.
-      // Şimdilik "Son ödemeden sonraki dersler" mantığını koruyoruz.
       
       const regularLessons = currentPeriodStats.lessons.filter(tx => 
         tx.isDebt && 
@@ -112,9 +116,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   }, [currentPeriodStats]);
 
   if (!student) return null;
-
-  // Helpers for Dates
-  const getTodayString = () => new Date().toISOString().split('T')[0];
   
   const getPhoneClean = () => {
       let phone = student.phone.replace(/[^0-9]/g, '');
@@ -151,7 +152,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       if (pastDate) {
           actions.addTransaction(studentId, 'LESSON', pastDate);
           setIsPastLessonModalOpen(false);
-          setPastDate("");
+          setPastDate(getTodayString());
       }
   };
 
@@ -159,8 +160,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       if (pastPaymentDate && pastPaymentAmount !== "") {
           actions.addTransaction(studentId, 'PAYMENT', pastPaymentDate, parseFloat(pastPaymentAmount));
           setIsPastPaymentModalOpen(false);
-          setPastPaymentDate("");
-          setPastPaymentAmount("");
+          setPastPaymentDate(getTodayString());
       }
   };
 
@@ -196,7 +196,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const newNote = `Telafi Edildi (${dateStr})`;
       actions.updateTransaction(studentId, selectedTx.id, newNote);
       setIsMakeupCompleteModalOpen(false);
-      setMakeupCompleteDate("");
+      setMakeupCompleteDate(getTodayString());
       setSelectedTx(null);
   };
 
@@ -348,7 +348,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               </div>
           </div>
 
-          {/* RESOURCES SECTION (Collapsed if empty?) */}
+          {/* RESOURCES SECTION */}
           <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
               <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -410,7 +410,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                </div>
 
                {/* TIMELINE LIST */}
-               <div className="relative space-y-4 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-6">
+               <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-6">
                   {sortedHistory.length === 0 ? (
                       <div className="text-center py-10 opacity-50">
                           <p className="text-sm font-bold text-slate-400">Henüz kayıt yok.</p>
@@ -449,15 +449,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                icon = <XCircle size={16} />;
                                iconClass = "bg-red-50 text-red-600";
                           } else {
-                              // Numbered Lesson (Only for regular lessons)
+                              // Numbered Lesson
                               const num = lessonNumberMap.get(tx.id);
                               if (num) title = `${num}. Ders`;
                           }
 
                           return (
                               <div key={tx.id} className="flex gap-3 animate-slide-up">
-                                  <div className="flex flex-col items-center justify-center w-10 shrink-0 bg-white py-1 rounded-lg border border-slate-100 shadow-sm z-10 h-10 self-start mt-0.5">
-                                      <span className="text-xs font-black text-slate-700 leading-none">{day}</span>
+                                  <div className="flex flex-col items-center justify-center w-[42px] shrink-0 bg-white py-1 rounded-lg border border-slate-50 shadow-sm z-10 h-10 self-start mt-0.5">
+                                      <span className="text-sm font-black text-slate-700 leading-none">{day}</span>
                                       <span className="text-[8px] font-bold text-slate-400 uppercase leading-none mt-0.5">{month}</span>
                                   </div>
                                   
@@ -472,7 +472,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                           </div>
                                       </div>
                                       {showAmount && (
-                                          <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">+{tx.amount}₺</span>
+                                          <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">+{tx.amount}₺</span>
                                       )}
                                   </div>
                               </div>
