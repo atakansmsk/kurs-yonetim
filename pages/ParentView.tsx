@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
-import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Calendar, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, School } from 'lucide-react';
 
 interface ParentViewProps {
   teacherId: string;
@@ -72,9 +73,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       const getNextLesson = () => {
         const today = new Date();
         const dayIndex = today.getDay(); // 0=Pazar
-        // FULL DAY NAMES (Display)
         const daysMap = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
-        // DATA KEYS (App State uses Cmt)
         const appKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
         
         for (let i = 0; i < 7; i++) {
@@ -86,7 +85,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             const slots = appState.schedule[key] || [];
             const foundSlot = slots.find(s => s.studentId === student.id);
             if (foundSlot) {
-                return { day: displayDayName, time: `${foundSlot.start} - ${foundSlot.end}` };
+                // Eğer bugünse ve saat geçmediyse veya gelecek günse
+                const isToday = i === 0;
+                if (!isToday || (isToday)) {
+                    return { day: isToday ? "Bugün" : displayDayName, time: `${foundSlot.start} - ${foundSlot.end}` };
+                }
             }
         }
         return null;
@@ -104,7 +107,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           !tx.note.includes("Ders")
       );
       
-      let lastPaymentDateStr = "Henüz Yok";
+      let lastPaymentDateStr = "Kayıt Yok";
       let nextPaymentDateStr = "-";
       let lastPaymentDateObj: Date | null = null;
 
@@ -113,6 +116,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           lastPaymentDateStr = lastPaymentDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       } else if (student.registrationDate) {
           lastPaymentDateObj = new Date(student.registrationDate);
+          lastPaymentDateStr = "Kayıt Tarihi";
       }
 
       if (lastPaymentDateObj) {
@@ -141,161 +145,198 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-        <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-400 font-medium text-xs">Yükleniyor...</p>
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
+        <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-400 font-bold text-sm tracking-wide">Yükleniyor...</p>
       </div>
     );
   }
 
   if (error || !student || !appState) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 bg-red-50 text-red-400 rounded-full flex items-center justify-center mb-4">
-          <XCircle size={24} />
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 bg-red-50 text-red-400 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+          <XCircle size={32} />
         </div>
-        <h3 className="text-base font-bold text-slate-800">Erişim Hatası</h3>
-        <p className="text-slate-500 text-xs mt-1">{error}</p>
+        <h3 className="text-lg font-black text-slate-800">Erişim Hatası</h3>
+        <p className="text-slate-500 text-sm mt-2 max-w-xs mx-auto font-medium">{error}</p>
       </div>
     );
   }
 
+  // Okul ikonu belirleme
+  const isCustomLogo = appState.schoolIcon.startsWith('data:');
+  const SchoolIconComponent = !isCustomLogo ? (ICONS[appState.schoolIcon] || Sparkles) : Sparkles;
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] max-w-5xl mx-auto shadow-2xl overflow-hidden relative font-sans text-slate-800 selection:bg-indigo-100 pb-64">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24">
       
-      {/* --- HERO SECTION (LOGO REMOVED) --- */}
-      <div className="relative bg-gradient-to-b from-white to-[#F8FAFC] pb-4 pt-10 px-6 rounded-b-[2.5rem] shadow-sm mb-4 border-b border-slate-100">
-        
-        {/* STUDENT IDENTITY CARD (Glass) - Width updated to max-w-4xl */}
-        <div className="max-w-4xl mx-auto bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-indigo-100/50 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-slate-800 text-white flex items-center justify-center text-lg font-bold shadow-md">
+      {/* --- HERO / HEADER SECTION --- */}
+      <div className="bg-white pb-6 pt-8 px-6 rounded-b-[2.5rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] mb-6 border-b border-slate-100 animate-slide-up relative overflow-hidden">
+         {/* Dekoratif Arkaplan */}
+         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+         
+         <div className="relative z-10 max-w-2xl mx-auto text-center">
+            {/* Okul Kimliği */}
+            <div className="flex flex-col items-center justify-center mb-6">
+                <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-tr from-slate-900 to-slate-800 text-white flex items-center justify-center shadow-xl shadow-slate-200 mb-4 overflow-hidden p-1">
+                    {isCustomLogo ? (
+                        <img src={appState.schoolIcon} alt="Logo" className="w-full h-full object-contain rounded-xl" />
+                    ) : (
+                        <SchoolIconComponent size={36} strokeWidth={1.5} />
+                    )}
+                </div>
+                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none mb-1">{appState.schoolName}</h1>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Veli Bilgilendirme Portalı</div>
+            </div>
+
+            {/* Öğrenci Kartı */}
+            <div className="bg-white/60 backdrop-blur-md border border-slate-200/60 rounded-2xl p-4 shadow-sm flex items-center gap-4 text-left mx-auto max-w-sm">
+                 <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-black shrink-0">
                     {student.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                    <h1 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{student.name}</h1>
-                    <div className="flex items-center gap-1.5 mt-1">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Aktif Öğrenci</span>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">ÖĞRENCİ</p>
+                    <h2 className="text-lg font-black text-slate-800 leading-tight">{student.name}</h2>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                         <span className="text-xs font-bold text-emerald-600">Eğitim Devam Ediyor</span>
                     </div>
                 </div>
             </div>
-        </div>
+         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-5 space-y-4">
+      <div className="max-w-2xl mx-auto px-5 space-y-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
         
-        {/* --- NEXT LESSON CARD --- */}
-        <div className="group relative bg-slate-900 rounded-[1.5rem] p-5 text-white shadow-xl shadow-slate-200 overflow-hidden cursor-default transition-transform active:scale-[0.99]">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/30 rounded-full blur-[60px] -mr-10 -mt-10"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-[50px] -ml-10 -mb-10"></div>
+        {/* --- GRID: DERS & ÖDEME --- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-2 opacity-60">
-                    <Clock size={12} />
-                    <span className="text-[9px] font-bold uppercase tracking-widest">Sıradaki Ders</span>
-                </div>
+            {/* NEXT LESSON CARD */}
+            <div className="relative overflow-hidden rounded-[2rem] bg-slate-900 p-6 text-white shadow-xl shadow-slate-200 flex flex-col justify-between min-h-[160px] group">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 rounded-full blur-[60px] -mr-10 -mt-10"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-[50px] -ml-10 -mb-10"></div>
                 
-                {nextLesson ? (
-                    <div className="flex items-end justify-between">
+                <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-4 opacity-60">
+                        <Clock size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">SIRADAKİ DERS</span>
+                    </div>
+                    
+                    {nextLesson ? (
                         <div>
-                            <div className="text-2xl font-black tracking-tighter mb-0.5">{nextLesson.day}</div>
-                            <div className="text-base font-medium text-indigo-200">{nextLesson.time}</div>
+                            <div className="text-3xl font-black tracking-tighter mb-1">{nextLesson.day}</div>
+                            <div className="text-lg font-medium text-indigo-200">{nextLesson.time}</div>
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
+                    ) : (
+                        <div>
+                            <div className="text-xl font-bold opacity-90">Ders Planı Yok</div>
+                            <p className="text-xs text-slate-400 mt-1">Lütfen eğitmenle iletişime geçiniz.</p>
+                        </div>
+                    )}
+                </div>
+                {nextLesson && (
+                    <div className="relative z-10 mt-auto pt-4 flex justify-end">
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition-transform">
                             <ChevronRight size={20} />
                         </div>
                     </div>
-                ) : (
-                    <div className="py-1">
-                        <div className="text-lg font-bold opacity-90">Planlanmış ders yok.</div>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Yeni program için eğitmenle görüşünüz.</p>
-                    </div>
                 )}
             </div>
-        </div>
 
-        {/* --- PAYMENT STATUS (NO FEE) --- */}
-        <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">SON ÖDEME</p>
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                    <span className="text-sm font-bold text-slate-700">{lastPaymentStr}</span>
-                </div>
-            </div>
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
-                <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider mb-1.5">GELECEK ÖDEME</p>
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                    <span className="text-sm font-bold text-slate-700">{nextPaymentStr}</span>
-                </div>
-            </div>
-            {student.debtLessonCount > 0 && (
-                <div className="col-span-2 bg-indigo-50 p-3 rounded-2xl border border-indigo-100 flex items-center justify-between px-5">
-                    <div className="flex items-center gap-2">
-                        <Layers size={16} className="text-indigo-400"/>
-                        <span className="text-xs font-bold text-indigo-900">Bu Dönem İşlenen</span>
+            {/* PAYMENT STATUS CARD */}
+            <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-lg shadow-slate-200/50 flex flex-col justify-between">
+                 <div>
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                            <Banknote size={16} />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">FİNANSAL DURUM</span>
                     </div>
-                    <span className="text-sm font-black text-indigo-600 bg-white px-3 py-1 rounded-lg shadow-sm">{student.debtLessonCount} Ders</span>
-                </div>
-            )}
+
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-500">Son Ödeme</span>
+                            <span className="text-sm font-bold text-slate-800">{lastPaymentStr}</span>
+                        </div>
+                        <div className="w-full h-px bg-slate-100"></div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-500">Gelecek Ödeme</span>
+                            <span className="text-sm font-bold text-indigo-600">{nextPaymentStr}</span>
+                        </div>
+                    </div>
+                 </div>
+
+                 {student.debtLessonCount > 0 && (
+                    <div className="mt-4 bg-orange-50 rounded-xl p-3 flex items-center gap-3 border border-orange-100">
+                        <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                            <AlertCircle size={16} />
+                        </div>
+                        <div className="leading-tight">
+                            <div className="text-[10px] font-bold text-orange-400 uppercase">ÖDEME BEKLEYEN</div>
+                            <div className="text-xs font-bold text-orange-800">{student.debtLessonCount} Ders İşlendi</div>
+                        </div>
+                    </div>
+                 )}
+            </div>
         </div>
 
         {/* --- TIMELINE HISTORY --- */}
         <div>
-            <div className="flex items-center justify-between mb-3 px-1 mt-4">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DÖNEM HAREKETLERİ</h3>
-                <span className="text-[9px] font-bold text-slate-300 bg-slate-50 px-2 py-0.5 rounded-lg">Filtreli</span>
+            <div className="flex items-center justify-between mb-4 px-2">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Activity size={14} />
+                    DÖNEM HAREKETLERİ
+                </h3>
             </div>
             
-            <div className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm p-3">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-1">
                 {currentPeriodHistory.length === 0 ? (
-                    <div className="text-center py-8">
-                        <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
-                            <Layers size={18} />
+                    <div className="text-center py-10">
+                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-300">
+                            <Layers size={24} />
                         </div>
-                        <p className="text-slate-900 font-bold text-xs">Yeni Dönem</p>
-                        <p className="text-slate-400 text-[10px] mt-0.5">Son ödemeden sonra henüz işlem yok.</p>
+                        <p className="text-slate-900 font-bold text-sm">Yeni Dönem Başlangıcı</p>
+                        <p className="text-slate-400 text-xs mt-1">Son ödemeden sonra henüz ders işlenmedi.</p>
                     </div>
                 ) : (
-                    <div className="relative pl-5 pt-2 pb-2 space-y-5">
-                        {/* Timeline Line */}
-                        <div className="absolute left-[13px] top-3 bottom-3 w-0.5 bg-slate-100 rounded-full"></div>
-                        
+                    <div className="flex flex-col">
                         {currentPeriodHistory.map((tx, idx) => {
                             const dateObj = new Date(tx.date);
-                            // FULL DATE WITH DAY NAME (e.g., 14 Kasım Perşembe)
-                            const fullDateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
-                            const time = dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                            const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
+                            const month = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
+                            const weekday = dateObj.toLocaleDateString('tr-TR', { weekday: 'long' });
                             
-                            let statusText = "Ders Yapıldı";
+                            let statusText = "Ders İşlendi";
                             let statusColor = "text-slate-700";
-                            let dotColor = "bg-indigo-500";
+                            let iconColor = "bg-indigo-50 text-indigo-600";
                             
                             if (tx.note.includes("Telafi")) {
-                                statusText = "Telafi Dersi"; statusColor = "text-orange-600"; dotColor = "bg-orange-500";
+                                statusText = "Telafi Dersi"; statusColor = "text-orange-700"; iconColor = "bg-orange-50 text-orange-600";
                             } else if (tx.note.includes("Deneme")) {
-                                statusText = "Deneme Dersi"; statusColor = "text-purple-600"; dotColor = "bg-purple-500";
+                                statusText = "Deneme Dersi"; statusColor = "text-purple-700"; iconColor = "bg-purple-50 text-purple-600";
                             } else if (tx.note.includes("Gelmedi")) {
-                                statusText = "Gelmedi"; statusColor = "text-red-600"; dotColor = "bg-red-500";
+                                statusText = "Derse Gelmedi"; statusColor = "text-red-700"; iconColor = "bg-red-50 text-red-600";
                             } else if (!tx.isDebt) {
-                                statusText = "Ödeme Alındı"; statusColor = "text-emerald-600"; dotColor = "bg-emerald-500";
+                                statusText = "Ödeme Alındı"; statusColor = "text-emerald-700"; iconColor = "bg-emerald-50 text-emerald-600";
                             }
 
                             return (
-                                <div key={tx.id} className="relative group">
-                                    <div className={`absolute -left-[15px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10 ${dotColor}`}></div>
-                                    <div className="flex justify-between items-start pr-2">
-                                        <div>
-                                            <div className={`text-xs font-bold ${statusColor}`}>{statusText}</div>
-                                            {/* FULL DATE DISPLAY */}
-                                            <div className="text-[10px] font-medium text-slate-400 mt-0.5">{fullDateStr} • {time}</div>
-                                        </div>
+                                <div key={tx.id} className="group flex items-center p-4 hover:bg-slate-50 transition-colors rounded-[1.5rem] relative">
+                                    {/* Date Box */}
+                                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 font-bold shrink-0 mr-4 border border-slate-200">
+                                        <span className="text-lg leading-none">{day}</span>
+                                        <span className="text-[9px] uppercase">{month}</span>
                                     </div>
+
+                                    {/* Content */}
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className={`text-sm font-bold ${statusColor}`}>{statusText}</h4>
+                                        <p className="text-xs text-slate-400 font-medium truncate">{weekday} • {tx.note.replace(statusText, '').replace(/[()]/g, '').trim() || 'Normal Program'}</p>
+                                    </div>
+                                    
+                                    {/* Status Dot */}
+                                    <div className={`w-2 h-2 rounded-full ${tx.isDebt ? 'bg-indigo-400' : 'bg-emerald-400'}`}></div>
                                 </div>
                             );
                         })}
@@ -307,60 +348,55 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         {/* --- HOMEWORK & RESOURCES --- */}
         {safeResources.length > 0 && (
             <div>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1 mt-6">ÖDEVLER & MATERYALLER</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 px-2 mt-8 flex items-center gap-2">
+                    <BookOpen size={14} />
+                    ÖDEVLER & MATERYALLER
+                </h3>
+                <div className="grid grid-cols-1 gap-3">
                     {safeResources.map(res => (
                         <a 
                             key={res.id} 
                             href={res.url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="group relative bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden active:scale-[0.98] transition-all hover:shadow-md block"
+                            className="group flex items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all active:scale-[0.99]"
                         >
-                            {/* If IMAGE, show large preview */}
-                            {res.type === 'IMAGE' ? (
-                                <div className="aspect-video w-full bg-slate-100 relative overflow-hidden">
-                                    <img src={res.url} alt={res.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-4">
-                                        <div className="flex items-center gap-1.5 text-white/90 mb-1">
-                                            <Image size={14} />
-                                            <span className="text-[10px] font-bold uppercase tracking-wider">GÖRSEL / NOTA</span>
-                                        </div>
-                                        <h4 className="text-white font-bold text-sm truncate">{res.title}</h4>
-                                    </div>
+                            {/* Icon / Thumbnail */}
+                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 mr-4 overflow-hidden shadow-sm ${
+                                res.type === 'VIDEO' ? 'bg-red-50 text-red-500' : 
+                                res.type === 'PDF' ? 'bg-blue-50 text-blue-500' : 
+                                res.type === 'IMAGE' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                                {res.type === 'IMAGE' ? (
+                                    <img src={res.url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                    res.type === 'VIDEO' ? <Youtube size={24} /> : 
+                                    res.type === 'PDF' ? <FileText size={24} /> : <Link size={24} />
+                                )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-slate-800 text-sm group-hover:text-indigo-700 transition-colors truncate">{res.title}</h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md uppercase tracking-wide">{res.type}</span>
+                                    <span className="text-[10px] text-slate-300 font-medium truncate max-w-[150px]">Bağlantıyı aç</span>
                                 </div>
-                            ) : (
-                                // If LINK/VIDEO, show icon card
-                                <div className="p-4 flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md shrink-0 ${
-                                        res.type === 'VIDEO' ? 'bg-gradient-to-br from-red-500 to-rose-600' : 
-                                        res.type === 'PDF' ? 'bg-gradient-to-br from-blue-500 to-cyan-600' : 
-                                        'bg-gradient-to-br from-slate-700 to-slate-800'
-                                    }`}>
-                                        {res.type === 'VIDEO' ? <Youtube size={20} /> : res.type === 'PDF' ? <FileText size={20} /> : <Link size={20} />}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <h4 className="font-bold text-slate-800 text-sm truncate">{res.title}</h4>
-                                        <div className="flex items-center gap-1 mt-1 text-slate-400">
-                                            <ExternalLink size={12} />
-                                            <span className="text-[10px] font-bold uppercase tracking-wider">{res.type}</span>
-                                        </div>
-                                    </div>
-                                    <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                                </div>
-                            )}
+                            </div>
+                            
+                            <div className="w-8 h-8 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                <ExternalLink size={14} />
+                            </div>
                         </a>
                     ))}
                 </div>
             </div>
         )}
 
-        {/* Footer with Version Tag for Verification */}
-        <div className="text-center pt-8 opacity-40">
-            <div className="inline-flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-white/50 px-3 py-1 rounded-full border border-slate-100">
-                <Sparkles size={10} className="text-indigo-400" />
-                <span>Powered by Kurs Pro (Güncel Sürüm)</span>
-            </div>
+        {/* Footer */}
+        <div className="text-center pt-10 pb-6 opacity-60">
+            <p className="text-[10px] font-bold text-slate-400">
+                Bu sayfa {appState.schoolName} tarafından oluşturulmuştur.
+            </p>
         </div>
 
       </div>

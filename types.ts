@@ -1,3 +1,4 @@
+
 export interface Transaction {
   id: string;
   note: string;
@@ -80,6 +81,7 @@ export interface CourseContextType {
     swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => void;
     addResource: (studentId: string, title: string, url: string, type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE') => void;
     deleteResource: (studentId: string, resourceId: string) => void;
+    clearDay: (day: WeekDay) => void;
   };
 }
 
