@@ -177,6 +177,30 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       return `https://${url}`;
   };
 
+  const renderNextLessonDate = () => {
+      if (!nextLesson) return null;
+      if (nextLesson.day.includes(',')) {
+          const parts = nextLesson.day.split(',');
+          return (
+              <>
+                  <div className="text-xs font-medium text-indigo-100 opacity-90 leading-tight">{parts[0]}</div>
+                  <div className="text-base font-black tracking-tight leading-none mt-0.5">{parts[1]}</div>
+              </>
+          );
+      } else {
+          // Format: "14 Ekim Pazartesi"
+          const parts = nextLesson.day.split(' ');
+          const dayName = parts[parts.length - 1]; 
+          const datePart = parts.slice(0, parts.length - 1).join(' ');
+          return (
+              <>
+                  <div className="text-xs font-medium text-indigo-100 opacity-90 leading-tight">{dayName}</div>
+                  <div className="text-base font-black tracking-tight leading-none mt-0.5">{datePart}</div>
+              </>
+          );
+      }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24 pt-6">
       
@@ -202,68 +226,69 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
 
       <div className="max-w-2xl mx-auto px-5 space-y-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
         
-        {/* --- GRID: DERS & ÖDEME --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* --- GRID: DERS & ÖDEME (KOMPAKT & YAN YANA) --- */}
+        <div className="grid grid-cols-2 gap-3">
             
             {/* NEXT LESSON CARD */}
-            <div className="relative overflow-hidden rounded-[2rem] bg-indigo-600 p-6 text-white shadow-xl shadow-indigo-200 flex flex-col justify-between min-h-[160px] group">
-                <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-[40px] -mr-10 -mt-10"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/20 rounded-full blur-[30px] -ml-5 -mb-5"></div>
+            <div className="relative overflow-hidden rounded-[1.5rem] bg-indigo-600 p-4 text-white shadow-lg shadow-indigo-200 flex flex-col justify-between h-40 group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-[30px] -mr-8 -mt-8 pointer-events-none"></div>
                 
-                <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-4 opacity-70">
-                        <Clock size={14} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">SIRADAKİ DERS</span>
-                    </div>
-                    
-                    {nextLesson ? (
-                        <div>
-                            <div className="text-2xl font-black tracking-tight mb-1 leading-none">{nextLesson.day}</div>
-                            <div className="text-lg font-medium text-indigo-100 mt-2">{nextLesson.time}</div>
+                <div className="relative z-10 h-full flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-center gap-1.5 mb-2 opacity-80">
+                            <Clock size={12} />
+                            <span className="text-[9px] font-bold uppercase tracking-widest">SIRADAKİ</span>
                         </div>
-                    ) : (
-                        <div>
-                            <div className="text-xl font-bold opacity-90">Ders Planı Yok</div>
-                            <p className="text-xs text-indigo-200 mt-1">Planlama için eğitmenle görüşünüz.</p>
+                        
+                        {nextLesson ? (
+                            <div>
+                                {renderNextLessonDate()}
+                            </div>
+                        ) : (
+                            <div>
+                                <div className="text-base font-bold opacity-90 leading-tight">Plan Yok</div>
+                                <p className="text-[10px] text-indigo-200 mt-0.5 leading-tight">Eğitmenle görüşün.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {nextLesson && (
+                        <div className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-lg self-start mt-2">
+                             <span className="text-sm font-bold">{nextLesson.time.split('-')[0]}</span>
+                             <span className="text-[10px] opacity-70">{nextLesson.time.split('-')[1]}</span>
                         </div>
                     )}
                 </div>
-                {nextLesson && (
-                    <div className="relative z-10 mt-auto pt-4 flex justify-end">
-                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition-transform">
-                            <ChevronRight size={20} />
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* PAYMENT STATUS CARD */}
-            <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+            <div className="bg-white rounded-[1.5rem] p-4 border border-slate-100 shadow-sm flex flex-col justify-between h-40 relative overflow-hidden">
                  <div>
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                            <Banknote size={16} />
+                    <div className="flex items-center gap-1.5 mb-3">
+                        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                            <Banknote size={14} />
                         </div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">DURUM</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">DURUM</span>
                     </div>
 
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Son Ödeme</span>
-                            <span className="text-sm font-bold text-slate-800">{lastPaymentStr}</span>
-                        </div>
+                    <div>
+                        <span className="text-[10px] font-bold text-slate-400 block mb-0.5">Son Ödeme</span>
+                        <span className="text-sm font-black text-slate-800 leading-tight truncate block" title={lastPaymentStr}>{lastPaymentStr}</span>
                     </div>
                  </div>
 
-                 {student.debtLessonCount > 0 && (
-                    <div className="mt-4 bg-orange-50 rounded-xl p-3 flex items-center gap-3 border border-orange-100">
-                        <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-                            <AlertCircle size={16} />
+                 {student.debtLessonCount > 0 ? (
+                    <div className="mt-2 pt-2 border-t border-slate-50">
+                        <div className="text-[9px] font-bold text-orange-400 uppercase mb-0.5">ÖDEME BEKLEYEN</div>
+                        <div className="flex items-center gap-1.5 text-orange-600 font-bold bg-orange-50 p-2 rounded-xl border border-orange-100">
+                            <AlertCircle size={14} />
+                            <span className="text-xs leading-none">{student.debtLessonCount} Ders</span>
                         </div>
-                        <div className="leading-tight">
-                            <div className="text-[10px] font-bold text-orange-400 uppercase">ÖDEME BEKLEYEN</div>
-                            <div className="text-xs font-bold text-orange-800">{student.debtLessonCount} Ders İşlendi</div>
-                        </div>
+                    </div>
+                 ) : (
+                    <div className="mt-2 pt-2 border-t border-slate-50 flex items-center gap-2 text-emerald-600 bg-emerald-50 p-2 rounded-xl border border-emerald-100">
+                         <CheckCircle2 size={16} />
+                         <span className="text-xs font-bold leading-none">Borç Yok</span>
                     </div>
                  )}
             </div>
