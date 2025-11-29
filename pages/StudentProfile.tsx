@@ -245,6 +245,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       }
   };
 
+  // UI Count based on calculation, not stored state to ensure sync
+  const displayedLessonCount = currentPeriodLessons.length;
+
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
       
@@ -325,7 +328,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                             <p className="text-slate-400 text-[10px] font-black tracking-widest uppercase mb-1">BU AY YAPILAN</p>
                             <div className="flex items-baseline gap-2">
                                 <h2 className="text-6xl font-black tracking-tighter">
-                                    {student.debtLessonCount}
+                                    {displayedLessonCount}
                                 </h2>
                                 <span className="text-xl font-bold text-slate-500 tracking-normal">Ders</span>
                             </div>
@@ -352,8 +355,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                 {/* Actions Grid */}
                 <div className="grid grid-cols-2 gap-3">
                      <button 
-                        onClick={() => { if (student.debtLessonCount > 0) actions.addTransaction(student.id, 'PAYMENT'); }} 
-                        disabled={student.debtLessonCount === 0}
+                        onClick={() => { if (displayedLessonCount > 0) actions.addTransaction(student.id, 'PAYMENT'); }} 
+                        disabled={displayedLessonCount === 0}
                         className="col-span-2 bg-emerald-500 text-white rounded-2xl p-4 shadow-lg shadow-emerald-200 hover:bg-emerald-600 active:scale-[0.98] transition-all flex items-center justify-between disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed group"
                      >
                          <div className="flex flex-col items-start">
