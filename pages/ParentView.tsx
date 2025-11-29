@@ -50,10 +50,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       nextLesson,
       lastPaymentStr,
       currentPeriodHistory,
-      safeResources
+      safeResources,
+      lessonNumberMap
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "-", currentPeriodHistory: [], safeResources: []
+          nextLesson: null, lastPaymentStr: "-", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map()
       };
 
       // Resources Safety Check
@@ -128,11 +129,30 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           filteredHistory = allHistorySorted.filter(tx => new Date(tx.date).getTime() > paymentTime);
       }
 
+      // 5. Dynamic Lesson Numbering Logic
+      // Filter strictly for "Regular Lessons" to number them properly (1. Ders, 2. Ders)
+      const lessonNumberMap = new Map<string, number>();
+      const regularLessons = filteredHistory.filter(tx => 
+        tx.isDebt && 
+        !tx.note.toLowerCase().includes("telafi") && 
+        !tx.note.toLowerCase().includes("deneme") && 
+        !tx.note.toLowerCase().includes("iptal") && 
+        !tx.note.toLowerCase().includes("gelmedi")
+      );
+      
+      // Sort oldest to newest to assign numbers 1, 2, 3...
+      regularLessons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      regularLessons.forEach((tx, index) => {
+          lessonNumberMap.set(tx.id, index + 1);
+      });
+
       return {
           nextLesson: getNextLesson(),
           lastPaymentStr: lastPaymentDateStr,
-          currentPeriodHistory: filteredHistory,
-          safeResources
+          currentPeriodHistory: filteredHistory, // Display sorted Newest -> Oldest
+          safeResources,
+          lessonNumberMap
       };
 
   }, [student, appState]);
@@ -224,9 +244,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                 
                 <div className="relative z-10 h-full flex flex-col justify-between">
                     <div>
-                        <div className="flex items-center gap-1.5 mb-2 opacity-80">
+                        <div className="flex items-center gap-1.5 mb-3 opacity-80 h-4">
                             <Clock size={12} />
-                            <span className="text-[9px] font-bold uppercase tracking-widest">GELECEK DERS</span>
+                            <span className="text-[9px] font-bold uppercase tracking-widest leading-none">GELECEK DERS</span>
                         </div>
                         
                         {nextLesson ? (
@@ -253,11 +273,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             {/* PAYMENT STATUS CARD */}
             <div className="bg-white rounded-[1.5rem] p-4 border border-slate-100 shadow-sm flex flex-col justify-between h-40 relative overflow-hidden">
                  <div>
-                    <div className="flex items-center gap-1.5 mb-3">
-                        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
-                            <Banknote size={14} />
-                        </div>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">SON ÖDEME</span>
+                    <div className="flex items-center gap-1.5 mb-3 h-4">
+                        <Banknote size={14} className="text-emerald-500" />
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">SON ÖDEME</span>
                     </div>
 
                     <div>
@@ -304,9 +322,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     currentPeriodHistory.map((tx) => {
                         const dateObj = new Date(tx.date);
                         const dayNumber = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
-                        const monthName = dateObj.toLocaleDateString('tr-TR', { month: 'short' }); // Short month
+                        const monthName = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
                         
-                        // --- Simplified Logic ---
                         let title = "";
                         let subtitle = "";
                         let iconColor = "text-indigo-600 bg-indigo-50";
@@ -347,11 +364,10 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             iconColor = "text-purple-600 bg-purple-50";
                             Icon = Sparkles;
                         } else {
-                            // REGULAR LESSON
-                            // Extract just the logic part e.g. "3. Ders"
-                            const match = tx.note.match(/(\d+)\./);
-                            if (match) {
-                                title = `${match[1]}. Ders`;
+                            // REGULAR LESSON - DYNAMIC NUMBERING
+                            const num = lessonNumberMap.get(tx.id);
+                            if (num) {
+                                title = `${num}. Ders`;
                             } else {
                                 title = "Ders";
                             }
