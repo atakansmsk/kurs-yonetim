@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid } from 'lucide-react';
+import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid, Share2, Copy } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface HomeProps {
@@ -93,6 +94,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleShareTeacherLink = (e: React.MouseEvent, teacherName: string) => {
+      e.stopPropagation();
+      if (!user) return;
+      
+      const baseUrl = window.location.origin + window.location.pathname;
+      // Link yapısı: ?teacherView=true&uid={userID}&name={teacherName}
+      const url = `${baseUrl}?teacherView=true&uid=${user.id}&name=${encodeURIComponent(teacherName)}`;
+      
+      navigator.clipboard.writeText(url);
+      alert(`${teacherName} için ders programı linki kopyalandı! Bu linki eğitmenle paylaşabilirsiniz.`);
   };
 
   const THEME_OPTIONS = [
@@ -260,7 +273,21 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                                         <div className="text-[10px] font-bold text-slate-400">{count} Öğrenci</div>
                                     </div>
                                 </div>
-                                {teacher !== state.currentTeacher && <button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-bold border border-slate-200 rounded-lg hover:border-indigo-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">Seç</button>}
+                                <div className="flex items-center gap-2">
+                                     <button 
+                                        onClick={(e) => handleShareTeacherLink(e, teacher)}
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-100 transition-colors"
+                                        title="Paylaşım Linkini Kopyala"
+                                     >
+                                         <Share2 size={16} />
+                                     </button>
+                                     
+                                     {teacher !== state.currentTeacher && (
+                                         <button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-bold border border-slate-200 rounded-lg hover:border-indigo-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                                            Seç
+                                         </button>
+                                     )}
+                                </div>
                             </div>
                           );
                       })

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CourseProvider, useCourse } from './context/CourseContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -8,6 +9,7 @@ import { StudentList } from './pages/StudentList';
 import { StudentProfile } from './pages/StudentProfile';
 import { Login } from './pages/Login';
 import { ParentView } from './pages/ParentView';
+import { TeacherView } from './pages/TeacherView';
 import { CalendarRange, LayoutDashboard, Users2, ChevronDown, Home as HomeIcon, Check, Sparkles, Palette, Music, BookOpen, Trophy, Activity } from 'lucide-react';
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
@@ -257,16 +259,22 @@ const NavButton = ({ active, onClick, icon: Icon, label }: any) => (
 );
 
 const App: React.FC = () => {
-  // URL kontrolü: Veli Portalı mı?
+  // URL kontrolü: Veli Portalı veya Eğitmen Portalı mı?
   const params = new URLSearchParams(window.location.search);
   const isParentView = params.get('parentView') === 'true';
-  const teacherId = params.get('teacherId');
+  const isTeacherView = params.get('teacherView') === 'true';
+  const teacherId = params.get('teacherId') || params.get('uid'); // Support both param names for flexibility
   const studentId = params.get('studentId');
+  const teacherName = params.get('name');
 
-  // Eğer Veli Portalı linkiyle gelindiyse, Login kontrolünü atla ve direkt o sayfayı göster
+  // Veli Portalı Linki
   if (isParentView && teacherId && studentId) {
-      // Key prop ekleyerek React'i yeniden render etmeye zorluyoruz (Cache bust)
       return <ParentView key={Date.now()} teacherId={teacherId} studentId={studentId} />;
+  }
+
+  // Eğitmen Portalı Linki
+  if (isTeacherView && teacherId && teacherName) {
+      return <TeacherView key={Date.now()} uid={teacherId} teacherName={teacherName} />;
   }
 
   return (
