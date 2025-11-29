@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { StorageService } from '../services/api';
@@ -379,44 +379,43 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           
           {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-3">
-              {/* Ders Sayacı (Koyu Kart) */}
-              <div className="bg-indigo-600 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden flex flex-col justify-between group">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
+              {/* Ders Sayacı (Koyu Kart - Gradient) */}
+              <div className="rounded-[1.5rem] p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden flex flex-col justify-between group bg-gradient-to-br from-indigo-900 to-indigo-600">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
                   
-                  <div className="relative z-10 mb-4">
-                      <div className="flex items-center gap-1.5 opacity-80 mb-3">
+                  <div className="relative z-10 mb-6">
+                      <div className="flex items-center gap-1.5 opacity-70 mb-2">
                           <Layers size={14} />
                           <span className="text-[9px] font-bold uppercase tracking-widest">Ders Sayacı</span>
                       </div>
-                      <div className="text-3xl font-black">{displayedLessonCount}</div>
-                      <div className="text-[10px] opacity-80 font-medium mt-1">Son ödemeden beri</div>
+                      <div className="text-4xl font-black tracking-tight">{displayedLessonCount}</div>
                   </div>
 
                   <button 
                      onClick={() => setIsPastLessonModalOpen(true)}
-                     className="relative z-10 w-full py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-white/20 flex items-center justify-center gap-2 transition-colors"
+                     className="relative z-10 w-full py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-colors active:scale-95"
                   >
-                     <Check size={12} /> Geçmiş Ders Ekle
+                     <Check size={14} strokeWidth={2.5} /> Geçmiş Ders Ekle
                   </button>
               </div>
 
               {/* Aylık Abonelik Ücreti (Beyaz Kart) */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group">
+              <div className="bg-white rounded-[1.5rem] p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group">
                    <div>
                       <div className="flex items-center gap-1.5 text-slate-400 mb-2">
                           <Wallet size={14} />
                           <span className="text-[9px] font-bold uppercase tracking-widest">Aylık Ücret</span>
                       </div>
-                      <div className="text-xl font-black text-slate-800">
-                         {student.fee.toLocaleString('tr-TR')} ₺
+                      <div className="text-xl font-black text-slate-800 tracking-tight">
+                         {student.fee.toLocaleString('tr-TR')} <span className="text-sm text-slate-400 font-bold">TL</span>
                       </div>
                    </div>
 
                    <button 
                        onClick={() => setIsPastPaymentModalOpen(true)}
-                       className="w-full py-2 mt-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl text-[10px] font-bold border border-emerald-100 flex items-center justify-center gap-2 transition-colors"
+                       className="w-full py-2.5 mt-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-bold shadow-md shadow-emerald-200 flex items-center justify-center gap-2 transition-colors active:scale-95"
                    >
-                        <Banknote size={12} /> Ödeme Al
+                        <Banknote size={14} strokeWidth={2.5} /> Ödeme Al
                    </button>
               </div>
           </div>
@@ -468,7 +467,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           <div>
                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <RefreshCcw size={14} /> {currentMonthName} Ayı Ders Tarihleri
+                    <CalendarDays size={14} /> {currentMonthName} Ayı Ders Tarihleri
                   </h3>
                </div>
                

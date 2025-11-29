@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
-import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, CheckCircle2, Sparkles, Layers, Sun } from 'lucide-react';
+import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, CheckCircle2, Sparkles, Layers, Sun, Search } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface DailyScheduleProps {
@@ -55,6 +55,10 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   const [existingStudentId, setExistingStudentId] = useState<string | null>(null);
   const [lessonType, setLessonType] = useState<'REGULAR' | 'MAKEUP' | 'TRIAL'>('REGULAR');
   const [studentCredit, setStudentCredit] = useState(0);
+
+  // Suggestions state
+  const [suggestions, setSuggestions] = useState<Student[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const rawSlots = state.schedule[`${state.currentTeacher}|${selectedDay}`] || [];
   const slots = [...rawSlots].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
@@ -112,7 +116,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   };
 
   const resetBookForm = () => {
-    setBookName(""); setBookPhone(""); setBookFee(""); setExistingStudentId(null); setLessonType('REGULAR'); setStudentCredit(0);
+    setBookName(""); setBookPhone(""); setBookFee(""); setExistingStudentId(null); setLessonType('REGULAR'); setStudentCredit(0); setSuggestions([]); setShowSuggestions(false);
   };
 
   const openAddSlotModal = (start?: string, end?: string) => {
@@ -133,6 +137,39 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
         setDuration(DEFAULT_LESSON_DURATION);
     }
     setIsTimeModalOpen(true);
+  };
+
+  // Autocomplete Logic
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      setBookName(val);
+      
+      if (val.trim().length > 0) {
+          const matches = (Object.values(state.students) as Student[])
+              .filter(s => s.name.toLowerCase().includes(val.toLowerCase()));
+          setSuggestions(matches);
+          setShowSuggestions(true);
+      } else {
+          setSuggestions([]);
+          setShowSuggestions(false);
+          setExistingStudentId(null);
+      }
+  };
+
+  const selectSuggestion = (s: Student) => {
+      setBookName(s.name);
+      setBookPhone(s.phone);
+      setBookFee(s.fee.toString());
+      setExistingStudentId(s.id);
+      
+      if (s.makeupCredit > 0) {
+          setStudentCredit(s.makeupCredit);
+          setLessonType('MAKEUP');
+      } else {
+          setStudentCredit(0);
+      }
+      
+      setShowSuggestions(false);
   };
 
   return (
@@ -294,9 +331,24 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
 
       <Dialog isOpen={isBookModalOpen} onClose={() => setIsBookModalOpen(false)} title="Ders Kaydı" actions={<><button onClick={() => setIsBookModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleBookStudent} disabled={!existingStudentId && !bookName} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button></>}>
         <div className="space-y-3 pt-1">
-          <input type="text" value={bookName} onChange={(e) => { setBookName(e.target.value); const match = (Object.values(state.students) as Student[]).find(s => s.name.toLowerCase() === e.target.value.toLowerCase()); if(match) { setExistingStudentId(match.id); setBookPhone(match.phone); setBookFee(match.fee.toString()); match.makeupCredit > 0 ? (setStudentCredit(match.makeupCredit), setLessonType('MAKEUP')) : setStudentCredit(0); } else { setExistingStudentId(null); setStudentCredit(0); } }} placeholder="Öğrenci Adı..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" autoFocus />
+          <div className="relative">
+             <input type="text" value={bookName} onChange={handleNameChange} placeholder="Öğrenci Adı..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" autoFocus />
+             {showSuggestions && suggestions.length > 0 && (
+                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 rounded-xl shadow-lg z-50 max-h-[150px] overflow-y-auto">
+                     {suggestions.map(s => (
+                         <div key={s.id} onClick={() => selectSuggestion(s)} className="p-3 hover:bg-indigo-50 cursor-pointer border-b border-slate-50 last:border-0">
+                             <div className="font-bold text-sm text-slate-800">{s.name}</div>
+                             {s.makeupCredit > 0 && <div className="text-[10px] text-orange-500 font-bold">{s.makeupCredit} Telafi Hakkı</div>}
+                         </div>
+                     ))}
+                 </div>
+             )}
+          </div>
+          
           {studentCredit > 0 && <div className="p-2 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg flex items-center gap-1"><Layers size={12}/> {studentCredit} Telafi hakkı var</div>}
+          
           <div className="grid grid-cols-2 gap-3"><input type="tel" value={bookPhone} onChange={e=>setBookPhone(e.target.value)} placeholder="Tel" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />{lessonType !== 'TRIAL' && <input type="number" value={bookFee} onChange={e=>setBookFee(e.target.value)} placeholder="Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />}</div>
+          
           <div className="grid grid-cols-3 gap-2 mt-2"><button onClick={() => setLessonType('REGULAR')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Normal</button><button onClick={() => setLessonType('MAKEUP')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Telafi</button><button onClick={() => setLessonType('TRIAL')} className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Deneme</button></div>
         </div>
       </Dialog>
