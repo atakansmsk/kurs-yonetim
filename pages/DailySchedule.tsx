@@ -136,7 +136,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden">
+    <div className="flex flex-col h-full bg-[#F8FAFC]">
       {/* Header */}
       <div className="bg-white/90 backdrop-blur-md pt-2 pb-0 px-2 z-20 sticky top-0 border-b border-slate-100 shadow-sm shrink-0">
         <div className="flex overflow-x-auto no-scrollbar gap-1 bg-slate-50 p-1 rounded-xl">
