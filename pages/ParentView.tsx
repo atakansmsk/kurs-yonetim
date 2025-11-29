@@ -164,10 +164,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
     );
   }
 
-  // Okul ikonu belirleme
-  const isCustomLogo = appState.schoolIcon.startsWith('data:');
-  const SchoolIconComponent = !isCustomLogo ? (ICONS[appState.schoolIcon] || Sparkles) : Sparkles;
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24">
       
@@ -177,19 +173,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
          
          <div className="relative z-10 max-w-2xl mx-auto text-center">
-            {/* Okul Kimliği */}
-            <div className="flex flex-col items-center justify-center mb-6">
-                <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-tr from-slate-900 to-slate-800 text-white flex items-center justify-center shadow-xl shadow-slate-200 mb-4 overflow-hidden p-1">
-                    {isCustomLogo ? (
-                        <img src={appState.schoolIcon} alt="Logo" className="w-full h-full object-contain rounded-xl" />
-                    ) : (
-                        <SchoolIconComponent size={36} strokeWidth={1.5} />
-                    )}
-                </div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none mb-1">{appState.schoolName}</h1>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Veli Bilgilendirme Portalı</div>
-            </div>
-
+            
             {/* Öğrenci Kartı */}
             <div className="bg-white/60 backdrop-blur-md border border-slate-200/60 rounded-2xl p-4 shadow-sm flex items-center gap-4 text-left mx-auto max-w-sm">
                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-black shrink-0">
