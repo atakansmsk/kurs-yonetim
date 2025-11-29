@@ -2,21 +2,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
 import { AppState, Student } from '../types';
-import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar } from 'lucide-react';
+import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight } from 'lucide-react';
 
 interface ParentViewProps {
   teacherId: string;
   studentId: string;
 }
-
-const ICONS: Record<string, React.ElementType> = {
-  'sparkles': Sparkles,
-  'palette': Palette,
-  'music': Music,
-  'book': BookOpen,
-  'trophy': Trophy,
-  'activity': Activity
-};
 
 export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) => {
   const [loading, setLoading] = useState(true);
@@ -95,8 +86,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     weekday: 'long' 
                 });
 
-                // Special format for today: "Bugün, 12 Ekim"
-                // Normal format: "14 Ekim Pazartesi"
                 const displayDate = isToday 
                     ? `Bugün, ${targetDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}` 
                     : formattedDate;
@@ -204,7 +193,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24 pt-6">
       
-      {/* --- STUDENT HEADER (SIMPLIFIED) --- */}
+      {/* --- STUDENT HEADER --- */}
       <div className="px-5 mb-6 animate-slide-up">
             <div className="bg-white rounded-[2rem] p-5 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)] border border-slate-100 flex items-center gap-4 relative overflow-hidden">
                  {/* Background Decor */}
@@ -226,7 +215,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
 
       <div className="max-w-2xl mx-auto px-5 space-y-5 animate-slide-up" style={{ animationDelay: '0.1s' }}>
         
-        {/* --- GRID: DERS & ÖDEME (KOMPAKT & YAN YANA) --- */}
+        {/* --- GRID: DERS & ÖDEME --- */}
         <div className="grid grid-cols-2 gap-3">
             
             {/* NEXT LESSON CARD */}
@@ -268,18 +257,17 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
                             <Banknote size={14} />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">DURUM</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">SON ÖDEME</span>
                     </div>
 
                     <div>
-                        <span className="text-[10px] font-bold text-slate-400 block mb-0.5">Son Ödeme</span>
                         <span className="text-sm font-black text-slate-800 leading-tight truncate block" title={lastPaymentStr}>{lastPaymentStr}</span>
                     </div>
                  </div>
 
                  {student.debtLessonCount > 0 ? (
                     <div className="mt-2 pt-2 border-t border-slate-50">
-                        <div className="text-[9px] font-bold text-orange-400 uppercase mb-0.5">ÖDEME BEKLEYEN</div>
+                        <div className="text-[9px] font-bold text-orange-400 uppercase mb-0.5">BEKLEYEN</div>
                         <div className="flex items-center gap-1.5 text-orange-600 font-bold bg-orange-50 p-2 rounded-xl border border-orange-100">
                             <AlertCircle size={14} />
                             <span className="text-xs leading-none">{student.debtLessonCount} Ders</span>
@@ -288,80 +276,112 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                  ) : (
                     <div className="mt-2 pt-2 border-t border-slate-50 flex items-center gap-2 text-emerald-600 bg-emerald-50 p-2 rounded-xl border border-emerald-100">
                          <CheckCircle2 size={16} />
-                         <span className="text-xs font-bold leading-none">Borç Yok</span>
+                         <span className="text-xs font-bold leading-none">Ödemeler Tam</span>
                     </div>
                  )}
             </div>
         </div>
 
-        {/* --- TIMELINE HISTORY (COMPACT) --- */}
+        {/* --- TIMELINE HISTORY (IMPROVED) --- */}
         <div>
             <div className="flex items-center justify-between mb-4 px-2 mt-4">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Activity size={14} />
-                    GEÇMİŞ HAREKETLER
+                    DERS & ÖDEME GEÇMİŞİ
                 </h3>
             </div>
             
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="flex flex-col gap-3">
                 {currentPeriodHistory.length === 0 ? (
-                    <div className="text-center py-10 px-6">
+                    <div className="bg-white rounded-[2rem] border border-slate-100 border-dashed p-8 text-center shadow-sm">
                         <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
                             <Calendar size={20} />
                         </div>
                         <p className="text-slate-900 font-bold text-sm">Hareket Yok</p>
-                        <p className="text-slate-400 text-xs mt-1">Bu dönem henüz ders kaydı girilmedi.</p>
+                        <p className="text-slate-400 text-xs mt-1">Bu dönem henüz ders veya ödeme kaydı girilmedi.</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col divide-y divide-slate-50">
-                        {currentPeriodHistory.map((tx, idx) => {
-                            const dateObj = new Date(tx.date);
-                            const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-                            
-                            let StatusIcon = CheckCircle2;
-                            let iconBg = "bg-indigo-50 text-indigo-600";
-                            let statusText = "Ders";
-                            
-                            if (tx.note.includes("Telafi")) {
-                                StatusIcon = Layers;
-                                iconBg = "bg-orange-50 text-orange-600";
-                                statusText = "Telafi";
-                            } else if (tx.note.includes("Deneme")) {
-                                StatusIcon = Sparkles;
-                                iconBg = "bg-purple-50 text-purple-600";
-                                statusText = "Deneme";
-                            } else if (tx.note.includes("Gelmedi")) {
-                                StatusIcon = Ban;
-                                iconBg = "bg-red-50 text-red-600";
-                                statusText = "Gelmedi";
-                            } else if (!tx.isDebt) {
-                                StatusIcon = Banknote;
-                                iconBg = "bg-emerald-50 text-emerald-600";
-                                statusText = "Ödeme";
-                            }
+                    currentPeriodHistory.map((tx) => {
+                        const dateObj = new Date(tx.date);
+                        const dayNumber = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
+                        const monthName = dateObj.toLocaleDateString('tr-TR', { month: 'long' });
+                        
+                        // --- Smart Title Logic ---
+                        let title = "Ders Tamamlandı";
+                        let subtitle = "Normal program dahilinde işlendi.";
+                        let iconColor = "text-indigo-600 bg-indigo-50";
+                        let Icon = CalendarCheck;
+                        let showAmount = false;
 
-                            return (
-                                <div key={tx.id} className="flex items-center justify-between py-4 px-5 hover:bg-slate-50/50 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}>
-                                            <StatusIcon size={18} />
+                        // Clean logic to determine type
+                        const lowerNote = tx.note.toLowerCase();
+
+                        if (!tx.isDebt) {
+                            // PAYMENT
+                            title = "Ödeme Alındı";
+                            subtitle = "Bakiyeden düşüldü.";
+                            iconColor = "text-emerald-600 bg-emerald-50";
+                            Icon = Banknote;
+                            showAmount = true;
+                        } else if (lowerNote.includes("telafi")) {
+                            // MAKEUP
+                            title = "Telafi Dersi";
+                            subtitle = "Telafi hakkı kullanılarak işlendi.";
+                            iconColor = "text-orange-600 bg-orange-50";
+                            Icon = Layers;
+                        } else if (lowerNote.includes("gelmedi") || lowerNote.includes("iptal")) {
+                            // ABSENT
+                            title = "Devamsızlık";
+                            subtitle = "Derse katılım sağlanmadı.";
+                            iconColor = "text-red-600 bg-red-50";
+                            Icon = XCircle;
+                        } else if (lowerNote.includes("deneme")) {
+                            // TRIAL
+                            title = "Deneme Dersi";
+                            subtitle = "Tanışma dersi tamamlandı.";
+                            iconColor = "text-purple-600 bg-purple-50";
+                            Icon = Sparkles;
+                        } else {
+                            // REGULAR LESSON
+                            // Extract numbers if present (e.g. "3. Ders")
+                            const match = tx.note.match(/(\d+)\./);
+                            if (match) {
+                                subtitle = `${match[1]}. Ders başarıyla tamamlandı.`;
+                            } else {
+                                subtitle = "Ders başarıyla tamamlandı.";
+                            }
+                        }
+
+                        return (
+                            <div key={tx.id} className="group flex items-stretch bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:border-indigo-100 transition-all">
+                                
+                                {/* Date Box */}
+                                <div className="w-20 bg-slate-50 flex flex-col items-center justify-center border-r border-slate-100 shrink-0 group-hover:bg-indigo-50/30 transition-colors">
+                                    <span className="text-2xl font-black text-slate-800 leading-none">{dayNumber}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-1">{monthName.slice(0,3)}</span>
+                                </div>
+
+                                {/* Content */}
+                                <div className="flex-1 p-4 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconColor}`}>
+                                            <Icon size={20} strokeWidth={2} />
                                         </div>
                                         <div>
-                                            <h4 className="text-sm font-bold text-slate-800 leading-tight">
-                                                {tx.note.replace(statusText, '').replace(/[()]/g, '').trim() || statusText}
-                                            </h4>
-                                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                                {statusText} İşlemi
-                                            </p>
+                                            <h4 className="text-sm font-bold text-slate-900 leading-tight mb-0.5">{title}</h4>
+                                            <p className="text-[10px] font-medium text-slate-400 leading-tight">{subtitle}</p>
                                         </div>
                                     </div>
-                                    <div className="text-xs font-bold text-slate-500 text-right whitespace-nowrap">
-                                        {day}
-                                    </div>
+
+                                    {showAmount && (
+                                        <div className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">
+                                            +{tx.amount}₺
+                                        </div>
+                                    )}
                                 </div>
-                            );
-                        })}
-                    </div>
+                            </div>
+                        );
+                    })
                 )}
             </div>
         </div>
@@ -405,7 +425,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             </div>
                             
                             <div className="w-8 h-8 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                <ExternalLink size={14} />
+                                <ArrowRight size={16} />
                             </div>
                         </a>
                     ))}
