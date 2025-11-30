@@ -1,6 +1,7 @@
+
 import { auth, db, storage } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
-import { doc, setDoc, onSnapshot, getDoc } from "firebase/firestore";
+// Removed modular firestore imports due to resolution issues
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AppState, User } from '../types';
 
@@ -45,12 +46,13 @@ export const AuthService = {
   }
 };
 
-// --- DATA SERVİSİ (FIRESTORE ONLY) ---
+// --- DATA SERVİSİ (FIRESTORE COMPAT API) ---
 export const DataService = {
   // Veriyi Buluta Yaz
   async saveUserData(userId: string, data: AppState): Promise<void> {
     try {
-      await setDoc(doc(db, "schools", userId), data);
+      // Using Compat API: db.collection().doc().set()
+      await db.collection("schools").doc(userId).set(data);
     } catch (e) {
       console.error("Cloud save error:", e);
       throw e;
@@ -60,9 +62,10 @@ export const DataService = {
   // Tek Seferlik Veri Çekme (Public View için)
   async getPublicSchoolData(userId: string): Promise<AppState | null> {
     try {
-      const docRef = doc(db, "schools", userId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
+      // Using Compat API: db.collection().doc().get()
+      const docRef = db.collection("schools").doc(userId);
+      const docSnap = await docRef.get();
+      if (docSnap.exists) {
         return docSnap.data() as AppState;
       }
       return null;
@@ -74,15 +77,17 @@ export const DataService = {
 
   // Canlı Dinleme (Realtime Sync)
   subscribeToUserData(userId: string, onUpdate: (data: AppState) => void, onError: (error: any) => void): () => void {
-    const docRef = doc(db, "schools", userId);
+    const docRef = db.collection("schools").doc(userId);
     
-    const unsubscribe = onSnapshot(docRef, { includeMetadataChanges: true }, 
-      (docSnap) => {
-        if (docSnap.exists()) {
+    // Using Compat API: docRef.onSnapshot()
+    const unsubscribe = docRef.onSnapshot(
+      { includeMetadataChanges: true },
+      (docSnap: any) => {
+        if (docSnap.exists) {
           onUpdate(docSnap.data() as AppState);
         }
       }, 
-      (error) => {
+      (error: any) => {
         console.error("Sync error:", error);
         onError(error);
       }
@@ -92,7 +97,7 @@ export const DataService = {
   }
 };
 
-// --- STORAGE SERVİSİ (DOSYA YÜKLEME) ---
+// --- STORAGE SERVİSİ (MODULAR API) ---
 export const StorageService = {
   async uploadFile(file: File | Blob, path: string): Promise<string> {
     try {

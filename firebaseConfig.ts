@@ -1,7 +1,8 @@
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
+import firebase from "firebase/compat/app";
+import "firebase/compat/firestore";
 
 // Firebase proje ayarları
 const firebaseConfig = {
@@ -13,10 +14,16 @@ const firebaseConfig = {
   appId: "1:50487616288:web:36a3ad2fe7a73ce94e2d45"
 };
 
-// Firebase'i başlat
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase (Compat)
+// This initializes both the Compat and underlying Modular SDKs
+const app = firebase.initializeApp(firebaseConfig);
 
-// Servisleri dışa aktar
-export const db = getFirestore(app);
+// Export services
+// db uses Compat API (v8 style) to avoid export issues with modular firestore
+export const db = app.firestore();
+
+// auth and storage use Modular API (v9 style) passed with the app instance
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+export default app;
