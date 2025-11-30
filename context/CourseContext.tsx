@@ -116,7 +116,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // --- AUTOMATIC LESSON PROCESSING LOGIC ---
   const processLessons = useCallback(() => {
       updateState((current) => {
-          // Eğer sistem kapalıysa işlem yapma (Ancak manuel tetiklemede de bu kontrolü aşmak isteyebiliriz, şimdilik ayara sadık kalalım)
           if (!current.autoLessonProcessing) return current;
 
           const now = new Date();
@@ -127,76 +126,103 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const currentDay = daysMap[dayIndex];
           const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-          let hasChanges = false;
-          const newStudents = { ...current.students };
+          // 1. Bugün işlenmiş ders sayılarını öğrenci bazında say
+          const processedCounts: Record<string, number> = {};
+          
+          Object.values(current.students).forEach(student => {
+              const todayCount = student.history.filter(tx => {
+                  const txDate = new Date(tx.date);
+                  const isSameDay = txDate.getDate() === now.getDate() &&
+                                    txDate.getMonth() === now.getMonth() &&
+                                    txDate.getFullYear() === now.getFullYear();
+                  
+                  // Bugün tarihli BORÇ (Ders) kayıtları
+                  return isSameDay && tx.isDebt;
+              }).length;
+              
+              processedCounts[student.id] = todayCount;
+          });
 
-          // Tüm programı tara
+          // 2. Bugün bitmiş olması gereken ders sayılarını say (Tüm eğitmenler için)
+          const dueCounts: Record<string, number> = {};
+          
           Object.keys(current.schedule).forEach(key => {
+              // Sadece bugünün programlarına bak
               if (!key.endsWith(`|${currentDay}`)) return;
 
               const slots = current.schedule[key];
               slots.forEach(slot => {
-                  if (!slot.studentId) return; 
+                  if (!slot.studentId) return;
 
-                  // Telafi veya Deneme dersleri otomatik işlenmez
+                  // Telafi veya Deneme dersleri otomatik işlenmez, onlar manuel yönetilir.
                   if (slot.label === 'MAKEUP' || slot.label === 'TRIAL') return;
 
                   const endMinutes = timeToMinutes(slot.end);
 
-                  // Sadece ders süresi BİTTİYSE işlem yap
+                  // Eğer ders süresi bittiyse "yapılması gereken" olarak say
                   if (endMinutes <= currentMinutes) {
-                      const student = newStudents[slot.studentId];
-                      if (!student) return;
-
-                      // Bugün için bu öğrenciye bir "Borç/Ders" işlenmiş mi kontrol et
-                      // Kontrolü yerel tarih (Gün/Ay/Yıl) eşleşmesiyle yapıyoruz
-                      const isProcessed = student.history.some(tx => {
-                          const txDate = new Date(tx.date);
-                          const isSameDay = txDate.getDate() === now.getDate() &&
-                                            txDate.getMonth() === now.getMonth() &&
-                                            txDate.getFullYear() === now.getFullYear();
-                          
-                          // Borç kaydıysa ve manuel "Telafi/Deneme" değilse, bu bir ders işlenmesidir.
-                          return tx.isDebt && isSameDay && !tx.note.includes("Telafi") && !tx.note.includes("Deneme");
-                      });
-
-                      if (!isProcessed) {
-                          hasChanges = true;
-                          const newDebtCount = student.debtLessonCount + 1;
-                          const newTx: Transaction = {
-                              id: Math.random().toString(36).substr(2, 9),
-                              note: `${newDebtCount}. Ders (Otomatik)`,
-                              date: new Date().toISOString(), // Created At
-                              isDebt: true,
-                              amount: 0
-                          };
-
-                          newStudents[slot.studentId] = {
-                              ...student,
-                              debtLessonCount: newDebtCount,
-                              history: [newTx, ...student.history]
-                          };
-                      }
+                      dueCounts[slot.studentId] = (dueCounts[slot.studentId] || 0) + 1;
                   }
               });
           });
 
+          // 3. Karşılaştır ve Eksikleri Tamamla
+          let hasChanges = false;
+          const newStudents = { ...current.students };
+
+          Object.keys(dueCounts).forEach(studentId => {
+              const due = dueCounts[studentId];
+              const processed = processedCounts[studentId] || 0;
+
+              if (due > processed) {
+                  const missing = due - processed;
+                  const student = newStudents[studentId];
+                  if (!student) return;
+
+                  const newHistory = [...student.history];
+                  let currentDebt = student.debtLessonCount;
+
+                  for (let i = 0; i < missing; i++) {
+                      currentDebt++;
+                      newHistory.unshift({
+                          id: Math.random().toString(36).substr(2, 9),
+                          note: `${currentDebt}. Ders (Otomatik)`,
+                          date: new Date().toISOString(),
+                          isDebt: true,
+                          amount: 0
+                      });
+                  }
+
+                  newStudents[studentId] = {
+                      ...student,
+                      debtLessonCount: currentDebt,
+                      history: newHistory
+                  };
+                  hasChanges = true;
+              }
+          });
+
           if (!hasChanges) return current;
-          console.log("Auto-process: Dersler işlendi.");
+          console.log("Auto-process: Eksik dersler tamamlandı.");
           return { ...current, students: newStudents };
       });
-  }, [user]); // user dependency ensures it refreshes context if user changes
+  }, [user]);
 
-  // Setup Timer
+  // Setup Timer & Initial Run
   useEffect(() => {
       if (!user) return;
 
-      // İlk yüklemede ve her dakika başı çalıştır
-      processLessons();
-      const interval = setInterval(processLessons, 60000); // 1 dakika
-
+      // Sistem her 60 saniyede bir kontrol eder
+      const interval = setInterval(processLessons, 60000); 
       return () => clearInterval(interval);
   }, [user, processLessons]);
+
+  // Veri yüklendiği an bir kere çalıştır (Kullanıcı uygulamayı açtığında geçmiş dersleri anında görsün)
+  useEffect(() => {
+      if (isLoaded) {
+          processLessons();
+      }
+  }, [isLoaded, processLessons]);
 
 
   const updateCssVariables = (themeKey: string) => {
