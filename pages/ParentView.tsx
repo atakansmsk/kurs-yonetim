@@ -60,10 +60,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       lastPaymentStr,
       currentPeriodHistory,
       safeResources,
-      lessonNumberMap
+      lessonNumberMap,
+      registrationDateStr
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "-", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map()
+          nextLesson: null, lastPaymentStr: "-", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map(), registrationDateStr: ""
       };
 
       // Resources Safety Check
@@ -187,13 +188,20 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       regularLessons.forEach((tx, index) => {
           lessonNumberMap.set(tx.id, index + 1);
       });
+      
+      // 6. Registration Date String
+      let regStr = "";
+      if (student.registrationDate) {
+          regStr = new Date(student.registrationDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
 
       return {
           nextLesson: getNextLesson(),
           lastPaymentStr: lastPaymentDateStr,
           currentPeriodHistory: filteredHistory, 
           safeResources,
-          lessonNumberMap
+          lessonNumberMap,
+          registrationDateStr: regStr
       };
 
   }, [student, appState]);
@@ -329,6 +337,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
 
                     <div>
                         <span className="text-sm font-black text-slate-800 leading-tight truncate block" title={lastPaymentStr}>{lastPaymentStr}</span>
+                        {registrationDateStr && (
+                             <p className="text-[8px] text-slate-400 font-medium mt-1">Kayıt: {registrationDateStr}</p>
+                        )}
                     </div>
                  </div>
 

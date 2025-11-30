@@ -20,6 +20,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newFee, setNewFee] = useState("");
+  const [newRegDate, setNewRegDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Bulk Message
   const [bulkMessage, setBulkMessage] = useState("");
@@ -30,9 +31,10 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
   const handleAddStudent = () => {
       if(newName) {
-          actions.addStudent(newName, newPhone, parseFloat(newFee) || 0);
+          actions.addStudent(newName, newPhone, parseFloat(newFee) || 0, newRegDate);
           setIsAddModalOpen(false);
           setNewName(""); setNewPhone(""); setNewFee("");
+          setNewRegDate(new Date().toISOString().split('T')[0]);
       }
   }
 
@@ -153,8 +155,14 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           <div className="flex flex-col gap-3 py-1">
              <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Ad Soyad" autoFocus />
              <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Telefon" />
+             
+             <div className="flex gap-2">
+                <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Aylık Ücret" />
+             </div>
+             
              <div>
-                <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Aylık Ücret" />
+                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 ml-1">Kayıt Tarihi</label>
+                <input type="date" value={newRegDate} onChange={e=>setNewRegDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" />
              </div>
           </div>
       </Dialog>

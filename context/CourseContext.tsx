@@ -126,11 +126,13 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       switchTeacher: (name) => updateState(s => ({ ...s, currentTeacher: name })),
 
-      addStudent: (name, phone, fee) => {
+      // Updated to accept registrationDate
+      addStudent: (name, phone, fee, registrationDate) => {
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
               id, name, phone, fee, 
-              registrationDate: new Date().toISOString(),
+              // Use provided date or default to now
+              registrationDate: registrationDate ? new Date(registrationDate).toISOString() : new Date().toISOString(),
               debtLessonCount: 0,
               makeupCredit: 0,
               history: [],

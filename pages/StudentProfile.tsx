@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { StorageService } from '../services/api';
@@ -85,12 +85,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           current = sortedHistory;
       }
 
-      // Borç sayacı: Sadece "Normal Ders" ve "İşlendi" olanlar.
+      // Borç sayacı: 
+      // isDebt = true olan işlemler.
+      // "Telafi" veya "Deneme" notu içerenler borç sayılmaz.
+      // "Habersiz Gelmedi" (notta "gelmedi" geçse bile) aslında bir ders hakkı harcanmıştır, o yüzden borç sayılmalı.
+      // Bu yüzden "gelmedi" filtresini kaldırıyoruz, böylece gelmediği dersler de sayaca işler.
       const debtLessons = current.filter(tx => 
           tx.isDebt && 
           !tx.note.toLowerCase().includes("telafi") && 
-          !tx.note.toLowerCase().includes("deneme") &&
-          !tx.note.toLowerCase().includes("gelmedi")
+          !tx.note.toLowerCase().includes("deneme") 
+          // REMOVED: && !tx.note.toLowerCase().includes("gelmedi") -> Artık "Habersiz Gelmedi" de sayaçta sayılıyor.
       );
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
@@ -102,12 +106,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const map = new Map<string, number>();
       
       // Sadece borç sayılan dersleri numaralandır (arşiv dahil tüm tarihçe için)
+      // Burada da "gelmedi" filtresini kaldırdım ki numaralandırmada da görünsün.
       const allRegularLessons = sortedHistory.filter(tx => 
         tx.isDebt && 
         !tx.note.toLowerCase().includes("telafi") && 
         !tx.note.toLowerCase().includes("deneme") && 
-        !tx.note.toLowerCase().includes("iptal") && 
-        !tx.note.toLowerCase().includes("gelmedi")
+        !tx.note.toLowerCase().includes("iptal")
+        // REMOVED: && !tx.note.toLowerCase().includes("gelmedi")
       );
       
       // Eskiden yeniye sırala
@@ -377,47 +382,71 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       {/* 2. Content Scrollable */}
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-6">
           
-          {/* STATS CARDS */}
-          <div className="grid grid-cols-2 gap-3">
-              {/* Ders Sayacı (Koyu Kart - Gradient) */}
-              <div className="rounded-[1.5rem] p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden flex flex-col justify-between group bg-gradient-to-br from-indigo-900 to-indigo-600">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
+          {/* STATS CARDS (REDESIGNED) */}
+          <div className="grid grid-cols-2 gap-4">
+              
+              {/* Card 1: Lesson Counter */}
+              <div className="relative overflow-hidden rounded-[24px] bg-slate-900 p-5 text-white shadow-xl shadow-slate-200 flex flex-col justify-between h-48 group">
+                  {/* Background Effects */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-[60px] -mr-10 -mt-10 opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500 rounded-full blur-[50px] -ml-8 -mb-8 opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
                   
-                  <div className="relative z-10 mb-6">
-                      <div className="flex items-center gap-1.5 opacity-70 mb-2">
-                          <Layers size={14} />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Ders Sayacı</span>
-                      </div>
-                      <div className="text-4xl font-black tracking-tight">{displayedLessonCount}</div>
+                  <div className="relative z-10 flex flex-col h-full justify-between">
+                     <div>
+                        <div className="flex items-center gap-2 mb-2 text-indigo-300">
+                           <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-sm">
+                               <TrendingUp size={16} />
+                           </div>
+                           <span className="text-[10px] font-bold uppercase tracking-widest">Ders Sayacı</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                           <span className="text-5xl font-black tracking-tighter">{displayedLessonCount}</span>
+                           <span className="text-sm font-medium text-slate-400">Ders</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium mt-1 pl-1">Bu dönem tamamlanan</p>
+                     </div>
+
+                     <button 
+                        onClick={() => setIsPastLessonModalOpen(true)}
+                        className="mt-auto w-full py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/5 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all active:scale-[0.98]"
+                     >
+                        <Plus size={14} strokeWidth={3} /> Ders Ekle
+                     </button>
                   </div>
-
-                  <button 
-                     onClick={() => setIsPastLessonModalOpen(true)}
-                     className="relative z-10 w-full py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-colors active:scale-95"
-                  >
-                     <Check size={14} strokeWidth={2.5} /> Geçmiş Ders Ekle
-                  </button>
               </div>
 
-              {/* Aylık Abonelik Ücreti (Beyaz Kart) */}
-              <div className="bg-white rounded-[1.5rem] p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group">
-                   <div>
-                      <div className="flex items-center gap-1.5 text-slate-400 mb-2">
-                          <Wallet size={14} />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Aylık Ücret</span>
-                      </div>
-                      <div className="text-xl font-black text-slate-800 tracking-tight">
-                         {student.fee.toLocaleString('tr-TR')} <span className="text-sm text-slate-400 font-bold">TL</span>
-                      </div>
-                   </div>
+              {/* Card 2: Fee Info */}
+              <div className="relative overflow-hidden rounded-[24px] bg-white border border-slate-100 p-5 shadow-lg shadow-slate-100/50 flex flex-col justify-between h-48 group">
+                  <div className="relative z-10 flex flex-col h-full justify-between">
+                     <div>
+                        <div className="flex items-center gap-2 mb-2 text-slate-400">
+                           <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                               <Wallet size={16} className="text-slate-500" />
+                           </div>
+                           <span className="text-[10px] font-bold uppercase tracking-widest">Aylık Ücret</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                           <span className="text-3xl font-black text-slate-800 tracking-tighter">{student.fee}</span>
+                           <span className="text-xs font-bold text-slate-400">TL</span>
+                        </div>
+                        
+                        {student.debtLessonCount > 0 && (
+                            <div className="mt-3 flex items-center gap-2 bg-orange-50 px-2 py-1.5 rounded-lg border border-orange-100 self-start">
+                                <AlertTriangle size={12} className="text-orange-500" />
+                                <span className="text-[10px] font-bold text-orange-700">{student.debtLessonCount} Ders Ödenmedi</span>
+                            </div>
+                        )}
+                     </div>
 
-                   <button 
-                       onClick={() => setIsPastPaymentModalOpen(true)}
-                       className="w-full py-2.5 mt-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-bold shadow-md shadow-emerald-200 flex items-center justify-center gap-2 transition-colors active:scale-95"
-                   >
+                     <button 
+                        onClick={() => setIsPastPaymentModalOpen(true)}
+                        className="mt-auto w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-200 hover:shadow-emerald-300 flex items-center justify-center gap-2 text-xs font-bold transition-all active:scale-[0.98]"
+                     >
                         <Banknote size={14} strokeWidth={2.5} /> Ödeme Al
-                   </button>
+                     </button>
+                  </div>
               </div>
+
           </div>
 
           {/* RESOURCES SECTION */}

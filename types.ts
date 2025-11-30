@@ -65,7 +65,7 @@ export interface CourseContextType {
     updateThemeColor: (color: string) => void;
     addTeacher: (name: string) => void;
     switchTeacher: (name: string) => void;
-    addStudent: (name: string, phone: string, fee: number) => string;
+    addStudent: (name: string, phone: string, fee: number, registrationDate?: string) => string;
     updateStudent: (id: string, name: string, phone: string, fee: number) => void;
     deleteStudent: (id: string) => void;
     getStudent: (id: string) => Student | undefined;
