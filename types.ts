@@ -77,6 +77,7 @@ export interface CourseContextType {
     updateTransaction: (studentId: string, transactionId: string, note: string) => void;
     deleteTransaction: (studentId: string, transactionId: string) => void;
     toggleAutoProcessing: () => void;
+    triggerAutoProcess: () => void; // Manually trigger processing
     moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => void;
     swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => void;
     addResource: (studentId: string, title: string, url: string, type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE') => void;

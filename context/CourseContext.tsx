@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource } from '../types';
 import { useAuth } from './AuthContext';
 import { DataService } from '../services/api';
@@ -95,7 +95,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setState(current => {
           const newState = updater(current);
           
-          // Optimization: Check for equality to prevent unnecessary writes
           if (JSON.stringify(current) === JSON.stringify(newState)) {
              return current;
           }
@@ -106,7 +105,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               DataService.saveUserData(user.id, newState).catch(console.error);
           }
           
-          // Update theme CSS if changed
           if (current.themeColor !== newState.themeColor) {
               updateCssVariables(newState.themeColor);
           }
@@ -116,84 +114,89 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // --- AUTOMATIC LESSON PROCESSING LOGIC ---
+  const processLessons = useCallback(() => {
+      updateState((current) => {
+          // Eğer sistem kapalıysa işlem yapma (Ancak manuel tetiklemede de bu kontrolü aşmak isteyebiliriz, şimdilik ayara sadık kalalım)
+          if (!current.autoLessonProcessing) return current;
+
+          const now = new Date();
+          const dayIndex = now.getDay(); // 0-6 (Local Time)
+          const daysMap: Record<number, string> = {
+              0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
+          };
+          const currentDay = daysMap[dayIndex];
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          let hasChanges = false;
+          const newStudents = { ...current.students };
+
+          // Tüm programı tara
+          Object.keys(current.schedule).forEach(key => {
+              if (!key.endsWith(`|${currentDay}`)) return;
+
+              const slots = current.schedule[key];
+              slots.forEach(slot => {
+                  if (!slot.studentId) return; 
+
+                  // Telafi veya Deneme dersleri otomatik işlenmez
+                  if (slot.label === 'MAKEUP' || slot.label === 'TRIAL') return;
+
+                  const endMinutes = timeToMinutes(slot.end);
+
+                  // Sadece ders süresi BİTTİYSE işlem yap
+                  if (endMinutes <= currentMinutes) {
+                      const student = newStudents[slot.studentId];
+                      if (!student) return;
+
+                      // Bugün için bu öğrenciye bir "Borç/Ders" işlenmiş mi kontrol et
+                      // Kontrolü yerel tarih (Gün/Ay/Yıl) eşleşmesiyle yapıyoruz
+                      const isProcessed = student.history.some(tx => {
+                          const txDate = new Date(tx.date);
+                          const isSameDay = txDate.getDate() === now.getDate() &&
+                                            txDate.getMonth() === now.getMonth() &&
+                                            txDate.getFullYear() === now.getFullYear();
+                          
+                          // Borç kaydıysa ve manuel "Telafi/Deneme" değilse, bu bir ders işlenmesidir.
+                          return tx.isDebt && isSameDay && !tx.note.includes("Telafi") && !tx.note.includes("Deneme");
+                      });
+
+                      if (!isProcessed) {
+                          hasChanges = true;
+                          const newDebtCount = student.debtLessonCount + 1;
+                          const newTx: Transaction = {
+                              id: Math.random().toString(36).substr(2, 9),
+                              note: `${newDebtCount}. Ders (Otomatik)`,
+                              date: new Date().toISOString(), // Created At
+                              isDebt: true,
+                              amount: 0
+                          };
+
+                          newStudents[slot.studentId] = {
+                              ...student,
+                              debtLessonCount: newDebtCount,
+                              history: [newTx, ...student.history]
+                          };
+                      }
+                  }
+              });
+          });
+
+          if (!hasChanges) return current;
+          console.log("Auto-process: Dersler işlendi.");
+          return { ...current, students: newStudents };
+      });
+  }, [user]); // user dependency ensures it refreshes context if user changes
+
+  // Setup Timer
   useEffect(() => {
-      // Sadece kullanıcı giriş yapmışsa çalışsın
       if (!user) return;
 
-      const processLessons = () => {
-          updateState((current) => {
-              if (!current.autoLessonProcessing) return current;
-
-              const now = new Date();
-              const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-              const dayIndex = now.getDay(); // 0-6
-              const daysMap: Record<number, string> = {
-                  0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
-              };
-              const currentDay = daysMap[dayIndex];
-              const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-              let hasChanges = false;
-              const newStudents = { ...current.students };
-
-              // Tüm programı tara (Tüm öğretmenler ve tüm günler değil, sadece BUGÜN)
-              Object.keys(current.schedule).forEach(key => {
-                  if (!key.endsWith(`|${currentDay}`)) return;
-
-                  const slots = current.schedule[key];
-                  slots.forEach(slot => {
-                      if (!slot.studentId) return; // Boş ders
-                      // Telafi veya Deneme dersleri otomatik işlenmez (genelde)
-                      if (slot.label === 'MAKEUP' || slot.label === 'TRIAL') return;
-
-                      const endMinutes = timeToMinutes(slot.end);
-
-                      // Ders süresi bitmiş mi?
-                      if (endMinutes <= currentMinutes) {
-                          const student = newStudents[slot.studentId];
-                          if (!student) return;
-
-                          // Bugün için zaten işlenmiş mi? (Tarih ve Borç kontrolü)
-                          const alreadyProcessed = student.history.some(tx => 
-                              tx.isDebt && 
-                              tx.date.startsWith(todayStr) && 
-                              !tx.note.includes("Telafi") // Telafiyi manuel ekleriz, bunu sayma
-                          );
-
-                          if (!alreadyProcessed) {
-                              hasChanges = true;
-                              const newDebtCount = student.debtLessonCount + 1;
-                              const newTx: Transaction = {
-                                  id: Math.random().toString(36).substr(2, 9),
-                                  note: `${newDebtCount}. Ders (Otomatik)`,
-                                  date: new Date().toISOString(),
-                                  isDebt: true,
-                                  amount: 0
-                              };
-
-                              newStudents[slot.studentId] = {
-                                  ...student,
-                                  debtLessonCount: newDebtCount,
-                                  history: [newTx, ...student.history]
-                              };
-                          }
-                      }
-                  });
-              });
-
-              if (!hasChanges) return current;
-              return { ...current, students: newStudents };
-          });
-      };
-
-      // İlk yüklemede çalıştır
+      // İlk yüklemede ve her dakika başı çalıştır
       processLessons();
-
-      // Her 60 saniyede bir kontrol et
-      const interval = setInterval(processLessons, 60000);
+      const interval = setInterval(processLessons, 60000); // 1 dakika
 
       return () => clearInterval(interval);
-  }, [user]); // User değiştiğinde (login/logout) effect resetlenir, state dependency olarak eklenmez çünkü updateState fonksiyonel update kullanır.
+  }, [user, processLessons]);
 
 
   const updateCssVariables = (themeKey: string) => {
@@ -204,7 +207,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
   };
 
-  // ACTIONS IMPLEMENTATION
   const actions: CourseContextType['actions'] = {
       updateSchoolName: (name) => updateState(s => ({ ...s, schoolName: name })),
       updateSchoolIcon: (icon) => updateState(s => ({ ...s, schoolIcon: icon })),
@@ -240,7 +242,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       deleteStudent: (id) => updateState(s => {
           const { [id]: deleted, ...rest } = s.students;
-          // Clean up schedule
           const newSchedule = { ...s.schedule };
           Object.keys(newSchedule).forEach(key => {
               newSchedule[key] = newSchedule[key].map(slot => 
@@ -273,7 +274,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const currentSlots = s.schedule[key] || [];
           
           let studentsUpdate = s.students;
-          // If using makeup credit
           if (label === 'MAKEUP') {
               const student = s.students[studentId];
               if (student && student.makeupCredit > 0) {
@@ -318,15 +318,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (isDebt) {
               newDebtCount += 1;
           } else {
-              // Ödeme işlemi
-              // Sadece "Şimdi Ödeme Al" dendiğinde (tarih yoksa) sayacı sıfırla.
               if (!customDate) {
                  newDebtCount = 0;
               }
-              // Eğer geçmiş bir ödeme elle giriliyorsa (customDate varsa) sayaç değişmez.
           }
 
-          // Miktar 0 olabilir, validasyon UI tarafında yapılır veya 0 kabul edilir.
           const finalAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 
               ? Number(amount)
               : (isDebt ? 0 : student.fee);
@@ -360,8 +356,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           
           if (note.includes("Telafi Bekliyor")) {
              newMakeupCredit += 1;
-          } else if (note.includes("Telafi Edildi")) {
-              // Usually handled at booking, but if manually marking
           }
 
           const updatedHistory = student.history.map(tx => {
@@ -409,6 +403,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }),
 
       toggleAutoProcessing: () => updateState(s => ({ ...s, autoLessonProcessing: !s.autoLessonProcessing })),
+      
+      triggerAutoProcess: () => {
+          processLessons();
+      },
 
       moveSlot: (fromDay, fromSlotId, toDay, toSlotId) => updateState(s => s), 
       swapSlots: (dayA, slotIdA, dayB, slotIdB) => updateState(s => s),
