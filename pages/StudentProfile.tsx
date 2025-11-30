@@ -87,7 +87,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
       // Borç sayacı Mantığı:
       // 1. Normal Ders -> Sayılır
-      // 2. Gelmedi -> Sayılır (Habersiz gelmediği için ders işlenmiş sayılır)
+      // 2. Gelmedi (Habersiz) -> Sayılır (Ders işlendi kabul edilir)
       // 3. Telafi Bekliyor -> Sayılmaz (Henüz yapılmadı)
       // 4. Telafi Edildi -> Sayılır (Telafi yapıldı)
       // 5. Deneme/İptal -> Sayılmaz
@@ -101,7 +101,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           if (n.includes("telafi")) {
               // Bekleyen telafi sayılmaz
               if (n.includes("bekliyor")) return false;
-              // Yapılan telafi sayılır
+              // Yapılan telafi sayılır (Telafi Edildi)
               return true;
           }
           
@@ -401,48 +401,48 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-4">
               {/* Ders Sayacı */}
-              <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between h-44 relative overflow-hidden group">
+              <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] flex flex-col justify-between h-48 relative overflow-hidden group">
                   <div className="flex justify-between items-start z-10">
                       <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Ders Sayacı</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">DERS SAYACI</p>
                           <div className="flex items-baseline gap-1">
                              <p className="text-4xl font-black text-slate-800 tracking-tighter">{displayedLessonCount}</p>
                              <span className="text-xs font-bold text-slate-400">Ders</span>
                           </div>
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-900 flex items-center justify-center">
-                          <Layers size={20} strokeWidth={2} />
+                      <div className="w-10 h-10 rounded-2xl bg-slate-50 text-slate-900 flex items-center justify-center">
+                          <Layers size={20} strokeWidth={2.5} />
                       </div>
                   </div>
                   
                   <button 
                      onClick={() => setIsPastLessonModalOpen(true)}
-                     className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-95 transition-all shadow-md shadow-slate-200"
+                     className="w-full py-3 bg-slate-50 text-slate-900 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-slate-100 active:scale-95 transition-all"
                   >
-                     <Plus size={14} strokeWidth={3} /> Geçmiş Ekle
+                     <Plus size={14} strokeWidth={3} /> GEÇMİŞ EKLE
                   </button>
               </div>
 
               {/* Aylık Ücret */}
-              <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between h-44 relative overflow-hidden group">
+              <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] flex flex-col justify-between h-48 relative overflow-hidden group">
                    <div className="flex justify-between items-start z-10">
                       <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Aylık Ücret</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">AYLIK ÜCRET</p>
                           <div className="flex items-baseline gap-1">
                               <p className="text-4xl font-black text-slate-800 tracking-tighter">{student.fee.toLocaleString('tr-TR')}</p>
                               <span className="text-xs font-bold text-slate-400">TL</span>
                           </div>
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                          <Banknote size={20} strokeWidth={2} />
+                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <Banknote size={20} strokeWidth={2.5} />
                       </div>
                    </div>
 
                    <button 
                        onClick={() => setIsPastPaymentModalOpen(true)}
-                       className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all shadow-md shadow-emerald-200"
+                       className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-emerald-100 active:scale-95 transition-all"
                    >
-                        <Banknote size={14} strokeWidth={3} /> Ödeme Al
+                        <Banknote size={14} strokeWidth={3} /> ÖDEME AL
                    </button>
               </div>
           </div>
