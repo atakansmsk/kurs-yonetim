@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, History } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { StorageService } from '../services/api';
@@ -112,6 +112,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
   }, [sortedHistory]);
   
+  // Last Payment Date String for UI
+  const lastPaymentStr = useMemo(() => {
+      const last = sortedHistory.find(tx => !tx.isDebt);
+      return last 
+          ? new Date(last.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }) 
+          : 'Yok';
+  }, [sortedHistory]);
+
   // Lesson Number Map Calculation (For display 1. Ders, 2. Ders)
   const lessonNumberMap = useMemo(() => {
       if (!student) return new Map();
@@ -398,52 +406,83 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       {/* 2. Content Scrollable */}
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-6">
           
-          {/* STATS CARDS */}
-          <div className="grid grid-cols-2 gap-4">
-              {/* Ders Sayacı */}
-              <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] flex flex-col justify-between h-48 relative overflow-hidden group">
-                  <div className="flex justify-between items-start z-10">
-                      <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">DERS SAYACI</p>
-                          <div className="flex items-baseline gap-1">
-                             <p className="text-4xl font-black text-slate-800 tracking-tighter">{displayedLessonCount}</p>
-                             <span className="text-xs font-bold text-slate-400">Ders</span>
+          {/* STATS CARDS - REDESIGNED */}
+          <div className="grid grid-cols-2 gap-3">
+              
+              {/* Ders Sayacı Card */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-[150px] relative overflow-hidden group">
+                  {/* Header */}
+                  <div className="flex justify-between items-start">
+                       <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TOPLAM DERS</p>
+                          <div className="mt-1 flex items-baseline gap-1">
+                              <p className="text-3xl font-black text-slate-800 tracking-tight">{displayedLessonCount}</p>
+                              <span className="text-xs font-bold text-slate-400">Adet</span>
                           </div>
-                      </div>
-                      <div className="w-10 h-10 rounded-2xl bg-slate-50 text-slate-900 flex items-center justify-center">
-                          <Layers size={20} strokeWidth={2.5} />
-                      </div>
+                       </div>
+                       <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                           <Layers size={16} strokeWidth={2.5} />
+                       </div>
                   </div>
                   
-                  <button 
-                     onClick={() => setIsPastLessonModalOpen(true)}
-                     className="w-full py-3 bg-slate-50 text-slate-900 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-slate-100 active:scale-95 transition-all"
-                  >
-                     <Plus size={14} strokeWidth={3} /> GEÇMİŞ EKLE
-                  </button>
+                  {/* Footer Info & Action */}
+                  <div className="flex items-end justify-between mt-auto">
+                       <div className="flex flex-col gap-1">
+                          {student.debtLessonCount > 0 ? (
+                              <div className="px-2 py-1 bg-red-50 rounded-md border border-red-100 flex items-center gap-1">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                                  <span className="text-[10px] font-bold text-red-600">{student.debtLessonCount} Borç</span>
+                              </div>
+                          ) : (
+                              <div className="px-2 py-1 bg-slate-50 rounded-md border border-slate-100">
+                                  <span className="text-[10px] font-bold text-slate-400">Durum Normal</span>
+                              </div>
+                          )}
+                       </div>
+
+                       <button 
+                          onClick={() => setIsPastLessonModalOpen(true)}
+                          className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-md shadow-slate-300 hover:scale-110 active:scale-95 transition-all"
+                          title="Ders Ekle"
+                       >
+                          <Plus size={16} />
+                       </button>
+                  </div>
               </div>
 
-              {/* Aylık Ücret */}
-              <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] flex flex-col justify-between h-48 relative overflow-hidden group">
-                   <div className="flex justify-between items-start z-10">
+              {/* Aylık Ücret Card */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-[150px] relative overflow-hidden group">
+                   {/* Header */}
+                   <div className="flex justify-between items-start">
                       <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">AYLIK ÜCRET</p>
-                          <div className="flex items-baseline gap-1">
-                              <p className="text-4xl font-black text-slate-800 tracking-tighter">{student.fee.toLocaleString('tr-TR')}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">AYLIK PLAN</p>
+                          <div className="mt-1 flex items-baseline gap-1">
+                              <p className="text-3xl font-black text-slate-800 tracking-tight">{student.fee}</p>
                               <span className="text-xs font-bold text-slate-400">TL</span>
                           </div>
                       </div>
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                          <Banknote size={20} strokeWidth={2.5} />
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <Banknote size={16} strokeWidth={2.5} />
                       </div>
                    </div>
 
-                   <button 
-                       onClick={() => setIsPastPaymentModalOpen(true)}
-                       className="w-full py-3 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-emerald-100 active:scale-95 transition-all"
-                   >
-                        <Banknote size={14} strokeWidth={3} /> ÖDEME AL
-                   </button>
+                   {/* Footer Info & Action */}
+                   <div className="flex items-end justify-between mt-auto">
+                        <div className="flex flex-col gap-1">
+                             <div className="px-2 py-1 bg-slate-50 rounded-md border border-slate-100 flex items-center gap-1">
+                                 <History size={10} className="text-slate-400" />
+                                 <span className="text-[10px] font-bold text-slate-500">Son: {lastPaymentStr}</span>
+                             </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setIsPastPaymentModalOpen(true)}
+                            className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-200 hover:scale-110 active:scale-95 transition-all"
+                            title="Ödeme Al"
+                        >
+                             <Check size={16} />
+                        </button>
+                   </div>
               </div>
           </div>
 
