@@ -85,13 +85,29 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           current = sortedHistory;
       }
 
-      // Borç sayacı: Sadece "Normal Ders" ve "İşlendi" olanlar.
-      const debtLessons = current.filter(tx => 
-          tx.isDebt && 
-          !tx.note.toLowerCase().includes("telafi") && 
-          !tx.note.toLowerCase().includes("deneme") &&
-          !tx.note.toLowerCase().includes("gelmedi")
-      );
+      // Borç sayacı Mantığı:
+      // 1. Normal Ders -> Sayılır
+      // 2. Gelmedi -> Sayılır (Habersiz gelmediği için ders işlenmiş sayılır)
+      // 3. Telafi Bekliyor -> Sayılmaz (Henüz yapılmadı)
+      // 4. Telafi Edildi -> Sayılır (Telafi yapıldı)
+      // 5. Deneme/İptal -> Sayılmaz
+      const debtLessons = current.filter(tx => {
+          if (!tx.isDebt) return false;
+          const n = tx.note.toLowerCase();
+          
+          if (n.includes("deneme")) return false;
+          if (n.includes("iptal")) return false;
+          
+          if (n.includes("telafi")) {
+              // Bekleyen telafi sayılmaz
+              if (n.includes("bekliyor")) return false;
+              // Yapılan telafi sayılır
+              return true;
+          }
+          
+          // Normal ve Gelmedi dersleri sayılır
+          return true;
+      });
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
   }, [sortedHistory]);
@@ -101,17 +117,20 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       if (!student) return new Map();
       const map = new Map<string, number>();
       
-      // Sadece borç sayılan dersleri numaralandır (arşiv dahil tüm tarihçe için)
-      const allRegularLessons = sortedHistory.filter(tx => 
-        tx.isDebt && 
-        !tx.note.toLowerCase().includes("telafi") && 
-        !tx.note.toLowerCase().includes("deneme") && 
-        !tx.note.toLowerCase().includes("iptal") && 
-        !tx.note.toLowerCase().includes("gelmedi")
-      );
+      // Borç/Sayaç mantığıyla aynı filtreleme (Tutarlılık için)
+      const allCountableLessons = sortedHistory.filter(tx => {
+          if (!tx.isDebt) return false;
+          const n = tx.note.toLowerCase();
+          
+          if (n.includes("deneme")) return false;
+          if (n.includes("iptal")) return false;
+          if (n.includes("telafi") && n.includes("bekliyor")) return false;
+          
+          return true;
+      });
       
       // Eskiden yeniye sırala
-      const ascLessons = [...allRegularLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const ascLessons = [...allCountableLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       ascLessons.forEach((tx, index) => {
           map.set(tx.id, index + 1);
@@ -378,47 +397,53 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-6">
           
           {/* STATS CARDS */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
               {/* Ders Sayacı */}
-              <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col justify-between h-40 relative overflow-hidden group">
-                  <div className="flex justify-between items-start">
+              <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between h-48 relative overflow-hidden group">
+                  <div className="flex justify-between items-start z-10">
                       <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Ders Sayacı</p>
-                          <p className="text-3xl font-black text-slate-800 tracking-tight">{displayedLessonCount}</p>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ders Sayacı</p>
+                          <p className="text-5xl font-black text-slate-800 tracking-tighter">{displayedLessonCount}</p>
                       </div>
-                      <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                          <Layers size={18} />
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-900 flex items-center justify-center">
+                          <Layers size={22} strokeWidth={2} />
                       </div>
                   </div>
+                  
+                  {/* Decorative Bg */}
+                  <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-slate-50 rounded-full z-0 opacity-50 pointer-events-none"></div>
 
                   <button 
                      onClick={() => setIsPastLessonModalOpen(true)}
-                     className="w-full py-2.5 mt-auto bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-95 transition-all shadow-md shadow-slate-200"
+                     className="w-full py-3 bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-200 z-10"
                   >
-                     <Plus size={16} /> Ekle
+                     <Plus size={16} strokeWidth={3} /> Ders Ekle
                   </button>
               </div>
 
               {/* Aylık Ücret */}
-              <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col justify-between h-40 relative overflow-hidden group">
-                   <div className="flex justify-between items-start">
+              <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-between h-48 relative overflow-hidden group">
+                   <div className="flex justify-between items-start z-10">
                       <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Aylık Ücret</p>
+                          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Aylık Ücret</p>
                           <div className="flex items-baseline gap-1">
-                              <p className="text-3xl font-black text-slate-800 tracking-tight">{student.fee.toLocaleString('tr-TR')}</p>
-                              <span className="text-xs font-bold text-slate-400">TL</span>
+                              <p className="text-4xl font-black text-slate-800 tracking-tighter">{student.fee.toLocaleString('tr-TR')}</p>
+                              <span className="text-sm font-bold text-slate-400">TL</span>
                           </div>
                       </div>
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                          <Banknote size={18} />
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <Banknote size={24} strokeWidth={2} />
                       </div>
                    </div>
 
+                   {/* Decorative Bg */}
+                   <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-emerald-50 rounded-full z-0 opacity-50 pointer-events-none"></div>
+
                    <button 
                        onClick={() => setIsPastPaymentModalOpen(true)}
-                       className="w-full py-2.5 mt-auto bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all shadow-md shadow-emerald-200"
+                       className="w-full py-3 bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all shadow-lg shadow-emerald-200 z-10"
                    >
-                        <Banknote size={16} /> Ödeme Al
+                        <Banknote size={16} strokeWidth={3} /> Ödeme Al
                    </button>
               </div>
           </div>
