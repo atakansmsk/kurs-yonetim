@@ -379,43 +379,46 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           
           {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-3">
-              {/* Ders Sayacı (Koyu Kart - Gradient) */}
-              <div className="rounded-[1.5rem] p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden flex flex-col justify-between group bg-gradient-to-br from-indigo-900 to-indigo-600">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
-                  
-                  <div className="relative z-10 mb-6">
-                      <div className="flex items-center gap-1.5 opacity-70 mb-2">
-                          <Layers size={14} />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Ders Sayacı</span>
+              {/* Ders Sayacı */}
+              <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col justify-between h-40 relative overflow-hidden group">
+                  <div className="flex justify-between items-start">
+                      <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Ders Sayacı</p>
+                          <p className="text-3xl font-black text-slate-800 tracking-tight">{displayedLessonCount}</p>
                       </div>
-                      <div className="text-4xl font-black tracking-tight">{displayedLessonCount}</div>
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                          <Layers size={18} />
+                      </div>
                   </div>
 
                   <button 
                      onClick={() => setIsPastLessonModalOpen(true)}
-                     className="relative z-10 w-full py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-colors active:scale-95"
+                     className="w-full py-2.5 mt-auto bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 active:scale-95 transition-all shadow-md shadow-slate-200"
                   >
-                     <Check size={14} strokeWidth={2.5} /> Geçmiş Ders Ekle
+                     <Plus size={16} /> Ekle
                   </button>
               </div>
 
-              {/* Aylık Abonelik Ücreti (Beyaz Kart) */}
-              <div className="bg-white rounded-[1.5rem] p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group">
-                   <div>
-                      <div className="flex items-center gap-1.5 text-slate-400 mb-2">
-                          <Wallet size={14} />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Aylık Ücret</span>
+              {/* Aylık Ücret */}
+              <div className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col justify-between h-40 relative overflow-hidden group">
+                   <div className="flex justify-between items-start">
+                      <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Aylık Ücret</p>
+                          <div className="flex items-baseline gap-1">
+                              <p className="text-3xl font-black text-slate-800 tracking-tight">{student.fee.toLocaleString('tr-TR')}</p>
+                              <span className="text-xs font-bold text-slate-400">TL</span>
+                          </div>
                       </div>
-                      <div className="text-xl font-black text-slate-800 tracking-tight">
-                         {student.fee.toLocaleString('tr-TR')} <span className="text-sm text-slate-400 font-bold">TL</span>
+                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <Banknote size={18} />
                       </div>
                    </div>
 
                    <button 
                        onClick={() => setIsPastPaymentModalOpen(true)}
-                       className="w-full py-2.5 mt-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-bold shadow-md shadow-emerald-200 flex items-center justify-center gap-2 transition-colors active:scale-95"
+                       className="w-full py-2.5 mt-auto bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all shadow-md shadow-emerald-200"
                    >
-                        <Banknote size={14} strokeWidth={2.5} /> Ödeme Al
+                        <Banknote size={16} /> Ödeme Al
                    </button>
               </div>
           </div>
