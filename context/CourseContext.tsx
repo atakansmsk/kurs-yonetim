@@ -1,6 +1,5 @@
 
-
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource } from '../types';
 import { useAuth } from './AuthContext';
 import { DataService } from '../services/api';
@@ -57,11 +56,6 @@ const THEMES: Record<string, Record<string, string>> = {
   }
 };
 
-const timeToMinutes = (time: string) => {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
-};
-
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -95,17 +89,13 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateState = (updater: (prev: AppState) => AppState) => {
       setState(current => {
           const newState = updater(current);
-          
-          if (JSON.stringify(current) === JSON.stringify(newState)) {
-             return current;
-          }
-
           newState.updatedAt = new Date().toISOString();
           
           if (user) {
               DataService.saveUserData(user.id, newState).catch(console.error);
           }
           
+          // Update theme CSS if changed
           if (current.themeColor !== newState.themeColor) {
               updateCssVariables(newState.themeColor);
           }
@@ -113,128 +103,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return newState;
       });
   };
-
-  // --- AUTOMATIC LESSON PROCESSING LOGIC ---
-  const processLessons = useCallback(() => {
-      updateState((current) => {
-          if (!current.autoLessonProcessing) return current;
-
-          const now = new Date();
-          const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-          const dayIndex = now.getDay(); // 0-6 (Local Time)
-          const daysMap: Record<number, string> = {
-              0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
-          };
-          const currentDay = daysMap[dayIndex];
-          const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-          // 1. Bugün işlenmiş ders sayılarını öğrenci bazında say
-          const processedCounts: Record<string, number> = {};
-          
-          Object.values(current.students).forEach(student => {
-              const todayCount = student.history.filter(tx => {
-                  const txDate = new Date(tx.date);
-                  const isSameDay = txDate.getDate() === now.getDate() &&
-                                    txDate.getMonth() === now.getMonth() &&
-                                    txDate.getFullYear() === now.getFullYear();
-                  
-                  // Bugün tarihli BORÇ (Ders) kayıtları
-                  return isSameDay && tx.isDebt;
-              }).length;
-              
-              processedCounts[student.id] = todayCount;
-          });
-
-          // 2. Bugün bitmiş olması gereken ders sayılarını say (Tüm eğitmenler için)
-          const dueCounts: Record<string, number> = {};
-          
-          Object.keys(current.schedule).forEach(key => {
-              // Sadece bugünün programlarına bak
-              if (!key.endsWith(`|${currentDay}`)) return;
-
-              const slots = current.schedule[key];
-              slots.forEach(slot => {
-                  if (!slot.studentId) return;
-
-                  // Telafi veya Deneme dersleri otomatik işlenmez
-                  if (slot.label === 'MAKEUP' || slot.label === 'TRIAL') return;
-                  
-                  // ÖNEMLİ: Öğrencinin başlangıç tarihi kontrolü
-                  const student = current.students[slot.studentId];
-                  if (!student) return;
-
-                  // Eğer öğrencinin başlangıç tarihi varsa ve bugün o tarihten önceyse, dersi işleme
-                  if (student.startDate && student.startDate > todayStr) {
-                      return;
-                  }
-
-                  const endMinutes = timeToMinutes(slot.end);
-
-                  // Eğer ders süresi bittiyse "yapılması gereken" olarak say
-                  if (endMinutes <= currentMinutes) {
-                      dueCounts[slot.studentId] = (dueCounts[slot.studentId] || 0) + 1;
-                  }
-              });
-          });
-
-          // 3. Karşılaştır ve Eksikleri Tamamla
-          let hasChanges = false;
-          const newStudents = { ...current.students };
-
-          Object.keys(dueCounts).forEach(studentId => {
-              const due = dueCounts[studentId];
-              const processed = processedCounts[studentId] || 0;
-
-              if (due > processed) {
-                  const missing = due - processed;
-                  const student = newStudents[studentId];
-                  if (!student) return;
-
-                  const newHistory = [...student.history];
-                  let currentDebt = student.debtLessonCount;
-
-                  for (let i = 0; i < missing; i++) {
-                      currentDebt++;
-                      newHistory.unshift({
-                          id: Math.random().toString(36).substr(2, 9),
-                          note: `${currentDebt}. Ders (Otomatik)`,
-                          date: new Date().toISOString(),
-                          isDebt: true,
-                          amount: 0
-                      });
-                  }
-
-                  newStudents[studentId] = {
-                      ...student,
-                      debtLessonCount: currentDebt,
-                      history: newHistory
-                  };
-                  hasChanges = true;
-              }
-          });
-
-          if (!hasChanges) return current;
-          console.log("Auto-process: Eksik dersler tamamlandı.");
-          return { ...current, students: newStudents };
-      });
-  }, [user]);
-
-  // Setup Timer & Initial Run
-  useEffect(() => {
-      if (!user) return;
-
-      // Sistem her 60 saniyede bir kontrol eder
-      const interval = setInterval(processLessons, 60000); 
-      return () => clearInterval(interval);
-  }, [user, processLessons]);
-
-  // Veri yüklendiği an bir kere çalıştır
-  useEffect(() => {
-      if (isLoaded) {
-          processLessons();
-      }
-  }, [isLoaded, processLessons]);
-
 
   const updateCssVariables = (themeKey: string) => {
       const theme = THEMES[themeKey] || THEMES['indigo'];
@@ -244,6 +112,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
   };
 
+  // ACTIONS IMPLEMENTATION
   const actions: CourseContextType['actions'] = {
       updateSchoolName: (name) => updateState(s => ({ ...s, schoolName: name })),
       updateSchoolIcon: (icon) => updateState(s => ({ ...s, schoolIcon: icon })),
@@ -257,12 +126,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       switchTeacher: (name) => updateState(s => ({ ...s, currentTeacher: name })),
 
-      addStudent: (name, phone, fee, startDate) => {
+      addStudent: (name, phone, fee) => {
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
               id, name, phone, fee, 
               registrationDate: new Date().toISOString(),
-              startDate: startDate || new Date().toISOString().split('T')[0],
               debtLessonCount: 0,
               makeupCredit: 0,
               history: [],
@@ -272,26 +140,15 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return id;
       },
 
-      updateStudent: (id, name, phone, fee, startDate) => updateState(s => {
+      updateStudent: (id, name, phone, fee) => updateState(s => {
           const student = s.students[id];
           if (!student) return s;
-          return { 
-              ...s, 
-              students: { 
-                  ...s.students, 
-                  [id]: { 
-                      ...student, 
-                      name, 
-                      phone, 
-                      fee, 
-                      startDate: startDate || student.startDate || new Date().toISOString().split('T')[0] 
-                  } 
-              } 
-          };
+          return { ...s, students: { ...s.students, [id]: { ...student, name, phone, fee } } };
       }),
 
       deleteStudent: (id) => updateState(s => {
           const { [id]: deleted, ...rest } = s.students;
+          // Clean up schedule
           const newSchedule = { ...s.schedule };
           Object.keys(newSchedule).forEach(key => {
               newSchedule[key] = newSchedule[key].map(slot => 
@@ -324,6 +181,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const currentSlots = s.schedule[key] || [];
           
           let studentsUpdate = s.students;
+          // If using makeup credit
           if (label === 'MAKEUP') {
               const student = s.students[studentId];
               if (student && student.makeupCredit > 0) {
@@ -368,11 +226,15 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (isDebt) {
               newDebtCount += 1;
           } else {
+              // Ödeme işlemi
+              // Sadece "Şimdi Ödeme Al" dendiğinde (tarih yoksa) sayacı sıfırla.
               if (!customDate) {
                  newDebtCount = 0;
               }
+              // Eğer geçmiş bir ödeme elle giriliyorsa (customDate varsa) sayaç değişmez.
           }
 
+          // Miktar 0 olabilir, validasyon UI tarafında yapılır veya 0 kabul edilir.
           const finalAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 
               ? Number(amount)
               : (isDebt ? 0 : student.fee);
@@ -406,6 +268,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           
           if (note.includes("Telafi Bekliyor")) {
              newMakeupCredit += 1;
+          } else if (note.includes("Telafi Edildi")) {
+              // Usually handled at booking, but if manually marking
           }
 
           const updatedHistory = student.history.map(tx => {
@@ -453,10 +317,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }),
 
       toggleAutoProcessing: () => updateState(s => ({ ...s, autoLessonProcessing: !s.autoLessonProcessing })),
-      
-      triggerAutoProcess: () => {
-          processLessons();
-      },
 
       moveSlot: (fromDay, fromSlotId, toDay, toSlotId) => updateState(s => s), 
       swapSlots: (dayA, slotIdA, dayB, slotIdB) => updateState(s => s),

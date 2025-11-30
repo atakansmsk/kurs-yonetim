@@ -1,5 +1,4 @@
 
-
 export interface Transaction {
   id: string;
   note: string;
@@ -22,7 +21,6 @@ export interface Student {
   phone: string;
   fee: number;
   registrationDate: string;
-  startDate: string; // Derslerin başlayacağı tarih (YYYY-MM-DD)
   debtLessonCount: number;
   makeupCredit: number; // Telafi hakkı bakiyesi
   history: Transaction[];
@@ -67,8 +65,8 @@ export interface CourseContextType {
     updateThemeColor: (color: string) => void;
     addTeacher: (name: string) => void;
     switchTeacher: (name: string) => void;
-    addStudent: (name: string, phone: string, fee: number, startDate: string) => string;
-    updateStudent: (id: string, name: string, phone: string, fee: number, startDate: string) => void;
+    addStudent: (name: string, phone: string, fee: number) => string;
+    updateStudent: (id: string, name: string, phone: string, fee: number) => void;
     deleteStudent: (id: string) => void;
     getStudent: (id: string) => Student | undefined;
     addSlot: (day: WeekDay, start: string, end: string) => void;
@@ -79,7 +77,6 @@ export interface CourseContextType {
     updateTransaction: (studentId: string, transactionId: string, note: string) => void;
     deleteTransaction: (studentId: string, transactionId: string) => void;
     toggleAutoProcessing: () => void;
-    triggerAutoProcess: () => void; // Manually trigger processing
     moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => void;
     swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => void;
     addResource: (studentId: string, title: string, url: string, type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE') => void;

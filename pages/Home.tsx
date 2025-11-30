@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid, Share2, Copy, Play } from 'lucide-react';
+import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid, Share2, Copy } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface HomeProps {
@@ -326,23 +326,21 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                  </div>
             </div>
 
-            {/* Otomatik Ders Toggle ve Manuel Tetikleme */}
-            <div className="space-y-2">
-                <button onClick={actions.toggleAutoProcessing} className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 ${state.autoLessonProcessing ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
-                    <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${state.autoLessonProcessing ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                            <Zap size={20} fill="currentColor" />
-                        </div>
-                        <div className="text-left">
-                            <h4 className={`font-bold text-sm ${state.autoLessonProcessing ? 'text-indigo-900' : 'text-slate-700'}`}>Otomatik Ders İşle</h4>
-                            <p className="text-[10px] opacity-70 leading-tight mt-0.5">Sistem arkaplanda çalışır.<br/>Günü geçen dersleri işler.</p>
-                        </div>
+            {/* Otomatik Ders Toggle */}
+            <button onClick={actions.toggleAutoProcessing} className={`p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 ${state.autoLessonProcessing ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
+                <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${state.autoLessonProcessing ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                        <Zap size={20} fill="currentColor" />
                     </div>
-                    <div className={`w-12 h-7 rounded-full p-1 transition-colors ${state.autoLessonProcessing ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                        <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${state.autoLessonProcessing ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                    <div className="text-left">
+                        <h4 className={`font-bold text-sm ${state.autoLessonProcessing ? 'text-indigo-900' : 'text-slate-700'}`}>Otomatik Ders İşle</h4>
+                        <p className="text-[10px] opacity-70 leading-tight mt-0.5">Ders günü gelen öğrencileri<br/>otomatik olarak borçlandır.</p>
                     </div>
-                </button>
-            </div>
+                </div>
+                <div className={`w-12 h-7 rounded-full p-1 transition-colors ${state.autoLessonProcessing ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${state.autoLessonProcessing ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                </div>
+            </button>
             
             <button onClick={logout} className="p-4 rounded-2xl border border-red-100 bg-red-50 text-red-600 flex items-center justify-center gap-2 font-bold text-sm hover:bg-red-100 transition-colors">
                 <LogOut size={18} /> Çıkış Yap

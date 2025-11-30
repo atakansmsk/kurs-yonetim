@@ -49,13 +49,12 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   const {
       nextLesson,
       lastPaymentStr,
-      hasPayment,
       currentPeriodHistory,
       safeResources,
       lessonNumberMap
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "-", hasPayment: false, currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map()
+          nextLesson: null, lastPaymentStr: "-", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map()
       };
 
       // Resources Safety Check
@@ -64,48 +63,62 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       // 1. Next Lesson Logic
       const getNextLesson = () => {
         const today = new Date();
+        today.setHours(0,0,0,0); // Normalize today
+        
         const dayIndex = today.getDay(); // 0=Pazar
         // App keys used in state.schedule
         const appKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
         
+        let foundSlot = null;
+        let daysFromToday = -1;
+
+        // Find the earliest upcoming slot in the weekly cycle
         for (let i = 0; i < 7; i++) {
             const checkDayIndex = (dayIndex + i) % 7;
             const keyDayName = appKeys[checkDayIndex];
             
             const key = `${appState.currentTeacher}|${keyDayName}`;
             const slots = appState.schedule[key] || [];
-            const foundSlot = slots.find(s => s.studentId === student.id);
+            const s = slots.find(slot => slot.studentId === student.id);
             
-            if (foundSlot) {
-                // Calculate actual date
-                const targetDate = new Date();
-                targetDate.setDate(today.getDate() + i);
-                const targetDateStr = targetDate.toISOString().split('T')[0];
-
-                // --- NEW: Start Date Check ---
-                // Eğer bu dersin tarihi, öğrencinin başlangıç tarihinden önceyse GÖSTERME
-                if (student.startDate && targetDateStr < student.startDate) {
-                    continue;
-                }
-                
-                const isToday = i === 0;
-                
-                const formattedDate = targetDate.toLocaleDateString('tr-TR', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    weekday: 'long' 
-                });
-
-                const displayDate = isToday 
-                    ? `Bugün, ${targetDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}` 
-                    : formattedDate;
-
-                if (!isToday || (isToday)) {
-                    return { day: displayDate, time: `${foundSlot.start} - ${foundSlot.end}` };
-                }
+            if (s) {
+                foundSlot = s;
+                daysFromToday = i;
+                break;
             }
         }
-        return null;
+
+        if (!foundSlot) return null;
+
+        // Calculate the proposed next date based on the weekly cycle relative to today
+        let targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + daysFromToday);
+
+        // Enforce Registration Date as the start date
+        if (student.registrationDate) {
+            const regDate = new Date(student.registrationDate);
+            regDate.setHours(0,0,0,0);
+            
+            // If the calculated next occurrence is before the registration date,
+            // push it forward by weeks until it falls on or after the registration date.
+            while (targetDate < regDate) {
+                targetDate.setDate(targetDate.getDate() + 7);
+            }
+        }
+
+        // Formatting
+        const isToday = targetDate.getTime() === today.getTime();
+        const formattedDate = targetDate.toLocaleDateString('tr-TR', { 
+            day: 'numeric', 
+            month: 'long', 
+            weekday: 'long' 
+        });
+
+        const displayDate = isToday 
+            ? `Bugün, ${targetDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}` 
+            : formattedDate;
+
+        return { day: displayDate, time: `${foundSlot.start} - ${foundSlot.end}` };
       };
 
       // 2. History Processing
@@ -122,13 +135,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       
       let lastPaymentDateStr = "Kayıt Yok";
       let lastPaymentDateObj: Date | null = null;
-      const hasPayment = !!lastPaymentTx;
 
       if (lastPaymentTx) {
           lastPaymentDateObj = new Date(lastPaymentTx.date);
           lastPaymentDateStr = lastPaymentDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       } else if (student.registrationDate) {
-          // Ödeme yoksa bile tarih hesabı için kayıt tarihi kullanılabilir ama UI'da "Ödeme Yok" yazacağız.
           lastPaymentDateObj = new Date(student.registrationDate);
           lastPaymentDateStr = "Kayıt Tarihi";
       }
@@ -161,7 +172,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       return {
           nextLesson: getNextLesson(),
           lastPaymentStr: lastPaymentDateStr,
-          hasPayment,
           currentPeriodHistory: filteredHistory, // Display sorted Newest -> Oldest
           safeResources,
           lessonNumberMap
@@ -291,9 +301,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     </div>
 
                     <div>
-                        <span className={`text-sm font-black leading-tight truncate block ${hasPayment ? 'text-slate-800' : 'text-slate-400'}`} title={hasPayment ? lastPaymentStr : "Ödeme Yok"}>
-                            {hasPayment ? lastPaymentStr : "Henüz ödeme yapılmadı"}
-                        </span>
+                        <span className="text-sm font-black text-slate-800 leading-tight truncate block" title={lastPaymentStr}>{lastPaymentStr}</span>
                     </div>
                  </div>
 

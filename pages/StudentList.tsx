@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';
@@ -21,7 +20,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newFee, setNewFee] = useState("");
-  const [newStartDate, setNewStartDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Bulk Message
   const [bulkMessage, setBulkMessage] = useState("");
@@ -32,10 +30,9 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
   const handleAddStudent = () => {
       if(newName) {
-          actions.addStudent(newName, newPhone, parseFloat(newFee) || 0, newStartDate);
+          actions.addStudent(newName, newPhone, parseFloat(newFee) || 0);
           setIsAddModalOpen(false);
           setNewName(""); setNewPhone(""); setNewFee("");
-          setNewStartDate(new Date().toISOString().split('T')[0]);
       }
   }
 
@@ -158,10 +155,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
              <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Telefon" />
              <div>
                 <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Aylık Ücret" />
-             </div>
-             <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">BAŞLANGIÇ TARİHİ</label>
-                <input type="date" value={newStartDate} onChange={e=>setNewStartDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" />
              </div>
           </div>
       </Dialog>

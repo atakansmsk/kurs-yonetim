@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, History } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { StorageService } from '../services/api';
@@ -41,7 +41,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editFee, setEditFee] = useState("");
-  const [editStartDate, setEditStartDate] = useState("");
 
   // Resource Form
   const [resTitle, setResTitle] = useState("");
@@ -86,61 +85,33 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           current = sortedHistory;
       }
 
-      // Borç sayacı Mantığı:
-      // 1. Normal Ders -> Sayılır
-      // 2. Gelmedi (Habersiz) -> Sayılır (Ders işlendi kabul edilir)
-      // 3. Telafi Bekliyor -> Sayılmaz (Henüz yapılmadı)
-      // 4. Telafi Edildi -> Sayılır (Telafi yapıldı)
-      // 5. Deneme/İptal -> Sayılmaz
-      const debtLessons = current.filter(tx => {
-          if (!tx.isDebt) return false;
-          const n = tx.note.toLowerCase();
-          
-          if (n.includes("deneme")) return false;
-          if (n.includes("iptal")) return false;
-          
-          if (n.includes("telafi")) {
-              // Bekleyen telafi sayılmaz
-              if (n.includes("bekliyor")) return false;
-              // Yapılan telafi sayılır (Telafi Edildi)
-              return true;
-          }
-          
-          // Normal ve Gelmedi dersleri sayılır
-          return true;
-      });
+      // Borç sayacı: Sadece "Normal Ders" ve "İşlendi" olanlar.
+      const debtLessons = current.filter(tx => 
+          tx.isDebt && 
+          !tx.note.toLowerCase().includes("telafi") && 
+          !tx.note.toLowerCase().includes("deneme") &&
+          !tx.note.toLowerCase().includes("gelmedi")
+      );
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
   }, [sortedHistory]);
   
-  // Last Payment Date String for UI
-  const lastPaymentStr = useMemo(() => {
-      const last = sortedHistory.find(tx => !tx.isDebt);
-      return last 
-          ? new Date(last.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }) 
-          : 'Yok';
-  }, [sortedHistory]);
-
   // Lesson Number Map Calculation (For display 1. Ders, 2. Ders)
   const lessonNumberMap = useMemo(() => {
       if (!student) return new Map();
       const map = new Map<string, number>();
       
-      // Borç/Sayaç mantığıyla aynı filtreleme (Tutarlılık için)
-      const allCountableLessons = sortedHistory.filter(tx => {
-          if (!tx.isDebt) return false;
-          const n = tx.note.toLowerCase();
-          
-          if (n.includes("deneme")) return false;
-          if (n.includes("iptal")) return false;
-          if (n.includes("telafi") && n.includes("bekliyor")) return false;
-          
-          // Normal ve Gelmedi dersleri sayılır (Dahil)
-          return true;
-      });
+      // Sadece borç sayılan dersleri numaralandır (arşiv dahil tüm tarihçe için)
+      const allRegularLessons = sortedHistory.filter(tx => 
+        tx.isDebt && 
+        !tx.note.toLowerCase().includes("telafi") && 
+        !tx.note.toLowerCase().includes("deneme") && 
+        !tx.note.toLowerCase().includes("iptal") && 
+        !tx.note.toLowerCase().includes("gelmedi")
+      );
       
       // Eskiden yeniye sırala
-      const ascLessons = [...allCountableLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const ascLessons = [...allRegularLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       ascLessons.forEach((tx, index) => {
           map.set(tx.id, index + 1);
@@ -203,7 +174,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleUpdateStudent = () => {
       if (editName) {
-          actions.updateStudent(studentId, editName, editPhone, parseFloat(editFee) || 0, editStartDate);
+          actions.updateStudent(studentId, editName, editPhone, parseFloat(editFee) || 0);
           setIsEditModalOpen(false);
       }
   };
@@ -306,8 +277,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       let iconClass = "bg-indigo-50 text-indigo-600";
       let showAmount = isPayment;
       
-      const num = lessonNumberMap.get(tx.id);
-
       if (isPayment) {
           title = "Ödeme Alındı";
           icon = <Banknote size={16} />;
@@ -319,16 +288,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               title = "Telafi Hakkı";
               sub = "Planlanacaktır";
           } else {
-              title = num ? `${num}. Ders (Telafi)` : "Telafi Dersi";
+              title = "Telafi Dersi";
               sub = "Yapıldı";
           }
       } else if (tx.note.includes('Gelmedi')) {
-           title = num ? `${num}. Ders (Katılım Yok)` : "Katılım Yok";
-           sub = "Habersiz (Sayılır)";
+           title = "Katılım Yok";
+           sub = "Habersiz";
            icon = <XCircle size={16} />;
            iconClass = "bg-red-50 text-red-600";
       } else {
           // Numbered Lesson
+          const num = lessonNumberMap.get(tx.id);
           if (num) title = `${num}. Ders`;
       }
 
@@ -380,7 +350,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     <MessageCircle size={18} />
                 </button>
                 <button 
-                    onClick={() => { setEditName(student.name); setEditPhone(student.phone); setEditFee(student.fee.toString()); setEditStartDate(student.startDate || getTodayString()); setIsEditModalOpen(true); }}
+                    onClick={() => { setEditName(student.name); setEditPhone(student.phone); setEditFee(student.fee.toString()); setIsEditModalOpen(true); }}
                     className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
                     title="Düzenle"
                 >
@@ -407,96 +377,46 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       {/* 2. Content Scrollable */}
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-6">
           
-          {/* STATS CARDS - REDESIGNED */}
+          {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-3">
-              
-              {/* Ders Sayacı Card */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[140px] relative overflow-hidden group hover:border-indigo-300 transition-all">
+              {/* Ders Sayacı (Koyu Kart - Gradient) */}
+              <div className="rounded-[1.5rem] p-4 text-white shadow-lg shadow-indigo-200 relative overflow-hidden flex flex-col justify-between group bg-gradient-to-br from-indigo-900 to-indigo-600">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none"></div>
                   
-                  {/* Faded BG Icon */}
-                  <div className="absolute -right-4 -top-4 text-slate-50 opacity-60 transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
-                      <Layers size={100} fill="currentColor" />
+                  <div className="relative z-10 mb-6">
+                      <div className="flex items-center gap-1.5 opacity-70 mb-2">
+                          <Layers size={14} />
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Ders Sayacı</span>
+                      </div>
+                      <div className="text-4xl font-black tracking-tight">{displayedLessonCount}</div>
                   </div>
 
-                  {/* Header */}
-                  <div className="flex justify-between items-start relative z-10">
-                       <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TOPLAM DERS</p>
-                          <div className="mt-1 flex items-baseline gap-1">
-                              <p className="text-2xl font-black text-slate-800 tracking-tight">{displayedLessonCount}</p>
-                              <span className="text-[10px] font-bold text-slate-400">Adet</span>
-                          </div>
-                       </div>
-                       <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
-                           <Layers size={16} strokeWidth={2.5} />
-                       </div>
-                  </div>
-                  
-                  {/* Footer Info & Action */}
-                  <div className="flex items-end justify-between mt-auto relative z-10">
-                       <div className="flex flex-col gap-1">
-                          {student.debtLessonCount > 0 ? (
-                              <div className="pl-2 pr-3 py-1 bg-red-50 rounded-lg border border-red-100 flex items-center gap-1.5">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                                  <span className="text-[10px] font-bold text-red-600">{student.debtLessonCount} Borç</span>
-                              </div>
-                          ) : (
-                              <div className="pl-2 pr-3 py-1 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-1.5">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                                  <span className="text-[10px] font-bold text-slate-500">Normal</span>
-                              </div>
-                          )}
-                       </div>
-
-                       <button 
-                          onClick={() => setIsPastLessonModalOpen(true)}
-                          className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md shadow-slate-200 hover:scale-105 active:scale-95 transition-all"
-                          title="Ders Ekle"
-                       >
-                          <Plus size={16} />
-                       </button>
-                  </div>
+                  <button 
+                     onClick={() => setIsPastLessonModalOpen(true)}
+                     className="relative z-10 w-full py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-white/10 flex items-center justify-center gap-2 transition-colors active:scale-95"
+                  >
+                     <Check size={14} strokeWidth={2.5} /> Geçmiş Ders Ekle
+                  </button>
               </div>
 
-              {/* Aylık Ücret Card */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[140px] relative overflow-hidden group hover:border-emerald-300 transition-all">
-                   
-                   {/* Faded BG Icon */}
-                   <div className="absolute -right-4 -top-4 text-slate-50 opacity-60 transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
-                      <Banknote size={100} fill="currentColor" />
-                   </div>
-
-                   {/* Header */}
-                   <div className="flex justify-between items-start relative z-10">
-                      <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AYLIK PLAN</p>
-                          <div className="mt-1 flex items-baseline gap-1">
-                              <p className="text-2xl font-black text-slate-800 tracking-tight">{student.fee}</p>
-                              <span className="text-[10px] font-bold text-slate-400">TL</span>
-                          </div>
+              {/* Aylık Abonelik Ücreti (Beyaz Kart) */}
+              <div className="bg-white rounded-[1.5rem] p-4 border border-slate-100 shadow-sm relative overflow-hidden flex flex-col justify-between group">
+                   <div>
+                      <div className="flex items-center gap-1.5 text-slate-400 mb-2">
+                          <Wallet size={14} />
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Aylık Ücret</span>
                       </div>
-                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
-                          <Banknote size={16} strokeWidth={2.5} />
+                      <div className="text-xl font-black text-slate-800 tracking-tight">
+                         {student.fee.toLocaleString('tr-TR')} <span className="text-sm text-slate-400 font-bold">TL</span>
                       </div>
                    </div>
 
-                   {/* Footer Info & Action */}
-                   <div className="flex items-end justify-between mt-auto relative z-10">
-                        <div className="flex flex-col gap-1">
-                             <div className="pl-2 pr-3 py-1 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-1.5">
-                                 <History size={10} className="text-slate-400" />
-                                 <span className="text-[10px] font-bold text-slate-500">Son: {lastPaymentStr}</span>
-                             </div>
-                        </div>
-
-                        <button 
-                            onClick={() => setIsPastPaymentModalOpen(true)}
-                            className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-200 hover:scale-105 active:scale-95 transition-all"
-                            title="Ödeme Al"
-                        >
-                             <Check size={16} />
-                        </button>
-                   </div>
+                   <button 
+                       onClick={() => setIsPastPaymentModalOpen(true)}
+                       className="w-full py-2.5 mt-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-bold shadow-md shadow-emerald-200 flex items-center justify-center gap-2 transition-colors active:scale-95"
+                   >
+                        <Banknote size={14} strokeWidth={2.5} /> Ödeme Al
+                   </button>
               </div>
           </div>
 
@@ -588,10 +508,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               <input type="text" value={editName} onChange={e=>setEditName(e.target.value)} placeholder="Ad Soyad" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
               <input type="tel" value={editPhone} onChange={e=>setEditPhone(e.target.value)} placeholder="Telefon" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
               <input type="number" value={editFee} onChange={e=>setEditFee(e.target.value)} placeholder="Aylık Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">BAŞLANGIÇ TARİHİ</label>
-                <input type="date" value={editStartDate} onChange={e=>setEditStartDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" />
-              </div>
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-400">Kalıcı olarak sil</span>
                   <button onClick={() => { actions.deleteStudent(studentId); onBack(); }} className="text-xs font-bold text-red-600 bg-red-50 px-3 py-2 rounded-lg hover:bg-red-100">Öğrenciyi Sil</button>
@@ -603,124 +519,115 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" actions={
           <>
             <button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-            <button onClick={handleAddPastLesson} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Ekle</button>
+            <button onClick={handleAddPastLesson} disabled={!pastDate} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>
           </>
       }>
-          <div className="py-2">
-             <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TARİH SEÇİN</label>
-             <input type="date" value={pastDate} onChange={e=>setPastDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" />
-             <p className="text-[10px] text-slate-400 mt-2">Bu işlem, geçmiş bir tarihe "Ders İşlendi" kaydı ekler ve bakiyeyi artırır.</p>
+          <div className="py-4">
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TARİH</label>
+              <input type="date" value={pastDate} onChange={e=>setPastDate(e.target.value)} max={getTodayString()} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
           </div>
       </Dialog>
 
-      {/* 3. Past Payment */}
-      <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Ödeme Al" actions={
+      {/* 3. Payment */}
+      <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Ödeme Ekle" actions={
           <>
             <button onClick={() => setIsPastPaymentModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-            <button onClick={handleAddPastPayment} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Kaydet</button>
+            <button onClick={handleAddPastPayment} disabled={!pastPaymentDate || !pastPaymentAmount} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Kaydet</button>
           </>
       }>
-          <div className="flex flex-col gap-3 py-2">
-             <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TUTAR</label>
-                <input type="number" value={pastPaymentAmount} onChange={e=>setPastPaymentAmount(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="0.00" />
-             </div>
-             <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TARİH</label>
-                <input type="date" value={pastPaymentDate} onChange={e=>setPastPaymentDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" />
-             </div>
+          <div className="py-2 space-y-3">
+              <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TARİH</label>
+                  <input type="date" value={pastPaymentDate} onChange={e=>setPastPaymentDate(e.target.value)} max={getTodayString()} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+              </div>
+              <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">MİKTAR (TL)</label>
+                  <input type="number" value={pastPaymentAmount} onChange={e=>setPastPaymentAmount(e.target.value)} placeholder="0.00" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+              </div>
           </div>
       </Dialog>
-      
+
       {/* 4. Lesson Options */}
-      <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="Ders İşlemi">
-         <div className="flex flex-col gap-2 pt-1">
-             {selectedTx && !selectedTx.isDebt ? (
-                 <>
-                    <button onClick={() => handleLessonAction('DELETE')} className="p-3 rounded-xl bg-red-50 text-red-700 font-bold text-sm flex items-center gap-2"><Trash2 size={16}/> Ödemeyi Sil</button>
-                 </>
-             ) : (
-                 <>
-                    <button onClick={() => handleLessonAction('ABSENT')} className="p-3 rounded-xl bg-slate-50 text-slate-700 font-bold text-sm flex items-center gap-2"><XCircle size={16}/> Gelmedi Olarak İşaretle</button>
-                    
-                    {selectedTx?.note.includes('Telafi') ? (
-                         selectedTx.note.includes('Bekliyor') ? (
-                            <button onClick={() => handleLessonAction('MAKEUP_DONE')} className="p-3 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-sm flex items-center gap-2"><CheckCircle2 size={16}/> Telafi Yapıldı (Düş)</button>
-                         ) : null
-                    ) : (
-                         <button onClick={() => handleLessonAction('MAKEUP')} className="p-3 rounded-xl bg-orange-50 text-orange-700 font-bold text-sm flex items-center gap-2"><RefreshCcw size={16}/> Telafi Hakkı Ver</button>
-                    )}
-                    
-                    <button onClick={() => handleLessonAction('DELETE')} className="p-3 rounded-xl bg-red-50 text-red-700 font-bold text-sm flex items-center gap-2"><Trash2 size={16}/> Kaydı Sil</button>
-                 </>
-             )}
-         </div>
-      </Dialog>
-      
-      {/* 5. Makeup Complete Date Modal */}
-      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Tarihi" actions={
-          <>
-            <button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-            <button onClick={handleMakeupComplete} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Onayla</button>
-          </>
-      }>
-          <div className="py-2">
-             <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TELAFİ NE ZAMAN YAPILDI?</label>
-             <input type="date" value={makeupCompleteDate} onChange={e=>setMakeupCompleteDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" />
+      <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="İşlem Detayı">
+          <div className="flex flex-col gap-2 py-1">
+              {selectedTx?.isDebt && !selectedTx.note.includes("Telafi Bekliyor") && (
+                  <>
+                    <button onClick={() => handleLessonAction('ABSENT')} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-sm flex items-center gap-2">
+                        <XCircle size={16} /> Gelmedi Olarak İşaretle
+                    </button>
+                    <button onClick={() => handleLessonAction('MAKEUP')} className="p-3 bg-orange-50 text-orange-700 rounded-xl font-bold text-sm flex items-center gap-2">
+                        <RefreshCcw size={16} /> Telafi Hakkı Tanımla
+                    </button>
+                  </>
+              )}
+               
+              {selectedTx?.note.includes("Telafi Bekliyor") && (
+                   <button onClick={() => handleLessonAction('MAKEUP_DONE')} className="p-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Telafi Yapıldı Olarak İşaretle
+                   </button>
+              )}
+
+              <button onClick={() => handleLessonAction('DELETE')} className="p-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm flex items-center gap-2 mt-2">
+                  <Trash2 size={16} /> Kaydı Sil
+              </button>
           </div>
       </Dialog>
-      
+
+      {/* 5. Makeup Complete Date Picker */}
+      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Tarihi" actions={
+           <>
+             <button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
+             <button onClick={handleMakeupComplete} disabled={!makeupCompleteDate} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Onayla</button>
+           </>
+      }>
+          <div className="py-4">
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">TELAFİ YAPILAN TARİH</label>
+              <input type="date" value={makeupCompleteDate} onChange={e=>setMakeupCompleteDate(e.target.value)} max={getTodayString()} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+          </div>
+      </Dialog>
+
       {/* 6. Resources Modal */}
       <Dialog isOpen={isResourcesModalOpen} onClose={() => setIsResourcesModalOpen(false)} title="Materyal Ekle" actions={
           <>
-             <button onClick={() => setIsResourcesModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">Kapat</button>
-             {resTab === 'LINK' && <button onClick={handleAddResource} disabled={!resTitle || !resUrl} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>}
+            <button onClick={() => setIsResourcesModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">Kapat</button>
+            <button onClick={handleAddResource} disabled={!resTitle || !resUrl} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>
           </>
       }>
-          <div className="flex gap-2 mb-4 p-1 bg-slate-100 rounded-xl">
-              <button onClick={() => setResTab('LINK')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${resTab === 'LINK' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Link / URL</button>
-              <button onClick={() => setResTab('UPLOAD')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${resTab === 'UPLOAD' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Dosya Yükle</button>
+          <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
+              <button onClick={() => setResTab('LINK')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'LINK' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>Link</button>
+              <button onClick={() => setResTab('UPLOAD')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'UPLOAD' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}>Dosya Yükle</button>
           </div>
 
-          {resTab === 'LINK' ? (
-              <div className="flex flex-col gap-3">
-                  <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} placeholder="Başlık (Örn: Ödev PDF)" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
-                  <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} placeholder="Link (https://...)" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
-              </div>
-          ) : (
-              <div className="flex flex-col gap-3 text-center">
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,application/pdf" />
-                  
-                  {isUploading ? (
-                      <div className="py-8 flex flex-col items-center justify-center text-slate-400">
-                          <Loader2 size={32} className="animate-spin mb-2 text-indigo-500" />
-                          <span className="text-xs font-bold">Yükleniyor...</span>
-                      </div>
-                  ) : resUrl ? (
-                      <div className="py-4 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-600 flex flex-col items-center">
-                          <CheckCircle2 size={32} className="mb-2" />
-                          <span className="text-xs font-bold">Dosya Yüklendi!</span>
-                          <button onClick={handleAddResource} className="mt-3 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold">Kaydet</button>
-                      </div>
-                  ) : (
-                      <button onClick={() => fileInputRef.current?.click()} className="py-8 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 hover:border-slate-300 transition-all">
-                          <UploadCloud size={32} className="mb-2" />
-                          <span className="text-xs font-bold">Dosya Seç (Resim/PDF)</span>
-                      </button>
-                  )}
-              </div>
-          )}
-      </Dialog>
-      
-      {/* 7. Archive Modal */}
-      <Dialog isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)} title="Geçmiş Dönemler">
-           <div className="py-2 max-h-[60vh] overflow-y-auto space-y-4 pr-1">
-               {archivedHistory.length === 0 ? (
-                   <div className="text-center text-slate-400 py-4 text-sm font-bold">Arşivlenmiş kayıt yok.</div>
+          <div className="space-y-3">
+               <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} placeholder="Başlık (Örn: Ödev 1)" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
+               
+               {resTab === 'LINK' ? (
+                   <input type="url" value={resUrl} onChange={e=>setResUrl(e.target.value)} placeholder="Link (YouTube, Drive vb.)" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />
                ) : (
-                   archivedHistory.map(renderTransactionItem)
+                   <div className="flex gap-2">
+                       <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex-1 p-8 border-2 border-dashed border-indigo-200 rounded-xl bg-indigo-50 text-indigo-500 flex flex-col items-center justify-center gap-2 hover:bg-indigo-100 transition-colors disabled:opacity-50">
+                           {isUploading ? <Loader2 size={24} className="animate-spin" /> : <UploadCloud size={24} />}
+                           <span className="text-xs font-bold">{isUploading ? 'Yükleniyor...' : 'Dosya Seç (Resim/PDF)'}</span>
+                       </button>
+                       <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
+                   </div>
                )}
-           </div>
+               
+               {resUrl && resTab === 'UPLOAD' && (
+                   <div className="text-xs font-bold text-emerald-600 bg-emerald-50 p-2 rounded-lg flex items-center gap-2">
+                       <Check size={14} /> Dosya başarıyla yüklendi
+                   </div>
+               )}
+          </div>
+      </Dialog>
+
+      {/* 7. Archive Modal */}
+      <Dialog isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)} title="Geçmiş Arşivi">
+        <div className="py-2 max-h-[60vh] overflow-y-auto pr-1">
+             <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-2">
+                {archivedHistory.map(renderTransactionItem)}
+             </div>
+        </div>
       </Dialog>
 
     </div>
