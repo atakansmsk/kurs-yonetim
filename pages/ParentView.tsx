@@ -49,12 +49,13 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   const {
       nextLesson,
       lastPaymentStr,
+      hasPayment,
       currentPeriodHistory,
       safeResources,
       lessonNumberMap
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "-", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map()
+          nextLesson: null, lastPaymentStr: "-", hasPayment: false, currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map()
       };
 
       // Resources Safety Check
@@ -76,10 +77,18 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             const foundSlot = slots.find(s => s.studentId === student.id);
             
             if (foundSlot) {
-                const isToday = i === 0;
                 // Calculate actual date
                 const targetDate = new Date();
                 targetDate.setDate(today.getDate() + i);
+                const targetDateStr = targetDate.toISOString().split('T')[0];
+
+                // --- NEW: Start Date Check ---
+                // Eğer bu dersin tarihi, öğrencinin başlangıç tarihinden önceyse GÖSTERME
+                if (student.startDate && targetDateStr < student.startDate) {
+                    continue;
+                }
+                
+                const isToday = i === 0;
                 
                 const formattedDate = targetDate.toLocaleDateString('tr-TR', { 
                     day: 'numeric', 
@@ -113,11 +122,13 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       
       let lastPaymentDateStr = "Kayıt Yok";
       let lastPaymentDateObj: Date | null = null;
+      const hasPayment = !!lastPaymentTx;
 
       if (lastPaymentTx) {
           lastPaymentDateObj = new Date(lastPaymentTx.date);
           lastPaymentDateStr = lastPaymentDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       } else if (student.registrationDate) {
+          // Ödeme yoksa bile tarih hesabı için kayıt tarihi kullanılabilir ama UI'da "Ödeme Yok" yazacağız.
           lastPaymentDateObj = new Date(student.registrationDate);
           lastPaymentDateStr = "Kayıt Tarihi";
       }
@@ -150,6 +161,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       return {
           nextLesson: getNextLesson(),
           lastPaymentStr: lastPaymentDateStr,
+          hasPayment,
           currentPeriodHistory: filteredHistory, // Display sorted Newest -> Oldest
           safeResources,
           lessonNumberMap
@@ -279,7 +291,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                     </div>
 
                     <div>
-                        <span className="text-sm font-black text-slate-800 leading-tight truncate block" title={lastPaymentStr}>{lastPaymentStr}</span>
+                        <span className={`text-sm font-black leading-tight truncate block ${hasPayment ? 'text-slate-800' : 'text-slate-400'}`} title={hasPayment ? lastPaymentStr : "Ödeme Yok"}>
+                            {hasPayment ? lastPaymentStr : "Henüz ödeme yapılmadı"}
+                        </span>
                     </div>
                  </div>
 
