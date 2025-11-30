@@ -60,11 +60,10 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       lastPaymentStr,
       currentPeriodHistory,
       safeResources,
-      lessonNumberMap,
-      registrationDateStr
+      lessonNumberMap
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "Ödeme Kaydı Yok", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map(), registrationDateStr: ""
+          nextLesson: null, lastPaymentStr: "Ödeme Kaydı Yok", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map()
       };
 
       // Resources Safety Check
@@ -186,19 +185,12 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           lessonNumberMap.set(tx.id, index + 1);
       });
       
-      // 6. Registration Date String
-      let regStr = "";
-      if (student.registrationDate) {
-          regStr = new Date(student.registrationDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-      }
-
       return {
           nextLesson: getNextLesson(),
           lastPaymentStr: lastPaymentDateStr,
           currentPeriodHistory: filteredHistory, 
           safeResources,
-          lessonNumberMap,
-          registrationDateStr: regStr
+          lessonNumberMap
       };
 
   }, [student, appState]);
@@ -256,10 +248,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       }
   };
 
-  // Logo Logic
-  const isCustomLogo = appState.schoolIcon?.startsWith('data:');
-  const SchoolIconComponent = appState.schoolIcon && !isCustomLogo ? (ICONS[appState.schoolIcon] || Sparkles) : Sparkles;
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24 pt-6">
       
@@ -269,13 +257,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                  {/* Background Decor */}
                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
 
-                 <div className="w-16 h-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-xl font-black shrink-0 shadow-lg shadow-slate-200 z-10 overflow-hidden">
-                    {isCustomLogo ? (
-                        <img src={appState.schoolIcon} alt="Logo" className="w-full h-full object-cover" />
-                    ) : (
-                        <SchoolIconComponent size={28} strokeWidth={1.5} />
-                    )}
-                </div>
                 <div className="z-10 flex-1 min-w-0">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">{appState.schoolName}</p>
                     <h2 className="text-xl font-black text-slate-900 leading-tight truncate">{student.name}</h2>
@@ -334,24 +315,16 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
 
                     <div>
                         <span className="text-sm font-black text-slate-800 leading-tight truncate block" title={lastPaymentStr}>{lastPaymentStr}</span>
-                        {registrationDateStr && (
-                             <p className="text-[8px] text-slate-400 font-medium mt-1">Kayıt: {registrationDateStr}</p>
-                        )}
                     </div>
                  </div>
 
-                 {student.debtLessonCount > 0 ? (
+                 {student.debtLessonCount > 0 && (
                     <div className="mt-2 pt-2 border-t border-slate-50">
                         <div className="text-[9px] font-bold text-orange-400 uppercase mb-0.5">BEKLEYEN</div>
                         <div className="flex items-center gap-1.5 text-orange-600 font-bold bg-orange-50 p-2 rounded-xl border border-orange-100">
                             <AlertCircle size={14} />
                             <span className="text-xs leading-none">{student.debtLessonCount} Ders</span>
                         </div>
-                    </div>
-                 ) : (
-                    <div className="mt-2 pt-2 border-t border-slate-50 flex items-center gap-2 text-emerald-600 bg-emerald-50 p-2 rounded-xl border border-emerald-100">
-                         <CheckCircle2 size={16} />
-                         <span className="text-xs font-bold leading-none">Ödemeler Tam</span>
                     </div>
                  )}
             </div>
