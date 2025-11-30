@@ -317,16 +317,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         <span className="text-sm font-black text-slate-800 leading-tight truncate block" title={lastPaymentStr}>{lastPaymentStr}</span>
                     </div>
                  </div>
-
-                 {student.debtLessonCount > 0 && (
-                    <div className="mt-2 pt-2 border-t border-slate-50">
-                        <div className="text-[9px] font-bold text-orange-400 uppercase mb-0.5">BEKLEYEN</div>
-                        <div className="flex items-center gap-1.5 text-orange-600 font-bold bg-orange-50 p-2 rounded-xl border border-orange-100">
-                            <AlertCircle size={14} />
-                            <span className="text-xs leading-none">{student.debtLessonCount} Ders</span>
-                        </div>
-                    </div>
-                 )}
             </div>
         </div>
 
