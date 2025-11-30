@@ -56,6 +56,11 @@ const THEMES: Record<string, Record<string, string>> = {
   }
 };
 
+const timeToMinutes = (time: string) => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -89,6 +94,12 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateState = (updater: (prev: AppState) => AppState) => {
       setState(current => {
           const newState = updater(current);
+          
+          // Optimization: Check for equality to prevent unnecessary writes
+          if (JSON.stringify(current) === JSON.stringify(newState)) {
+             return current;
+          }
+
           newState.updatedAt = new Date().toISOString();
           
           if (user) {
@@ -103,6 +114,87 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return newState;
       });
   };
+
+  // --- AUTOMATIC LESSON PROCESSING LOGIC ---
+  useEffect(() => {
+      // Sadece kullanıcı giriş yapmışsa çalışsın
+      if (!user) return;
+
+      const processLessons = () => {
+          updateState((current) => {
+              if (!current.autoLessonProcessing) return current;
+
+              const now = new Date();
+              const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+              const dayIndex = now.getDay(); // 0-6
+              const daysMap: Record<number, string> = {
+                  0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
+              };
+              const currentDay = daysMap[dayIndex];
+              const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+              let hasChanges = false;
+              const newStudents = { ...current.students };
+
+              // Tüm programı tara (Tüm öğretmenler ve tüm günler değil, sadece BUGÜN)
+              Object.keys(current.schedule).forEach(key => {
+                  if (!key.endsWith(`|${currentDay}`)) return;
+
+                  const slots = current.schedule[key];
+                  slots.forEach(slot => {
+                      if (!slot.studentId) return; // Boş ders
+                      // Telafi veya Deneme dersleri otomatik işlenmez (genelde)
+                      if (slot.label === 'MAKEUP' || slot.label === 'TRIAL') return;
+
+                      const endMinutes = timeToMinutes(slot.end);
+
+                      // Ders süresi bitmiş mi?
+                      if (endMinutes <= currentMinutes) {
+                          const student = newStudents[slot.studentId];
+                          if (!student) return;
+
+                          // Bugün için zaten işlenmiş mi? (Tarih ve Borç kontrolü)
+                          const alreadyProcessed = student.history.some(tx => 
+                              tx.isDebt && 
+                              tx.date.startsWith(todayStr) && 
+                              !tx.note.includes("Telafi") // Telafiyi manuel ekleriz, bunu sayma
+                          );
+
+                          if (!alreadyProcessed) {
+                              hasChanges = true;
+                              const newDebtCount = student.debtLessonCount + 1;
+                              const newTx: Transaction = {
+                                  id: Math.random().toString(36).substr(2, 9),
+                                  note: `${newDebtCount}. Ders (Otomatik)`,
+                                  date: new Date().toISOString(),
+                                  isDebt: true,
+                                  amount: 0
+                              };
+
+                              newStudents[slot.studentId] = {
+                                  ...student,
+                                  debtLessonCount: newDebtCount,
+                                  history: [newTx, ...student.history]
+                              };
+                          }
+                      }
+                  });
+              });
+
+              if (!hasChanges) return current;
+              return { ...current, students: newStudents };
+          });
+      };
+
+      // İlk yüklemede çalıştır
+      processLessons();
+
+      // Her 60 saniyede bir kontrol et
+      const interval = setInterval(processLessons, 60000);
+
+      return () => clearInterval(interval);
+  }, [user]); // User değiştiğinde (login/logout) effect resetlenir, state dependency olarak eklenmez çünkü updateState fonksiyonel update kullanır.
+
 
   const updateCssVariables = (themeKey: string) => {
       const theme = THEMES[themeKey] || THEMES['indigo'];
