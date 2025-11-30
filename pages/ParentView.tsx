@@ -9,6 +9,15 @@ interface ParentViewProps {
   studentId: string;
 }
 
+const ICONS: Record<string, React.ElementType> = {
+  'sparkles': Sparkles,
+  'palette': Palette,
+  'music': Music,
+  'book': BookOpen,
+  'trophy': Trophy,
+  'activity': Activity
+};
+
 export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -60,7 +69,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       // Resources Safety Check
       const safeResources = Array.isArray(student.resources) ? student.resources : [];
 
-      // 1. Next Lesson Logic
+      // 1. Next Lesson Logic (Search ALL teachers)
       const getNextLesson = () => {
         const today = new Date();
         today.setHours(0,0,0,0); // Normalize today
@@ -69,30 +78,39 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         // App keys used in state.schedule
         const appKeys = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cmt"];
         
-        let foundSlot = null;
-        let daysFromToday = -1;
-
-        // Find the earliest upcoming slot in the weekly cycle
+        let foundSlot: { slot: any, date: Date } | null = null;
+        
+        // Check next 7 days starting from today
         for (let i = 0; i < 7; i++) {
             const checkDayIndex = (dayIndex + i) % 7;
             const keyDayName = appKeys[checkDayIndex];
             
-            const key = `${appState.currentTeacher}|${keyDayName}`;
-            const slots = appState.schedule[key] || [];
-            const s = slots.find(slot => slot.studentId === student.id);
+            // Search in ALL schedule keys that end with this day name
+            let dailySlot = null;
             
-            if (s) {
-                foundSlot = s;
-                daysFromToday = i;
-                break;
+            // appState.schedule keys are like "TeacherName|DayName"
+            Object.entries(appState.schedule).forEach(([key, slots]) => {
+                if (key.endsWith(`|${keyDayName}`)) {
+                    const s = slots.find(slot => slot.studentId === student.id);
+                    if (s) {
+                        dailySlot = s;
+                    }
+                }
+            });
+
+            if (dailySlot) {
+                // Found a slot
+                const targetDate = new Date(today);
+                targetDate.setDate(today.getDate() + i);
+                
+                foundSlot = { slot: dailySlot, date: targetDate };
+                break; // Stop at the first found lesson
             }
         }
 
         if (!foundSlot) return null;
 
-        // Calculate the proposed next date based on the weekly cycle relative to today
-        let targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + daysFromToday);
+        let targetDate = foundSlot.date;
 
         // Enforce Registration Date as the start date
         if (student.registrationDate) {
@@ -101,8 +119,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             
             // If the calculated next occurrence is before the registration date,
             // push it forward by weeks until it falls on or after the registration date.
-            while (targetDate < regDate) {
+            // Safety: Limit loop to avoid infinite loops if something is wrong (max 52 weeks)
+            let weeksAdded = 0;
+            while (targetDate < regDate && weeksAdded < 52) {
                 targetDate.setDate(targetDate.getDate() + 7);
+                weeksAdded++;
             }
         }
 
@@ -118,7 +139,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             ? `Bugün, ${targetDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}` 
             : formattedDate;
 
-        return { day: displayDate, time: `${foundSlot.start} - ${foundSlot.end}` };
+        return { day: displayDate, time: `${foundSlot.slot.start} - ${foundSlot.slot.end}` };
       };
 
       // 2. History Processing
@@ -128,9 +149,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       // 3. Payment Logic
       const lastPaymentTx = allHistorySorted.find(tx => 
           !tx.isDebt && 
-          !tx.note.includes("Telafi") && 
-          !tx.note.includes("Deneme") && 
-          !tx.note.includes("Ders")
+          !(tx.note || "").includes("Telafi") && 
+          !(tx.note || "").includes("Deneme") && 
+          !(tx.note || "").includes("Ders")
       );
       
       let lastPaymentDateStr = "Kayıt Yok";
@@ -152,17 +173,15 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       }
 
       // 5. Dynamic Lesson Numbering Logic
-      // Filter strictly for "Regular Lessons" to number them properly (1. Ders, 2. Ders)
       const lessonNumberMap = new Map<string, number>();
       const regularLessons = filteredHistory.filter(tx => 
         tx.isDebt && 
-        !tx.note.toLowerCase().includes("telafi") && 
-        !tx.note.toLowerCase().includes("deneme") && 
-        !tx.note.toLowerCase().includes("iptal") && 
-        !tx.note.toLowerCase().includes("gelmedi")
+        !(tx.note || "").toLowerCase().includes("telafi") && 
+        !(tx.note || "").toLowerCase().includes("deneme") && 
+        !(tx.note || "").toLowerCase().includes("iptal") && 
+        !(tx.note || "").toLowerCase().includes("gelmedi")
       );
       
-      // Sort oldest to newest to assign numbers 1, 2, 3...
       regularLessons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       regularLessons.forEach((tx, index) => {
@@ -172,7 +191,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       return {
           nextLesson: getNextLesson(),
           lastPaymentStr: lastPaymentDateStr,
-          currentPeriodHistory: filteredHistory, // Display sorted Newest -> Oldest
+          currentPeriodHistory: filteredHistory, 
           safeResources,
           lessonNumberMap
       };
@@ -196,7 +215,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           <XCircle size={32} />
         </div>
         <h3 className="text-lg font-black text-slate-800">Erişim Hatası</h3>
-        <p className="text-slate-500 text-sm mt-2 max-w-xs mx-auto font-medium">{error}</p>
+        <p className="text-slate-500 text-sm mt-2 max-w-xs mx-auto font-medium">{error || "Bilgilere ulaşılamadı."}</p>
       </div>
     );
   }
@@ -232,6 +251,10 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       }
   };
 
+  // Logo Logic
+  const isCustomLogo = appState.schoolIcon?.startsWith('data:');
+  const SchoolIconComponent = appState.schoolIcon && !isCustomLogo ? (ICONS[appState.schoolIcon] || Sparkles) : Sparkles;
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 selection:bg-indigo-100 pb-24 pt-6">
       
@@ -241,15 +264,19 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                  {/* Background Decor */}
                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
 
-                 <div className="w-16 h-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-xl font-black shrink-0 shadow-lg shadow-slate-200 z-10">
-                    {student.name.charAt(0).toUpperCase()}
+                 <div className="w-16 h-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-xl font-black shrink-0 shadow-lg shadow-slate-200 z-10 overflow-hidden">
+                    {isCustomLogo ? (
+                        <img src={appState.schoolIcon} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                        <SchoolIconComponent size={28} strokeWidth={1.5} />
+                    )}
                 </div>
-                <div className="z-10">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">ÖĞRENCİ PORTALI</p>
-                    <h2 className="text-xl font-black text-slate-900 leading-tight">{student.name}</h2>
+                <div className="z-10 flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">{appState.schoolName}</p>
+                    <h2 className="text-xl font-black text-slate-900 leading-tight truncate">{student.name}</h2>
                     <div className="flex items-center gap-1.5 mt-1">
                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                         <span className="text-xs font-bold text-emerald-600">Aktif Öğrenci</span>
+                         <span className="text-xs font-bold text-emerald-600">Öğrenci Portalı</span>
                     </div>
                 </div>
             </div>
@@ -352,7 +379,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         let Icon = UserCheck;
                         let showAmount = false;
 
-                        const lowerNote = tx.note.toLowerCase();
+                        const lowerNote = (tx.note || "").toLowerCase();
 
                         if (!tx.isDebt) {
                             // PAYMENT
