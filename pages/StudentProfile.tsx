@@ -88,13 +88,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       // Borç sayacı: 
       // isDebt = true olan işlemler.
       // "Telafi" veya "Deneme" notu içerenler borç sayılmaz.
-      // "Habersiz Gelmedi" (notta "gelmedi" geçse bile) aslında bir ders hakkı harcanmıştır, o yüzden borç sayılmalı.
-      // Bu yüzden "gelmedi" filtresini kaldırıyoruz, böylece gelmediği dersler de sayaca işler.
+      // "Habersiz Gelmedi" notu içerenler borç sayılır (filtreyi kaldırdık).
       const debtLessons = current.filter(tx => 
           tx.isDebt && 
           !tx.note.toLowerCase().includes("telafi") && 
           !tx.note.toLowerCase().includes("deneme") 
-          // REMOVED: && !tx.note.toLowerCase().includes("gelmedi") -> Artık "Habersiz Gelmedi" de sayaçta sayılıyor.
+          // REMOVED: && !tx.note.toLowerCase().includes("gelmedi") -> Habersiz gelmedi dersten sayılır
       );
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
@@ -106,7 +105,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const map = new Map<string, number>();
       
       // Sadece borç sayılan dersleri numaralandır (arşiv dahil tüm tarihçe için)
-      // Burada da "gelmedi" filtresini kaldırdım ki numaralandırmada da görünsün.
+      // "Gelmedi" (habersiz) olanlar da numara alır.
       const allRegularLessons = sortedHistory.filter(tx => 
         tx.isDebt && 
         !tx.note.toLowerCase().includes("telafi") && 

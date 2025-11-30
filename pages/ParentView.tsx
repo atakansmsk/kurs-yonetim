@@ -64,7 +64,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       registrationDateStr
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "-", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map(), registrationDateStr: ""
+          nextLesson: null, lastPaymentStr: "Ödeme Kaydı Yok", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map(), registrationDateStr: ""
       };
 
       // Resources Safety Check
@@ -155,15 +155,12 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           !(tx.note || "").includes("Ders")
       );
       
-      let lastPaymentDateStr = "Kayıt Yok";
+      let lastPaymentDateStr = "Ödeme Kaydı Yok";
       let lastPaymentDateObj: Date | null = null;
 
       if (lastPaymentTx) {
           lastPaymentDateObj = new Date(lastPaymentTx.date);
           lastPaymentDateStr = lastPaymentDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-      } else if (student.registrationDate) {
-          lastPaymentDateObj = new Date(student.registrationDate);
-          lastPaymentDateStr = "Kayıt Tarihi";
       }
 
       // 4. Filter History (Show only AFTER last payment)

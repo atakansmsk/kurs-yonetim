@@ -126,7 +126,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       switchTeacher: (name) => updateState(s => ({ ...s, currentTeacher: name })),
 
-      // Updated to accept registrationDate
       addStudent: (name, phone, fee, registrationDate) => {
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
