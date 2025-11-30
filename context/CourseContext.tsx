@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource } from '../types';
 import { useAuth } from './AuthContext';
@@ -119,6 +120,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (!current.autoLessonProcessing) return current;
 
           const now = new Date();
+          const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
           const dayIndex = now.getDay(); // 0-6 (Local Time)
           const daysMap: Record<number, string> = {
               0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
@@ -154,8 +156,17 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               slots.forEach(slot => {
                   if (!slot.studentId) return;
 
-                  // Telafi veya Deneme dersleri otomatik işlenmez, onlar manuel yönetilir.
+                  // Telafi veya Deneme dersleri otomatik işlenmez
                   if (slot.label === 'MAKEUP' || slot.label === 'TRIAL') return;
+                  
+                  // ÖNEMLİ: Öğrencinin başlangıç tarihi kontrolü
+                  const student = current.students[slot.studentId];
+                  if (!student) return;
+
+                  // Eğer öğrencinin başlangıç tarihi varsa ve bugün o tarihten önceyse, dersi işleme
+                  if (student.startDate && student.startDate > todayStr) {
+                      return;
+                  }
 
                   const endMinutes = timeToMinutes(slot.end);
 
@@ -217,7 +228,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return () => clearInterval(interval);
   }, [user, processLessons]);
 
-  // Veri yüklendiği an bir kere çalıştır (Kullanıcı uygulamayı açtığında geçmiş dersleri anında görsün)
+  // Veri yüklendiği an bir kere çalıştır
   useEffect(() => {
       if (isLoaded) {
           processLessons();
@@ -246,11 +257,12 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       switchTeacher: (name) => updateState(s => ({ ...s, currentTeacher: name })),
 
-      addStudent: (name, phone, fee) => {
+      addStudent: (name, phone, fee, startDate) => {
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
               id, name, phone, fee, 
               registrationDate: new Date().toISOString(),
+              startDate: startDate || new Date().toISOString().split('T')[0],
               debtLessonCount: 0,
               makeupCredit: 0,
               history: [],
@@ -260,10 +272,22 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return id;
       },
 
-      updateStudent: (id, name, phone, fee) => updateState(s => {
+      updateStudent: (id, name, phone, fee, startDate) => updateState(s => {
           const student = s.students[id];
           if (!student) return s;
-          return { ...s, students: { ...s.students, [id]: { ...student, name, phone, fee } } };
+          return { 
+              ...s, 
+              students: { 
+                  ...s.students, 
+                  [id]: { 
+                      ...student, 
+                      name, 
+                      phone, 
+                      fee, 
+                      startDate: startDate || student.startDate || new Date().toISOString().split('T')[0] 
+                  } 
+              } 
+          };
       }),
 
       deleteStudent: (id) => updateState(s => {

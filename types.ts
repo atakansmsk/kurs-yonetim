@@ -1,4 +1,5 @@
 
+
 export interface Transaction {
   id: string;
   note: string;
@@ -21,6 +22,7 @@ export interface Student {
   phone: string;
   fee: number;
   registrationDate: string;
+  startDate: string; // Derslerin başlayacağı tarih (YYYY-MM-DD)
   debtLessonCount: number;
   makeupCredit: number; // Telafi hakkı bakiyesi
   history: Transaction[];
@@ -65,8 +67,8 @@ export interface CourseContextType {
     updateThemeColor: (color: string) => void;
     addTeacher: (name: string) => void;
     switchTeacher: (name: string) => void;
-    addStudent: (name: string, phone: string, fee: number) => string;
-    updateStudent: (id: string, name: string, phone: string, fee: number) => void;
+    addStudent: (name: string, phone: string, fee: number, startDate: string) => string;
+    updateStudent: (id: string, name: string, phone: string, fee: number, startDate: string) => void;
     deleteStudent: (id: string) => void;
     getStudent: (id: string) => Student | undefined;
     addSlot: (day: WeekDay, start: string, end: string) => void;
