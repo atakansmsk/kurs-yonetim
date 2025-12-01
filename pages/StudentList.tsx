@@ -138,7 +138,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
         <div className="flex-1 min-w-0">
             <div className="flex justify-between items-center">
                 <h4 className="font-bold text-slate-800 text-xs truncate pr-1 leading-tight">{student.name}</h4>
-                <span className={`text-[10px] font-black shrink-0 ${isPaid ? 'text-emerald-600' : 'text-slate-500'}`}>{student.fee}₺</span>
+                {/* Fiyat bilgisi kaldırıldı */}
             </div>
             <div className="flex items-center gap-1 mt-0.5">
                 {!isPaid ? (
