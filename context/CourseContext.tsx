@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource } from '../types';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource, WeekDay, DAYS } from '../types';
 import { useAuth } from './AuthContext';
 import { DataService } from '../services/api';
 
@@ -56,10 +56,97 @@ const THEMES: Record<string, Record<string, string>> = {
   }
 };
 
+const getTodayName = (): WeekDay => {
+  const map: Record<number, WeekDay> = {
+    0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
+  };
+  return map[new Date().getDay()];
+};
+
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [isLoaded, setIsLoaded] = useState(false);
+  const processingRef = useRef(false);
+
+  // AUTO PROCESSING LOGIC
+  const checkAndProcessLessons = (currentState: AppState): AppState | null => {
+      if (!currentState.autoLessonProcessing) return null;
+
+      const now = new Date();
+      const todayName = getTodayName();
+      
+      let newState = { ...currentState };
+      let changesFound = false;
+
+      // Filter schedule for TODAY only (Safe approach)
+      const relevantKeys = Object.keys(newState.schedule).filter(k => k.endsWith(`|${todayName}`));
+
+      relevantKeys.forEach(key => {
+          const slots = newState.schedule[key];
+          slots.forEach(slot => {
+              if (!slot.studentId) return;
+
+              // Parse Slot Time
+              const [h, m] = slot.end.split(':').map(Number);
+              const lessonEnd = new Date();
+              lessonEnd.setHours(h, m, 0, 0);
+
+              // If lesson end time is in the past
+              if (lessonEnd < now) {
+                  const student = newState.students[slot.studentId];
+                  if (!student) return;
+
+                  // Check if transaction already exists for TODAY
+                  const hasTx = student.history.some(tx => {
+                      if (!tx.isDebt || tx.note.includes("Telafi Bekliyor")) return false;
+                      const txDate = new Date(tx.date);
+                      return txDate.getDate() === now.getDate() && 
+                             txDate.getMonth() === now.getMonth() && 
+                             txDate.getFullYear() === now.getFullYear();
+                  });
+
+                  if (!hasTx) {
+                       changesFound = true;
+                       
+                       let newDebtCount = student.debtLessonCount;
+                       let note = "";
+                       
+                       if (slot.label === 'MAKEUP') {
+                           note = "Telafi Dersi İşlendi";
+                       } else if (slot.label === 'TRIAL') {
+                           note = "Deneme Dersi İşlendi";
+                       } else {
+                           newDebtCount += 1;
+                           note = `${newDebtCount}. Ders İşlendi`;
+                       }
+
+                       const newTx: Transaction = {
+                          id: Math.random().toString(36).substr(2, 9),
+                          note,
+                          date: lessonEnd.toISOString(),
+                          isDebt: true,
+                          amount: 0
+                       };
+
+                       newState = {
+                           ...newState,
+                           students: {
+                               ...newState.students,
+                               [student.id]: {
+                                   ...student,
+                                   debtLessonCount: newDebtCount,
+                                   history: [newTx, ...student.history]
+                               }
+                           }
+                       };
+                  }
+              }
+          });
+      });
+
+      return changesFound ? newState : null;
+  };
 
   // Sync with Firestore
   useEffect(() => {
@@ -72,8 +159,17 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const unsubscribe = DataService.subscribeToUserData(
         user.id,
         (newData) => {
-            setState(newData);
-            updateCssVariables(newData.themeColor);
+            // Check for auto-processing on load
+            const processedState = checkAndProcessLessons(newData);
+            const finalState = processedState || newData;
+
+            // If processing happened, save back to DB asynchronously
+            if (processedState) {
+                DataService.saveUserData(user.id, finalState).catch(console.error);
+            }
+
+            setState(finalState);
+            updateCssVariables(finalState.themeColor);
             setIsLoaded(true);
         },
         (error) => {
@@ -84,6 +180,28 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     return () => unsubscribe();
   }, [user]);
+
+  // Periodic Check (Every Minute)
+  useEffect(() => {
+      if (!isLoaded || !state.autoLessonProcessing || !user) return;
+
+      const interval = setInterval(() => {
+          if (processingRef.current) return;
+          processingRef.current = true;
+
+          const processedState = checkAndProcessLessons(state);
+          if (processedState) {
+              setState(processedState);
+              DataService.saveUserData(user.id, processedState)
+                  .catch(console.error)
+                  .finally(() => { processingRef.current = false; });
+          } else {
+              processingRef.current = false;
+          }
+      }, 60000); // Check every minute
+
+      return () => clearInterval(interval);
+  }, [isLoaded, state, user]);
 
   // Helper to update state and save to Cloud
   const updateState = (updater: (prev: AppState) => AppState) => {
