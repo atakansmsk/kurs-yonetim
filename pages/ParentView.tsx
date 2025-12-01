@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService } from '../services/api';
-import { AppState, Student } from '../types';
+import { AppState, Student, LessonSlot } from '../types';
 import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight, UserCheck } from 'lucide-react';
 
 interface ParentViewProps {
@@ -86,12 +86,12 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             const keyDayName = appKeys[checkDayIndex];
             
             // Search in ALL schedule keys that end with this day name
-            let dailySlot = null;
+            let dailySlot: LessonSlot | undefined = undefined;
             
             // appState.schedule keys are like "TeacherName|DayName"
             Object.entries(appState.schedule).forEach(([key, slots]) => {
                 if (key.endsWith(`|${keyDayName}`)) {
-                    const s = slots.find(slot => slot.studentId === student.id);
+                    const s = (slots as LessonSlot[]).find(slot => slot.studentId === student.id);
                     if (s) {
                         dailySlot = s;
                     }
@@ -258,7 +258,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
 
                 <div className="z-10 flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">{appState.schoolName}</p>
                     <h2 className="text-xl font-black text-slate-900 leading-tight truncate">{student.name}</h2>
                     <div className="flex items-center gap-1.5 mt-1">
                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
