@@ -75,7 +75,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
   // İstatistikler
   const totalStudents = Object.keys(state.students).length;
-  const unpaidCount = unpaidStudents.length;
 
   const handleAddStudent = () => {
       if(newName) {
@@ -110,50 +109,40 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       window.open(url, '_self');
   };
 
-  const handleSendToStudent = (phone: string) => {
-      let cleanPhone = phone.replace(/[^0-9]/g, '');
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const separator = isIOS ? '&' : '?';
-      const url = `sms:${cleanPhone}${separator}body=${encodeURIComponent(bulkMessage)}`;
-      window.open(url, '_self');
-  };
-
   const renderStudentRow = (student: Student, isPaid: boolean) => (
     <div 
         key={student.id} 
-        className={`group relative bg-white rounded-xl p-3 shadow-sm border transition-all duration-200 flex items-center gap-3 cursor-pointer active:scale-[0.99] ${isPaid ? 'border-slate-100 hover:border-emerald-200' : 'border-red-50 hover:border-red-200 bg-red-50/10'}`}
+        className={`group relative bg-white rounded-xl p-3 shadow-sm border transition-all duration-200 flex items-center gap-3 cursor-pointer active:scale-[0.99] hover:shadow-md ${isPaid ? 'border-emerald-100 hover:border-emerald-300' : 'border-red-100 hover:border-red-300'}`}
         onClick={() => onSelect(student.id)}
     >
         {/* Avatar */}
         <div className="relative">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-sm shrink-0 border ${isPaid ? 'bg-slate-50 text-slate-600 border-slate-100' : 'bg-white text-red-600 border-red-100'}`}>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-black text-sm shrink-0 border ${isPaid ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
                 {student.name.charAt(0).toUpperCase()}
             </div>
             {/* STATUS BADGE */}
-            <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white ${
-                isPaid 
-                ? 'bg-emerald-500 text-white' 
-                : (isCriticalPeriod ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-500 text-white')
-            }`}>
-                {isPaid ? <CheckCircle2 size={10} strokeWidth={4} /> : (isCriticalPeriod ? <AlertCircle size={10} strokeWidth={4} /> : <Clock size={10} strokeWidth={4} />)}
-            </div>
+            {!isPaid && (
+                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white ${
+                    isCriticalPeriod ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-500 text-white'
+                }`}>
+                    {isCriticalPeriod ? <AlertCircle size={8} strokeWidth={4} /> : <Clock size={8} strokeWidth={4} />}
+                </div>
+            )}
         </div>
         
         <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-start">
-                <h4 className="font-bold text-slate-800 text-sm truncate">{student.name}</h4>
-                {/* Ücret bilgisi sağ üstte */}
-                <span className={`text-xs font-black ${isPaid ? 'text-emerald-600' : 'text-slate-600'}`}>{student.fee}₺</span>
+            <div className="flex justify-between items-center">
+                <h4 className="font-bold text-slate-800 text-sm truncate pr-2">{student.name}</h4>
+                <span className={`text-xs font-black ${isPaid ? 'text-emerald-600' : 'text-slate-500'}`}>{student.fee}₺</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
                 {!isPaid ? (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${isCriticalPeriod ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {isCriticalPeriod ? <AlertCircle size={10}/> : <Clock size={10}/>}
-                        {isCriticalPeriod ? 'Ödeme Gecikti (1-5)' : 'Ödeme Bekleniyor'}
+                    <span className={`text-[9px] font-bold uppercase tracking-wide ${isCriticalPeriod ? 'text-red-500' : 'text-amber-500'}`}>
+                        {isCriticalPeriod ? 'Ödeme Gecikti' : 'Ödeme Bekleniyor'}
                     </span>
                 ) : (
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <CheckCircle2 size={10} /> Ödendi
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-500">
+                        Ödendi
                     </span>
                 )}
             </div>
@@ -161,97 +150,100 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
         <button 
             onClick={(e) => { e.stopPropagation(); setDeleteId(student.id); }}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
         >
-            <Trash2 size={16} />
+            <Trash2 size={14} />
         </button>
     </div>
   );
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] p-4 pb-24">
+    <div className="flex flex-col h-full bg-[#F8FAFC] pb-20">
       
-      {/* Header */}
-      <div className="flex flex-col gap-4 mb-4">
-          <div className="flex items-center justify-between">
+      {/* 1. Header & Search (Sticky) */}
+      <div className="bg-white px-4 pt-4 pb-2 sticky top-0 z-20 shadow-sm border-b border-slate-100">
+          <div className="flex items-center justify-between mb-3">
             <div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Öğrenciler</h2>
-                <p className="text-xs font-medium text-slate-400">
-                    Toplam {totalStudents} öğrenci
-                </p>
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">Öğrenci Listesi</h2>
+                <p className="text-xs font-medium text-slate-400">{totalStudents} Kayıtlı Öğrenci</p>
             </div>
             
             <div className="flex gap-2">
-                {/* SMS BUTONU */}
-                <button 
-                    onClick={() => setIsBulkModalOpen(true)}
-                    className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
-                >
-                    <MessageSquare size={18} />
+                <button onClick={() => setIsBulkModalOpen(true)} className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 hover:bg-indigo-100 transition-all">
+                    <MessageSquare size={16} />
                 </button>
-                {/* EKLE BUTONU */}
-                <button 
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all"
-                >
-                    <UserPlus size={18} />
+                <button onClick={() => setIsAddModalOpen(true)} className="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-md hover:bg-slate-800 transition-all">
+                    <UserPlus size={16} />
                 </button>
             </div>
           </div>
-      </div>
-      
-      {/* Search */}
-      <div className="relative mb-4 group sticky top-0 z-10">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-        </div>
-        <input 
-            type="text" 
-            placeholder="İsim ara..." 
-            className="block w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-white/90 backdrop-blur-md text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-        />
+          
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+            </div>
+            <input 
+                type="text" 
+                placeholder="İsim ile hızlı arama..." 
+                className="block w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar pb-4">
+      {/* 2. SPLIT COLUMNS CONTAINER */}
+      <div className="flex-1 overflow-y-auto p-4">
         
-        {/* --- BÖLÜM 1: ÖDEME BEKLEYENLER (UNPAID) --- */}
-        {unpaidStudents.length > 0 && (
-            <div className="animate-slide-up">
-                <div className="flex items-center justify-between mb-2 px-1 sticky top-0 z-0 bg-[#F8FAFC] py-1">
-                    <h3 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+        {/* On Mobile: Stacked (Grid cols 1) | On Desktop/Tablet: Side-by-Side (Grid cols 2) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-[500px]">
+            
+            {/* LEFT COLUMN: UNPAID (RED) */}
+            <div className="flex flex-col bg-red-50/30 rounded-2xl border border-red-100/50 p-2 h-fit md:h-full">
+                <div className="flex items-center justify-between px-2 py-3 mb-2 border-b border-red-100/50">
+                    <h3 className="text-xs font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
                         <AlertCircle size={14} />
-                        Ödeme Bekleyenler ({unpaidStudents.length})
+                        Ödeme Bekleyenler
                     </h3>
+                    <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-md text-[10px] font-bold">{unpaidStudents.length}</span>
                 </div>
-                <div className="space-y-2">
-                    {unpaidStudents.map(s => renderStudentRow(s, false))}
+
+                <div className="flex-1 space-y-2 overflow-y-auto md:pr-1 custom-scrollbar">
+                    {unpaidStudents.length === 0 ? (
+                        <div className="text-center py-10 opacity-40 flex flex-col items-center">
+                             <CheckCircle2 size={32} className="text-red-300 mb-2" />
+                             <p className="text-xs font-bold text-red-400">Herkes Ödedi!</p>
+                        </div>
+                    ) : (
+                        unpaidStudents.map(s => renderStudentRow(s, false))
+                    )}
                 </div>
             </div>
-        )}
 
-        {/* --- BÖLÜM 2: ÖDEMESİ TAMAMLANANLAR (PAID) --- */}
-        {paidStudents.length > 0 && (
-            <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                <div className="flex items-center justify-between mb-2 px-1 sticky top-0 z-0 bg-[#F8FAFC] py-1">
+            {/* RIGHT COLUMN: PAID (GREEN) */}
+            <div className="flex flex-col bg-emerald-50/30 rounded-2xl border border-emerald-100/50 p-2 h-fit md:h-full">
+                <div className="flex items-center justify-between px-2 py-3 mb-2 border-b border-emerald-100/50">
                     <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
                         <CheckCircle2 size={14} />
-                        Ödemesi Tamamlananlar ({paidStudents.length})
+                        Ödeyenler
                     </h3>
+                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px] font-bold">{paidStudents.length}</span>
                 </div>
-                <div className="space-y-2">
-                    {paidStudents.map(s => renderStudentRow(s, true))}
+
+                <div className="flex-1 space-y-2 overflow-y-auto md:pr-1 custom-scrollbar">
+                    {paidStudents.length === 0 ? (
+                        <div className="text-center py-10 opacity-40 flex flex-col items-center">
+                             <Clock size={32} className="text-emerald-300 mb-2" />
+                             <p className="text-xs font-bold text-emerald-400">Henüz ödeme yok.</p>
+                        </div>
+                    ) : (
+                        paidStudents.map(s => renderStudentRow(s, true))
+                    )}
                 </div>
             </div>
-        )}
 
-        {unpaidStudents.length === 0 && paidStudents.length === 0 && (
-             <div className="flex flex-col items-center justify-center mt-10 text-slate-300 opacity-60 animate-slide-up">
-                <Search size={32} className="mb-2" />
-                <p className="font-bold text-sm">Kayıt bulunamadı.</p>
-             </div>
-        )}
+        </div>
+
       </div>
 
       {/* Add Student Modal */}
