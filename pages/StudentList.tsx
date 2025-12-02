@@ -138,7 +138,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
         <div className="flex-1 min-w-0">
             <div className="flex justify-between items-center">
                 <h4 className="font-bold text-slate-800 text-xs truncate pr-1 leading-tight">{student.name}</h4>
-                {/* Fiyat bilgisi kaldırıldı */}
             </div>
             <div className="flex items-center gap-1 mt-0.5">
                 {!isPaid ? (
@@ -197,14 +196,18 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           </div>
       </div>
 
-      {/* 2. SPLIT COLUMNS CONTAINER */}
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* 
+          2. LIST CONTAINER 
+          Mobile: Sayfa scroll olur, listeler alt alta gelir ve uzar.
+          Desktop (lg): Sayfa sabit kalır, listeler yan yana gelir ve kendi içinde scroll olur.
+      */}
+      <div className="flex-1 overflow-y-auto lg:overflow-hidden p-4">
         
-        {/* On Mobile: Stacked (Grid cols 1) | On Desktop/Tablet: Side-by-Side (Grid cols 2) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full min-h-[500px]">
+        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-4 lg:h-full">
             
-            {/* LEFT COLUMN: UNPAID (RED) */}
-            <div className="flex flex-col bg-red-50/30 rounded-xl border border-red-100/50 p-2 h-fit md:h-full">
+            {/* --- LEFT: UNPAID (RED) --- */}
+            <div className="flex flex-col bg-red-50/30 rounded-xl border border-red-100/50 p-2 h-fit lg:h-full">
+                {/* Header */}
                 <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-red-100/50">
                     <h3 className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1.5">
                         <AlertCircle size={12} />
@@ -213,7 +216,8 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                     <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] font-bold">{unpaidStudents.length}</span>
                 </div>
 
-                <div className="flex-1 space-y-1.5 overflow-y-auto md:pr-1 custom-scrollbar">
+                {/* Content List */}
+                <div className="flex-1 space-y-1.5 lg:overflow-y-auto lg:pr-1 custom-scrollbar">
                     {unpaidStudents.length === 0 ? (
                         <div className="text-center py-8 opacity-40 flex flex-col items-center">
                              <CheckCircle2 size={24} className="text-red-300 mb-1" />
@@ -225,8 +229,9 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                 </div>
             </div>
 
-            {/* RIGHT COLUMN: PAID (GREEN) */}
-            <div className="flex flex-col bg-emerald-50/30 rounded-xl border border-emerald-100/50 p-2 h-fit md:h-full">
+            {/* --- RIGHT: PAID (GREEN) --- */}
+            <div className="flex flex-col bg-emerald-50/30 rounded-xl border border-emerald-100/50 p-2 h-fit lg:h-full">
+                {/* Header */}
                 <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-emerald-100/50">
                     <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
                         <CheckCircle2 size={12} />
@@ -235,7 +240,8 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                     <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] font-bold">{paidStudents.length}</span>
                 </div>
 
-                <div className="flex-1 space-y-1.5 overflow-y-auto md:pr-1 custom-scrollbar">
+                {/* Content List */}
+                <div className="flex-1 space-y-1.5 lg:overflow-y-auto lg:pr-1 custom-scrollbar">
                     {paidStudents.length === 0 ? (
                         <div className="text-center py-8 opacity-40 flex flex-col items-center">
                              <Clock size={24} className="text-emerald-300 mb-1" />
