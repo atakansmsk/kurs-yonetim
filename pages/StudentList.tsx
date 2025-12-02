@@ -206,7 +206,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
         <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-4 lg:h-full">
             
             {/* --- LEFT: UNPAID (RED) --- */}
-            <div className="flex flex-col bg-red-50/30 rounded-xl border border-red-100/50 p-2 h-fit lg:h-full">
+            <div className="flex flex-col bg-red-50/30 rounded-xl border border-red-100/50 p-2 h-fit lg:h-full lg:min-h-0">
                 {/* Header */}
                 <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-red-100/50">
                     <h3 className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1.5">
@@ -230,7 +230,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
             </div>
 
             {/* --- RIGHT: PAID (GREEN) --- */}
-            <div className="flex flex-col bg-emerald-50/30 rounded-xl border border-emerald-100/50 p-2 h-fit lg:h-full">
+            <div className="flex flex-col bg-emerald-50/30 rounded-xl border border-emerald-100/50 p-2 h-fit lg:h-full lg:min-h-0">
                 {/* Header */}
                 <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-emerald-100/50">
                     <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
