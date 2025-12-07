@@ -1,7 +1,7 @@
 
 import { auth, db } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
-import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from "firebase/firestore";
 import { AppState, User } from '../types';
 
 // --- AUTH SERVİSİ ---
@@ -96,4 +96,49 @@ export const DataService = {
   }
 };
 
-// StorageService kaldırıldı (Base64 yöntemi kullanılıyor)
+// --- DOSYA SERVİSİ (Hybrid Storage) ---
+// Dosyaları ana veritabanı belgesinden ayırıp 'files' koleksiyonunda tutar.
+// Bu sayede ana belge boyutu şişmez ve uygulama çökmez.
+export const FileService = {
+  async saveFile(base64Data: string): Promise<string> {
+    try {
+      const fileId = Math.random().toString(36).substr(2, 12);
+      const fileRef = doc(collection(db, "files"), fileId);
+      
+      // Dosyayı parçalara bölmeden direkt kaydediyoruz (Firestore limiti 1MB)
+      // Eğer base64 1MB'dan büyükse hata verebilir, frontend'de sıkıştırma şart.
+      await setDoc(fileRef, {
+        content: base64Data,
+        createdAt: new Date().toISOString()
+      });
+      
+      return fileId;
+    } catch (error) {
+      console.error("File save error:", error);
+      throw new Error("Dosya kaydedilemedi. Boyut çok büyük olabilir.");
+    }
+  },
+
+  async getFile(fileId: string): Promise<string | null> {
+    try {
+      const fileRef = doc(db, "files", fileId);
+      const docSnap = await getDoc(fileRef);
+      
+      if (docSnap.exists()) {
+        return docSnap.data().content;
+      }
+      return null;
+    } catch (error) {
+      console.error("File fetch error:", error);
+      return null;
+    }
+  },
+
+  async deleteFile(fileId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, "files", fileId));
+    } catch (error) {
+      console.error("File delete error:", error);
+    }
+  }
+};
