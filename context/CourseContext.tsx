@@ -56,6 +56,15 @@ const THEMES: Record<string, Record<string, string>> = {
   }
 };
 
+// Helper for parsing currency inputs (handles comma vs dot)
+const parseCurrency = (val: string | number): number => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    // Replace comma with dot for JS parsing
+    const normalized = val.replace(',', '.');
+    return parseFloat(normalized) || 0;
+};
+
 const getTodayName = (): WeekDay => {
   const map: Record<number, WeekDay> = {
     0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
@@ -97,9 +106,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   const student = newState.students[slot.studentId];
                   if (!student) return;
 
-                  // Check if transaction already exists for TODAY
+                  // Check if ANY debt/lesson transaction already exists for TODAY
+                  // This prevents duplication if the teacher manually added "Absent" or "Lesson Done" earlier.
                   const hasTx = student.history.some(tx => {
-                      if (!tx.isDebt || tx.note.includes("Telafi Bekliyor")) return false;
+                      if (!tx.isDebt) return false; // Ignore payments
                       const txDate = new Date(tx.date);
                       return txDate.getDate() === now.getDate() && 
                              txDate.getMonth() === now.getMonth() && 
@@ -245,9 +255,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       switchTeacher: (name) => updateState(s => ({ ...s, currentTeacher: name })),
 
       addStudent: (name, phone, fee, registrationDate) => {
+          if (!name.trim()) return ""; // Prevent empty students
+          
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
-              id, name, phone, fee, 
+              id, 
+              name: name.trim(), 
+              phone: phone.trim(), 
+              fee: parseCurrency(fee), 
               // Use provided date or default to now
               registrationDate: registrationDate ? new Date(registrationDate).toISOString() : new Date().toISOString(),
               debtLessonCount: 0,
@@ -262,7 +277,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updateStudent: (id, name, phone, fee) => updateState(s => {
           const student = s.students[id];
           if (!student) return s;
-          return { ...s, students: { ...s.students, [id]: { ...student, name, phone, fee } } };
+          return { ...s, students: { ...s.students, [id]: { ...student, name: name.trim(), phone: phone.trim(), fee: parseCurrency(fee) } } };
       }),
 
       deleteStudent: (id) => updateState(s => {
@@ -350,12 +365,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               if (!customDate) {
                  newDebtCount = 0;
               }
-              // Eğer geçmiş bir ödeme elle giriliyorsa (customDate varsa) sayaç değişmez.
           }
 
-          // Miktar 0 olabilir, validasyon UI tarafında yapılır veya 0 kabul edilir.
-          const finalAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 
-              ? Number(amount)
+          const parsedAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 
+              ? parseCurrency(amount)
               : (isDebt ? 0 : student.fee);
 
           const newTx: Transaction = {
@@ -363,7 +376,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               note: isDebt ? `${newDebtCount}. Ders İşlendi` : 'Ödeme Alındı',
               date,
               isDebt,
-              amount: finalAmount
+              amount: parsedAmount
           };
 
           return {

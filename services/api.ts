@@ -1,7 +1,7 @@
 
 import { auth, db, storage } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
-// Removed modular firestore imports due to resolution issues
+import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AppState, User } from '../types';
 
@@ -46,13 +46,14 @@ export const AuthService = {
   }
 };
 
-// --- DATA SERVİSİ (FIRESTORE COMPAT API) ---
+// --- DATA SERVİSİ (FIRESTORE MODULAR API) ---
 export const DataService = {
   // Veriyi Buluta Yaz
   async saveUserData(userId: string, data: AppState): Promise<void> {
     try {
-      // Using Compat API: db.collection().doc().set()
-      await db.collection("schools").doc(userId).set(data);
+      // setDoc with merge:true prevents overwriting fields if we were doing partial updates,
+      // though currently we send the whole state. It's safer practice.
+      await setDoc(doc(db, "schools", userId), data, { merge: true });
     } catch (e) {
       console.error("Cloud save error:", e);
       throw e;
@@ -62,10 +63,9 @@ export const DataService = {
   // Tek Seferlik Veri Çekme (Public View için)
   async getPublicSchoolData(userId: string): Promise<AppState | null> {
     try {
-      // Using Compat API: db.collection().doc().get()
-      const docRef = db.collection("schools").doc(userId);
-      const docSnap = await docRef.get();
-      if (docSnap.exists) {
+      const docRef = doc(db, "schools", userId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
         return docSnap.data() as AppState;
       }
       return null;
@@ -77,17 +77,17 @@ export const DataService = {
 
   // Canlı Dinleme (Realtime Sync)
   subscribeToUserData(userId: string, onUpdate: (data: AppState) => void, onError: (error: any) => void): () => void {
-    const docRef = db.collection("schools").doc(userId);
+    const docRef = doc(db, "schools", userId);
     
-    // Using Compat API: docRef.onSnapshot()
-    const unsubscribe = docRef.onSnapshot(
+    const unsubscribe = onSnapshot(
+      docRef,
       { includeMetadataChanges: true },
-      (docSnap: any) => {
-        if (docSnap.exists) {
+      (docSnap) => {
+        if (docSnap.exists()) {
           onUpdate(docSnap.data() as AppState);
         }
       }, 
-      (error: any) => {
+      (error) => {
         console.error("Sync error:", error);
         onError(error);
       }

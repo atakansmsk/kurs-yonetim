@@ -2,12 +2,14 @@
 import React, { useState, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';
-import { Trash2, Search, UserPlus, MessageSquare, Copy, Send, MessageCircle, Banknote, AlertCircle, CheckCircle2, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, Search, UserPlus, MessageSquare, Copy, Send, MessageCircle, Banknote, AlertCircle, CheckCircle2, Clock, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface StudentListProps {
     onSelect: (id: string) => void;
 }
+
+type PaymentStatus = 'PAID' | 'PARTIAL' | 'UNPAID';
 
 export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const { state, actions } = useCourse();
@@ -35,20 +37,29 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   // Ayın 1'i ile 5'i arası kritik dönem mi?
   const isCriticalPeriod = currentDay >= 1 && currentDay <= 5;
 
-  const getPaymentStatus = (student: Student) => {
-      // KURAL: Eğer aylık ücret 0 veya daha az ise, otomatik olarak ÖDENDİ sayılır.
-      if (student.fee <= 0) {
-          return 'PAID';
-      }
+  const getPaymentStatus = (student: Student): PaymentStatus => {
+      // KURAL 1: Ücret <= 0 ise ödenmiş say.
+      if (student.fee <= 0) return 'PAID';
 
-      // Öğrencinin geçmişinde, BU AY ve BU YIL içinde yapılmış (!isDebt) bir işlem var mı?
-      const hasPaidThisMonth = student.history.some(tx => {
-          if (tx.isDebt) return false; // Borç kaydı (Ders) ödeme değildir.
+      // KURAL 2: Bu ay yapılan ödemeleri topla.
+      const thisMonthPayments = student.history.filter(tx => {
+          if (tx.isDebt) return false;
           const txDate = new Date(tx.date);
           return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
       });
 
-      return hasPaidThisMonth ? 'PAID' : 'UNPAID';
+      const totalPaid = thisMonthPayments.reduce((acc, curr) => acc + curr.amount, 0);
+
+      // KURAL 3: Toplam Ödeme >= Aylık Ücret ise TAMAM
+      if (totalPaid >= student.fee) {
+          return 'PAID';
+      }
+      // KURAL 4: Hiç ödeme yoksa
+      if (totalPaid === 0) {
+          return 'UNPAID';
+      }
+      // KURAL 5: Eksik ödeme varsa (0 < ödenen < ücret)
+      return 'PARTIAL';
   };
 
   // --- LİSTE AYRIŞTIRMA ---
@@ -71,8 +82,18 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           }
       });
 
-      // Sıralama: İsim alfabetik
-      unpaid.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+      // Sıralama: 
+      // Unpaid listesinde: Önce KISMİ ödeyenler, sonra tamamen ödemeyenler, sonra isme göre.
+      unpaid.sort((a, b) => {
+          const statusA = getPaymentStatus(a);
+          const statusB = getPaymentStatus(b);
+          
+          if (statusA === 'PARTIAL' && statusB !== 'PARTIAL') return -1;
+          if (statusB === 'PARTIAL' && statusA !== 'PARTIAL') return 1;
+          
+          return a.name.localeCompare(b.name, 'tr');
+      });
+
       paid.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 
       return { unpaidStudents: unpaid, paidStudents: paid };
@@ -82,8 +103,8 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const totalStudents = Object.keys(state.students).length;
 
   const handleAddStudent = () => {
-      if(newName) {
-          actions.addStudent(newName, newPhone, parseFloat(newFee) || 0, newRegDate);
+      if(newName.trim()) {
+          actions.addStudent(newName, newPhone, newFee, newRegDate);
           setIsAddModalOpen(false);
           setNewName(""); setNewPhone(""); setNewFee("");
           setNewRegDate(new Date().toISOString().split('T')[0]);
@@ -114,52 +135,83 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       window.open(url, '_self');
   };
 
-  const renderStudentRow = (student: Student, isPaid: boolean) => (
-    <div 
-        key={student.id} 
-        className={`group relative bg-white rounded-lg p-2 shadow-sm border transition-all duration-200 flex items-center gap-2 cursor-pointer active:scale-[0.99] hover:shadow-md ${isPaid ? 'border-emerald-100 hover:border-emerald-300' : 'border-red-100 hover:border-red-300'}`}
-        onClick={() => onSelect(student.id)}
-    >
-        {/* Avatar - Daha küçük (w-8 h-8) */}
-        <div className="relative shrink-0">
-            <div className={`w-8 h-8 rounded-md flex items-center justify-center font-black text-xs shrink-0 border ${isPaid ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                {student.name.charAt(0).toUpperCase()}
-            </div>
-            {/* STATUS BADGE - Daha küçük */}
-            {!isPaid && (
-                <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border border-white ${
-                    isCriticalPeriod ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-500 text-white'
-                }`}>
-                    {isCriticalPeriod ? <AlertCircle size={6} strokeWidth={4} /> : <Clock size={6} strokeWidth={4} />}
+  const renderStudentRow = (student: Student, isPaidList: boolean) => {
+    const status = getPaymentStatus(student);
+    const isPartial = status === 'PARTIAL';
+    
+    // Determine colors
+    let borderColor = 'border-slate-100 hover:border-slate-300';
+    let avatarBg = 'bg-slate-50 text-slate-600';
+    let badgeText = '';
+    let BadgeIcon = AlertCircle;
+    let badgeColorClass = 'text-slate-500';
+
+    if (isPaidList) {
+        borderColor = 'border-emerald-100 hover:border-emerald-300';
+        avatarBg = 'bg-emerald-50 text-emerald-600';
+        badgeText = 'Ödendi';
+        BadgeIcon = CheckCircle2;
+        badgeColorClass = 'text-emerald-500';
+    } else {
+        // Unpaid or Partial
+        if (isPartial) {
+            borderColor = 'border-orange-100 hover:border-orange-300';
+            avatarBg = 'bg-orange-50 text-orange-600';
+            badgeText = 'Kısmi Ödeme (Eksik)';
+            BadgeIcon = AlertTriangle;
+            badgeColorClass = 'text-orange-500';
+        } else {
+            borderColor = 'border-red-100 hover:border-red-300';
+            avatarBg = 'bg-red-50 text-red-600';
+            badgeText = isCriticalPeriod ? 'Gecikti' : 'Bekliyor';
+            BadgeIcon = isCriticalPeriod ? AlertCircle : Clock;
+            badgeColorClass = isCriticalPeriod ? 'text-red-500' : 'text-amber-500';
+        }
+    }
+
+    return (
+        <div 
+            key={student.id} 
+            className={`group relative bg-white rounded-lg p-2 shadow-sm border transition-all duration-200 flex items-center gap-2 cursor-pointer active:scale-[0.99] hover:shadow-md ${borderColor}`}
+            onClick={() => onSelect(student.id)}
+        >
+            {/* Avatar - Daha küçük (w-8 h-8) */}
+            <div className="relative shrink-0">
+                <div className={`w-8 h-8 rounded-md flex items-center justify-center font-black text-xs shrink-0 border border-transparent ${avatarBg}`}>
+                    {student.name.charAt(0).toUpperCase()}
                 </div>
-            )}
-        </div>
-        
-        <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-center">
-                <h4 className="font-bold text-slate-800 text-xs truncate pr-1 leading-tight">{student.name}</h4>
-            </div>
-            <div className="flex items-center gap-1 mt-0.5">
-                {!isPaid ? (
-                    <span className={`text-[8px] font-bold uppercase tracking-wide truncate leading-none ${isCriticalPeriod ? 'text-red-500' : 'text-amber-500'}`}>
-                        {isCriticalPeriod ? 'Gecikti' : 'Bekliyor'}
-                    </span>
-                ) : (
-                    <span className="text-[8px] font-bold uppercase tracking-wide text-emerald-500 leading-none">
-                        Ödendi
-                    </span>
+                {/* STATUS BADGE - Only for unpaid/partial */}
+                {!isPaidList && (
+                    <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border border-white ${
+                        isPartial ? 'bg-orange-500 text-white' :
+                        (isCriticalPeriod ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-500 text-white')
+                    }`}>
+                        <BadgeIcon size={6} strokeWidth={4} />
+                    </div>
                 )}
             </div>
-        </div>
+            
+            <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center">
+                    <h4 className="font-bold text-slate-800 text-xs truncate pr-1 leading-tight">{student.name}</h4>
+                </div>
+                <div className="flex items-center gap-1 mt-0.5">
+                    <span className={`text-[8px] font-bold uppercase tracking-wide truncate leading-none ${badgeColorClass}`}>
+                        {badgeText}
+                    </span>
+                    {/* Show remaining amount logic could go here if needed */}
+                </div>
+            </div>
 
-        <button 
-            onClick={(e) => { e.stopPropagation(); setDeleteId(student.id); }}
-            className="w-5 h-5 rounded flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-        >
-            <Trash2 size={12} />
-        </button>
-    </div>
-  );
+            <button 
+                onClick={(e) => { e.stopPropagation(); setDeleteId(student.id); }}
+                className="w-5 h-5 rounded flex items-center justify-center text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+            >
+                <Trash2 size={12} />
+            </button>
+        </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] pb-20">
@@ -205,7 +257,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
         
         <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-4 lg:h-full">
             
-            {/* --- LEFT: UNPAID (RED) --- */}
+            {/* --- LEFT: UNPAID/PARTIAL (RED/ORANGE) --- */}
             <div className="flex flex-col bg-red-50/30 rounded-xl border border-red-100/50 p-2 h-fit lg:h-full lg:min-h-0">
                 {/* Header */}
                 <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-red-100/50">
@@ -262,7 +314,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
         actions={
             <>
                 <button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">İptal</button>
-                <button onClick={handleAddStudent} disabled={!newName} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
+                <button onClick={handleAddStudent} disabled={!newName.trim()} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95 transition-all">Kaydet</button>
             </>
         }
       >
@@ -271,7 +323,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
              <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Telefon" />
              
              <div className="flex gap-2">
-                <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Aylık Ücret" />
+                <input type="text" inputMode="decimal" value={newFee} onChange={e=>setNewFee(e.target.value)} className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" placeholder="Aylık Ücret (TL)" />
              </div>
              
              <div>
@@ -291,7 +343,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                     onClick={() => { setBulkTarget('UNPAID'); setBulkMessage("Sayın veli, ödeme hatırlatmasıdır. Bilginize."); }}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${bulkTarget === 'UNPAID' ? 'bg-white shadow-sm text-red-600' : 'text-slate-400'}`}
                 >
-                    Sadece Ödemeyenler
+                    Ödeme Bekleyenler
                 </button>
                 <button 
                     onClick={() => { setBulkTarget('ALL'); setBulkMessage(""); }}
