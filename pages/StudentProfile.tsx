@@ -76,10 +76,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       let archived: Transaction[] = [];
 
       if (lastPaymentIndex !== -1) {
-          // Ödemeden önceki (tarih olarak sonraki) tüm işlemler = GÜNCEL LİSTE
-          current = sortedHistory.slice(0, lastPaymentIndex);
-          // Ödeme ve sonrası = ARŞİV
-          archived = sortedHistory.slice(lastPaymentIndex);
+          // Ödemeden önceki tüm işlemler + SON ÖDEME İŞLEMİ = GÜNCEL LİSTE
+          // Böylece ödeme yapıldığında ekrandan kaybolmaz, listenin en altında (veya tarihinde) görünür.
+          current = sortedHistory.slice(0, lastPaymentIndex + 1);
+          
+          // Son ödemeden öncekiler (daha eskiler) = ARŞİV
+          archived = sortedHistory.slice(lastPaymentIndex + 1);
       } else {
           // Hiç ödeme yoksa hepsi güncel
           current = sortedHistory;
@@ -88,7 +90,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       // Borç sayacı: 
       // isDebt = true olan işlemler.
       // "Telafi" veya "Deneme" notu içerenler borç sayılmaz.
-      // "Habersiz Gelmedi" notu içerenler borç sayılır (filtreyi kaldırdık).
+      // Payment (isDebt=false) is naturally excluded from debt count.
       const debtLessons = current.filter(tx => 
           tx.isDebt && 
           !tx.note.toLowerCase().includes("telafi") && 

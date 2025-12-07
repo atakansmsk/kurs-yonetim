@@ -162,11 +162,14 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           lastPaymentDateStr = lastPaymentDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       }
 
-      // 4. Filter History (Show only AFTER last payment)
+      // 4. Filter History (Show only AFTER last payment + INCLUDE THE PAYMENT)
       let filteredHistory = allHistorySorted;
       if (lastPaymentTx) {
-          const paymentTime = new Date(lastPaymentTx.date).getTime();
-          filteredHistory = allHistorySorted.filter(tx => new Date(tx.date).getTime() > paymentTime);
+          const paymentIndex = allHistorySorted.findIndex(tx => tx.id === lastPaymentTx.id);
+          if (paymentIndex !== -1) {
+              // Slice includes the payment index
+              filteredHistory = allHistorySorted.slice(0, paymentIndex + 1);
+          }
       }
 
       // 5. Dynamic Lesson Numbering Logic
