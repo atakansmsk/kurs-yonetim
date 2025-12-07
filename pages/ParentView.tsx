@@ -1,8 +1,9 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { DataService } from '../services/api';
+import { DataService, FileService } from '../services/api';
 import { AppState, Student, LessonSlot } from '../types';
-import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight, UserCheck } from 'lucide-react';
+import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight, UserCheck, Loader2, Eye } from 'lucide-react';
+import { Dialog } from '../components/Dialog';
 
 interface ParentViewProps {
   teacherId: string;
@@ -22,6 +23,12 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<{ student: Student, appState: AppState } | null>(null);
+
+  // Preview Modal States
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<'IMAGE' | 'PDF' | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -199,6 +206,43 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   }, [student, appState]);
 
 
+  // RESOURCE HANDLING
+  const handleOpenResource = async (res: any) => {
+      if (res.type === 'LINK' || res.type === 'VIDEO') {
+          // Normal link ise yeni sekmede aç
+          let url = res.url;
+          if (!url.startsWith('http') && !url.startsWith('data:')) {
+              url = 'https://' + url;
+          }
+          window.open(url, '_blank');
+      } else {
+          // PDF veya RESİM ise Modal içinde aç (Blocking önlemek için)
+          setIsPreviewLoading(true);
+          setIsPreviewOpen(true);
+          setPreviewType(res.type);
+          setPreviewContent(null);
+
+          let content = res.url;
+          
+          // Eğer içerik bir ID ise (FileService'den çek)
+          if (!content.startsWith('data:') && !content.startsWith('http')) {
+               const fetched = await FileService.getFile(content);
+               if (fetched) {
+                   content = fetched;
+               } else {
+                   setPreviewContent(null);
+                   setIsPreviewLoading(false);
+                   alert("Dosyaya ulaşılamadı.");
+                   return;
+               }
+          }
+
+          setPreviewContent(content);
+          setIsPreviewLoading(false);
+      }
+  };
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
@@ -219,13 +263,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       </div>
     );
   }
-
-  // Helper for safe links
-  const getSafeUrl = (url: string) => {
-      if (!url) return '#';
-      if (url.startsWith('http://') || url.startsWith('https://')) return url;
-      return `https://${url}`;
-  };
 
   const renderNextLessonDate = () => {
       if (!nextLesson) return null;
@@ -438,12 +475,10 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                 </h3>
                 <div className="grid grid-cols-1 gap-3">
                     {safeResources.map(res => (
-                        <a 
+                        <button 
                             key={res.id} 
-                            href={getSafeUrl(res.url)}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="group flex items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all active:scale-[0.99]"
+                            onClick={() => handleOpenResource(res)}
+                            className="w-full text-left group flex items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all active:scale-[0.99]"
                         >
                             {/* Icon / Thumbnail */}
                             <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 mr-4 overflow-hidden shadow-sm ${
@@ -452,7 +487,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                 res.type === 'IMAGE' ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-100 text-slate-500'
                             }`}>
                                 {res.type === 'IMAGE' ? (
-                                    <img src={res.url} alt="" className="w-full h-full object-cover" />
+                                    <div className="w-full h-full flex items-center justify-center bg-emerald-50">
+                                         <Image size={24} />
+                                    </div>
                                 ) : (
                                     res.type === 'VIDEO' ? <Youtube size={24} /> : 
                                     res.type === 'PDF' ? <FileText size={24} /> : <Link size={24} />
@@ -468,9 +505,9 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             </div>
                             
                             <div className="w-8 h-8 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                <ArrowRight size={16} />
+                                <Eye size={16} />
                             </div>
-                        </a>
+                        </button>
                     ))}
                 </div>
             </div>
@@ -484,6 +521,36 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         </div>
 
       </div>
+
+      {/* PREVIEW MODAL */}
+      <Dialog 
+        isOpen={isPreviewOpen} 
+        onClose={() => setIsPreviewOpen(false)} 
+        title="Dosya Önizleme"
+        actions={
+            <button onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Kapat</button>
+        }
+      >
+          <div className="flex items-center justify-center min-h-[200px] max-h-[60vh] overflow-auto bg-slate-50 rounded-xl p-2 border border-slate-100">
+              {isPreviewLoading ? (
+                  <div className="flex flex-col items-center gap-2">
+                      <Loader2 size={32} className="animate-spin text-indigo-600" />
+                      <span className="text-xs font-bold text-slate-400">Yükleniyor...</span>
+                  </div>
+              ) : previewContent ? (
+                  previewType === 'IMAGE' ? (
+                      <img src={previewContent} alt="Preview" className="max-w-full h-auto rounded-lg shadow-sm" />
+                  ) : (
+                      <iframe src={previewContent} className="w-full h-[300px] rounded-lg" title="PDF Preview"></iframe>
+                  )
+              ) : (
+                  <div className="flex flex-col items-center gap-2">
+                      <XCircle size={32} className="text-red-300" />
+                      <span className="text-xs font-bold text-slate-400">Dosya görüntülenemedi.</span>
+                  </div>
+              )}
+          </div>
+      </Dialog>
     </div>
   );
 };
