@@ -1,8 +1,7 @@
 
-import { auth, db, storage } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
 import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AppState, User } from '../types';
 
 // --- AUTH SERVİSİ ---
@@ -97,23 +96,4 @@ export const DataService = {
   }
 };
 
-// --- STORAGE SERVİSİ (MODULAR API) ---
-export const StorageService = {
-  async uploadFile(file: File | Blob, path: string): Promise<string> {
-    try {
-      // 1. Storage Referansı Oluştur (images/userID/timestamp_filename)
-      const storageRef = ref(storage, path);
-      
-      // 2. Dosyayı Yükle
-      const snapshot = await uploadBytes(storageRef, file);
-      
-      // 3. İndirme Linkini Al
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
-      return downloadURL;
-    } catch (error) {
-      console.error("Dosya yükleme hatası:", error);
-      throw error;
-    }
-  }
-};
+// StorageService kaldırıldı (Base64 yöntemi kullanılıyor)

@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
-import { StorageService } from '../services/api';
 
 interface StudentProfileProps {
   studentId: string;
@@ -68,55 +67,38 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const { currentHistory, archivedHistory, debtCount } = useMemo(() => {
       if (!student) return { currentHistory: [], archivedHistory: [], debtCount: 0 };
       
-      // Son ödemeyi bul (Telafi veya Ders olmayan, borç düşmeyen işlem)
-      // Ödeme işlemi: isDebt = false
       const lastPaymentIndex = sortedHistory.findIndex(tx => !tx.isDebt);
       
       let current: Transaction[] = [];
       let archived: Transaction[] = [];
 
       if (lastPaymentIndex !== -1) {
-          // Ödemeden önceki tüm işlemler + SON ÖDEME İŞLEMİ = GÜNCEL LİSTE
-          // Böylece ödeme yapıldığında ekrandan kaybolmaz, listenin en altında (veya tarihinde) görünür.
           current = sortedHistory.slice(0, lastPaymentIndex + 1);
-          
-          // Son ödemeden öncekiler (daha eskiler) = ARŞİV
           archived = sortedHistory.slice(lastPaymentIndex + 1);
       } else {
-          // Hiç ödeme yoksa hepsi güncel
           current = sortedHistory;
       }
 
-      // Borç sayacı: 
-      // isDebt = true olan işlemler.
-      // "Telafi" veya "Deneme" notu içerenler borç sayılmaz.
-      // Payment (isDebt=false) is naturally excluded from debt count.
       const debtLessons = current.filter(tx => 
           tx.isDebt && 
           !tx.note.toLowerCase().includes("telafi") && 
           !tx.note.toLowerCase().includes("deneme") 
-          // REMOVED: && !tx.note.toLowerCase().includes("gelmedi") -> Habersiz gelmedi dersten sayılır
       );
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
   }, [sortedHistory]);
   
-  // Lesson Number Map Calculation (For display 1. Ders, 2. Ders)
   const lessonNumberMap = useMemo(() => {
       if (!student) return new Map();
       const map = new Map<string, number>();
       
-      // Sadece borç sayılan dersleri numaralandır (arşiv dahil tüm tarihçe için)
-      // "Gelmedi" (habersiz) olanlar da numara alır.
       const allRegularLessons = sortedHistory.filter(tx => 
         tx.isDebt && 
         !tx.note.toLowerCase().includes("telafi") && 
         !tx.note.toLowerCase().includes("deneme") && 
         !tx.note.toLowerCase().includes("iptal")
-        // REMOVED: && !tx.note.toLowerCase().includes("gelmedi")
       );
       
-      // Eskiden yeniye sırala
       const ascLessons = [...allRegularLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       ascLessons.forEach((tx, index) => {
@@ -220,70 +202,90 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  // --- UPDATED FILE UPLOAD LOGIC (BASE64) ---
+  // --- SAFE FILE UPLOAD LOGIC (COMPRESSION) ---
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (!file || !user) return;
+      if (!file) return;
       
-      // Size check (Limit to ~500KB to prevent Firestore document bloat)
-      if (file.size > 500 * 1024) {
-          alert("Dosya boyutu çok büyük! Lütfen 500KB'dan küçük bir dosya seçin.");
-          if (fileInputRef.current) fileInputRef.current.value = "";
-          return;
-      }
-
       setIsUploading(true);
-      try {
-          let finalDataUrl = "";
-          let fileType: 'IMAGE' | 'PDF' = 'PDF';
 
-          if (file.type.startsWith('image/')) {
-               fileType = 'IMAGE';
-               finalDataUrl = await new Promise((resolve, reject) => {
-                  const img = document.createElement('img');
-                  const objectUrl = URL.createObjectURL(file);
-                  img.src = objectUrl;
-                  img.onload = () => {
-                      URL.revokeObjectURL(objectUrl);
-                      const canvas = document.createElement('canvas');
-                      // Optimization: Resize image to max 800px width
-                      let width = img.width; 
-                      let height = img.height; 
-                      const MAX_WIDTH = 800; 
-                      if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                      canvas.width = width; canvas.height = height;
-                      const ctx = canvas.getContext('2d');
-                      ctx?.drawImage(img, 0, 0, width, height);
-                      
-                      // Convert to Base64 (JPEG quality 0.7)
-                      resolve(canvas.toDataURL('image/jpeg', 0.7)); 
-                  };
-                  img.onerror = (e) => reject(e);
-              });
-          } else if (file.type === 'application/pdf') { 
-              fileType = 'PDF';
-              finalDataUrl = await new Promise((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve(reader.result as string);
-                  reader.onerror = reject;
-                  reader.readAsDataURL(file);
-              });
-          } else {
+      try {
+          // 1. Check file type
+          if (file.type === 'application/pdf') {
+              // PDF Compression is hard in-browser, so we keep a strict limit
+              if (file.size > 500 * 1024) {
+                  alert("PDF dosyaları en fazla 500KB olabilir. Lütfen daha küçük bir dosya seçin.");
+                  setIsUploading(false);
+                  return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => {
+                  setResUrl(reader.result as string);
+                  setResType('PDF');
+                  if (!resTitle) setResTitle(`Ödev ${new Date().toLocaleDateString('tr-TR')}`);
+                  setIsUploading(false);
+              };
+              reader.readAsDataURL(file);
+          } 
+          else if (file.type.startsWith('image/')) {
+              // IMAGE Compression
+              // We create an image element, draw it to canvas with reduced size
+              const img = document.createElement('img');
+              const objectUrl = URL.createObjectURL(file);
+              
+              img.onload = () => {
+                  URL.revokeObjectURL(objectUrl);
+                  
+                  // Calculate new size (Max width 800px)
+                  const MAX_WIDTH = 800;
+                  const scaleSize = MAX_WIDTH / img.width;
+                  const newWidth = (img.width > MAX_WIDTH) ? MAX_WIDTH : img.width;
+                  const newHeight = (img.width > MAX_WIDTH) ? (img.height * scaleSize) : img.height;
+
+                  const canvas = document.createElement('canvas');
+                  canvas.width = newWidth;
+                  canvas.height = newHeight;
+                  
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) {
+                      alert("Görüntü işlenemedi.");
+                      setIsUploading(false);
+                      return;
+                  }
+
+                  ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                  
+                  // Export as JPEG with 0.6 quality (High compression)
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                  
+                  // Final size check (Base64 string length ~ size in bytes * 1.33)
+                  if (dataUrl.length > 1000000) { // ~750KB limit for string
+                       alert("Fotoğraf sıkıştırılmasına rağmen çok büyük. Lütfen daha düşük çözünürlüklü bir fotoğraf çekin.");
+                       setIsUploading(false);
+                       return;
+                  }
+
+                  setResUrl(dataUrl);
+                  setResType('IMAGE');
+                  if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
+                  setIsUploading(false);
+              };
+
+              img.onerror = () => {
+                  alert("Resim yüklenirken hata oluştu.");
+                  setIsUploading(false);
+              };
+
+              img.src = objectUrl;
+          } 
+          else {
               alert("Sadece Resim ve PDF dosyaları desteklenir.");
               setIsUploading(false);
-              return;
           }
-
-          setResUrl(finalDataUrl); 
-          setResType(fileType);
-          if (!resTitle) setResTitle(`${fileType === 'IMAGE' ? 'Görsel' : 'Dosya'} ${new Date().toLocaleDateString('tr-TR')}`);
-          
-      } catch (error) { 
-          console.error("Dosya işleme hatası:", error); 
-          alert("Dosya işlenemedi."); 
-      } finally { 
-          setIsUploading(false); 
-          if (fileInputRef.current) fileInputRef.current.value = ""; 
+      } catch (error) {
+          console.error("Yükleme hatası:", error);
+          alert("Dosya işlenirken beklenmedik bir hata oluştu.");
+          setIsUploading(false);
       }
   };
 
@@ -301,14 +303,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       }
   };
 
-  // Helper to render a transaction item
   const renderTransactionItem = (tx: Transaction) => {
       const isPayment = !tx.isDebt;
       const dateObj = new Date(tx.date);
       const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
       const month = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
       
-      // Smart Title Logic
       let title = tx.note;
       let sub = isPayment ? "Ödeme" : "Tamamlandı";
       let icon = <Check size={16} />;
@@ -335,7 +335,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            icon = <XCircle size={16} />;
            iconClass = "bg-red-50 text-red-600";
       } else {
-          // Numbered Lesson
           const num = lessonNumberMap.get(tx.id);
           if (num) title = `${num}. Ders`;
       }
@@ -415,12 +414,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       {/* 2. Content Scrollable */}
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-6">
           
-          {/* STATS CARDS (REDESIGNED FOR MAXIMUM PROFESSIONALISM) */}
+          {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-4">
               
-              {/* Card 1: Lesson Counter - Premium Gradient & Glassmorphism */}
               <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-5 text-white shadow-xl shadow-indigo-200 flex flex-col justify-between h-48 group">
-                  {/* Premium Background Effects */}
                   <div className="absolute top-[-20%] right-[-20%] w-40 h-40 bg-white/10 rounded-full blur-[40px] pointer-events-none"></div>
                   <div className="absolute bottom-[-10%] left-[-10%] w-32 h-32 bg-purple-500/30 rounded-full blur-[50px] pointer-events-none"></div>
                   
@@ -446,9 +443,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   </div>
               </div>
 
-              {/* Card 2: Fee Info - Clean, High Contrast Financial Look */}
               <div className="relative overflow-hidden rounded-[24px] bg-white border border-slate-100 p-5 shadow-lg shadow-slate-100/80 flex flex-col justify-between h-48">
-                   {/* Subtle texture for white card */}
                    <div className="absolute top-0 right-0 p-4 opacity-5">
                        <Wallet size={80} className="text-slate-900" />
                    </div>
@@ -463,7 +458,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                            <span className="text-4xl font-black text-slate-800 tracking-tighter">{student.fee}</span>
                            <span className="text-lg font-bold text-slate-400">TL</span>
                         </div>
-                        {/* DEBT WARNING REMOVED AS REQUESTED */}
                      </div>
 
                      <button 
@@ -528,7 +522,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   </h3>
                </div>
                
-               {/* TIMELINE LIST - ONLY CURRENT PERIOD */}
                <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-6">
                   {currentHistory.length === 0 ? (
                       <div className="text-center py-10 opacity-50">
@@ -539,7 +532,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   )}
                </div>
 
-               {/* ARCHIVE BUTTON */}
                {archivedHistory.length > 0 && (
                    <button 
                     onClick={() => setIsArchiveModalOpen(true)}
@@ -664,7 +656,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                    <div className="flex gap-2">
                        <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex-1 p-8 border-2 border-dashed border-indigo-200 rounded-xl bg-indigo-50 text-indigo-500 flex flex-col items-center justify-center gap-2 hover:bg-indigo-100 transition-colors disabled:opacity-50">
                            {isUploading ? <Loader2 size={24} className="animate-spin" /> : <UploadCloud size={24} />}
-                           <span className="text-xs font-bold">{isUploading ? 'Yükleniyor...' : 'Dosya Seç (Resim/PDF)'}</span>
+                           <span className="text-xs font-bold">{isUploading ? 'İşleniyor...' : 'Dosya Seç (Resim/PDF)'}</span>
                        </button>
                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
                    </div>
@@ -672,7 +664,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                
                {resUrl && resTab === 'UPLOAD' && (
                    <div className="text-xs font-bold text-emerald-600 bg-emerald-50 p-2 rounded-lg flex items-center gap-2">
-                       <Check size={14} /> Dosya başarıyla yüklendi
+                       <Check size={14} /> Dosya başarıyla yüklendi (Hazır)
                    </div>
                )}
           </div>
