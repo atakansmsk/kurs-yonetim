@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService, FileService } from '../services/api';
 import { AppState, Student, LessonSlot } from '../types';
-import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight, UserCheck, Loader2, Eye } from 'lucide-react';
+import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight, UserCheck, Loader2, Eye, Download } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface ParentViewProps {
@@ -28,6 +28,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<'IMAGE' | 'PDF' | null>(null);
+  const [previewTitle, setPreviewTitle] = useState("");
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   useEffect(() => {
@@ -220,6 +221,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           setIsPreviewLoading(true);
           setIsPreviewOpen(true);
           setPreviewType(res.type);
+          setPreviewTitle(res.title);
           setPreviewContent(null);
 
           let content = res.url;
@@ -239,6 +241,46 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
 
           setPreviewContent(content);
           setIsPreviewLoading(false);
+      }
+  };
+
+  const handleDownload = () => {
+      if (!previewContent) return;
+
+      // Base64 to Blob conversion for clean download
+      if (previewContent.startsWith('data:')) {
+          try {
+              const byteString = atob(previewContent.split(',')[1]);
+              const mimeString = previewContent.split(',')[0].split(':')[1].split(';')[0];
+              const ab = new ArrayBuffer(byteString.length);
+              const ia = new Uint8Array(ab);
+              for (let i = 0; i < byteString.length; i++) {
+                  ia[i] = byteString.charCodeAt(i);
+              }
+              const blob = new Blob([ab], {type: mimeString});
+              const url = URL.createObjectURL(blob);
+              
+              const extension = previewType === 'PDF' ? 'pdf' : 'jpg';
+              const filename = `${previewTitle || 'Dosya'}.${extension}`;
+              
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+          } catch (e) {
+              console.error("Download error:", e);
+              // Fallback
+              const a = document.createElement('a');
+              a.href = previewContent;
+              a.download = `${previewTitle || 'Dosya'}`;
+              a.click();
+          }
+      } else {
+          // Direct URL
+          window.open(previewContent, '_blank');
       }
   };
 
@@ -528,7 +570,12 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
         onClose={() => setIsPreviewOpen(false)} 
         title="Dosya Önizleme"
         actions={
-            <button onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Kapat</button>
+            <>
+                <button onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">Kapat</button>
+                <button onClick={handleDownload} className="px-5 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-colors">
+                    <Download size={16} /> İndir
+                </button>
+            </>
         }
       >
           <div className="flex items-center justify-center min-h-[200px] max-h-[60vh] overflow-auto bg-slate-50 rounded-xl p-2 border border-slate-100">
