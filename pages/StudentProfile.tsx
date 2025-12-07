@@ -220,39 +220,71 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
+  // --- UPDATED FILE UPLOAD LOGIC (BASE64) ---
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file || !user) return;
+      
+      // Size check (Limit to ~500KB to prevent Firestore document bloat)
+      if (file.size > 500 * 1024) {
+          alert("Dosya boyutu çok büyük! Lütfen 500KB'dan küçük bir dosya seçin.");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+      }
+
       setIsUploading(true);
       try {
-          const timestamp = new Date().getTime();
-          let blobToUpload: Blob = file;
+          let finalDataUrl = "";
           let fileType: 'IMAGE' | 'PDF' = 'PDF';
+
           if (file.type.startsWith('image/')) {
                fileType = 'IMAGE';
-               blobToUpload = await new Promise((resolve, reject) => {
+               finalDataUrl = await new Promise((resolve, reject) => {
                   const img = document.createElement('img');
                   const objectUrl = URL.createObjectURL(file);
                   img.src = objectUrl;
                   img.onload = () => {
                       URL.revokeObjectURL(objectUrl);
                       const canvas = document.createElement('canvas');
-                      let width = img.width; let height = img.height; const MAX_WIDTH = 1024;
+                      // Optimization: Resize image to max 800px width
+                      let width = img.width; 
+                      let height = img.height; 
+                      const MAX_WIDTH = 800; 
                       if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                       canvas.width = width; canvas.height = height;
                       const ctx = canvas.getContext('2d');
                       ctx?.drawImage(img, 0, 0, width, height);
-                      canvas.toBlob((b) => { if (b) resolve(b); else reject(new Error('Canvas failed')); }, 'image/jpeg', 0.8);
+                      
+                      // Convert to Base64 (JPEG quality 0.7)
+                      resolve(canvas.toDataURL('image/jpeg', 0.7)); 
                   };
-                  img.onerror = reject;
+                  img.onerror = (e) => reject(e);
               });
-          } else if (file.type === 'application/pdf') { fileType = 'PDF'; blobToUpload = file; }
-          const extension = fileType === 'IMAGE' ? 'jpg' : 'pdf';
-          const path = `resources/${user.id}/${studentId}/${timestamp}.${extension}`;
-          const downloadUrl = await StorageService.uploadFile(blobToUpload, path);
-          setResUrl(downloadUrl); setResType(fileType);
+          } else if (file.type === 'application/pdf') { 
+              fileType = 'PDF';
+              finalDataUrl = await new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(file);
+              });
+          } else {
+              alert("Sadece Resim ve PDF dosyaları desteklenir.");
+              setIsUploading(false);
+              return;
+          }
+
+          setResUrl(finalDataUrl); 
+          setResType(fileType);
           if (!resTitle) setResTitle(`${fileType === 'IMAGE' ? 'Görsel' : 'Dosya'} ${new Date().toLocaleDateString('tr-TR')}`);
-      } catch (error) { console.error("Yükleme hatası:", error); alert("Dosya yüklenemedi."); } finally { setIsUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+          
+      } catch (error) { 
+          console.error("Dosya işleme hatası:", error); 
+          alert("Dosya işlenemedi."); 
+      } finally { 
+          setIsUploading(false); 
+          if (fileInputRef.current) fileInputRef.current.value = ""; 
+      }
   };
 
   const handleAddResource = () => {
