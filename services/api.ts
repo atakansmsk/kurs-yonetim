@@ -112,7 +112,7 @@ const retryOperation = async <T>(operation: () => Promise<T>, retries = 3, delay
 
 export const FileService = {
   // onProgress callback eklendi: (progress: number) => void
-  async saveFile(base64Data: string, onProgress?: (progress: number) => void): Promise<string> {
+  async saveFile(ownerId: string, base64Data: string, onProgress?: (progress: number) => void): Promise<string> {
     const fileId = Math.random().toString(36).substr(2, 12);
     const totalLength = base64Data.length;
 
@@ -120,7 +120,8 @@ export const FileService = {
       if (totalLength <= CHUNK_SIZE) {
         // Küçük dosya: Tek parça
         if(onProgress) onProgress(50);
-        await retryOperation(() => setDoc(doc(db, "files", fileId), {
+        // Path updated to: schools/{ownerId}/files/{fileId}
+        await retryOperation(() => setDoc(doc(db, "schools", ownerId, "files", fileId), {
           content: base64Data,
           type: 'simple',
           createdAt: new Date().toISOString()
@@ -135,16 +136,16 @@ export const FileService = {
 
         const totalChunks = chunks.length;
 
-        // Meta verisi
-        await retryOperation(() => setDoc(doc(db, "files", fileId), {
+        // Meta verisi - schools/{ownerId}/files/{fileId}
+        await retryOperation(() => setDoc(doc(db, "schools", ownerId, "files", fileId), {
           type: 'chunked',
           totalChunks: totalChunks,
           createdAt: new Date().toISOString()
         }));
 
-        // Parçaları sırayla yükle
+        // Parçaları sırayla yükle - schools/{ownerId}/files/{fileId}_{index}
         for (let index = 0; index < totalChunks; index++) {
-             await retryOperation(() => setDoc(doc(db, "files", `${fileId}_${index}`), {
+             await retryOperation(() => setDoc(doc(db, "schools", ownerId, "files", `${fileId}_${index}`), {
                 content: chunks[index],
                 index: index
             }));
@@ -160,26 +161,28 @@ export const FileService = {
       return fileId;
     } catch (error: any) {
       console.error("File save error details:", error);
-      throw new Error(`Dosya yüklenemedi: ${error.message || "Bilinmeyen Hata"}`);
+      throw new Error(`Dosya yüklenemedi: ${error.message || "Erişim Reddedildi"}`);
     }
   },
 
-  async getFile(fileId: string): Promise<string | null> {
+  async getFile(ownerId: string, fileId: string): Promise<string | null> {
     try {
-      const metaDocRef = doc(db, "files", fileId);
-      const metaSnap = await retryOperation(() => getDoc(metaDocRef));
+      // Look in user specific path
+      const metaDocRef = doc(db, "schools", ownerId, "files", fileId);
+      // Explicitly type the generic to avoid 'unknown' inference
+      const metaSnap = await retryOperation<DocumentSnapshot<DocumentData>>(() => getDoc(metaDocRef));
 
       if (!metaSnap.exists()) return null;
 
       const data = metaSnap.data();
 
-      if (data.type === 'chunked') {
+      if (data && data.type === 'chunked') {
           const totalChunks = data.totalChunks;
           
-          // Promise.all ile paralel çekim daha hızlıdır okurken
+          // Promise.all ile paralel çekim
           const chunkPromises: Promise<DocumentSnapshot<DocumentData>>[] = [];
           for (let i = 0; i < totalChunks; i++) {
-              chunkPromises.push(retryOperation(() => getDoc(doc(db, "files", `${fileId}_${i}`))));
+              chunkPromises.push(retryOperation<DocumentSnapshot<DocumentData>>(() => getDoc(doc(db, "schools", ownerId, "files", `${fileId}_${i}`))));
           }
           
           const chunkSnaps = await Promise.all(chunkPromises);
@@ -198,7 +201,7 @@ export const FileService = {
           }
           return fullContent;
       } else {
-          return data.content || null;
+          return data?.content || null;
       }
     } catch (error) {
       console.error("File fetch error:", error);
@@ -206,20 +209,20 @@ export const FileService = {
     }
   },
 
-  async deleteFile(fileId: string): Promise<void> {
+  async deleteFile(ownerId: string, fileId: string): Promise<void> {
     try {
-      const metaRef = doc(db, "files", fileId);
+      const metaRef = doc(db, "schools", ownerId, "files", fileId);
       const metaSnap = await getDoc(metaRef);
       
       if (metaSnap.exists()) {
           const data = metaSnap.data();
           await deleteDoc(metaRef);
 
-          if (data.type === 'chunked') {
+          if (data && data.type === 'chunked') {
               const totalChunks = data.totalChunks;
               const deletePromises = [];
               for (let i = 0; i < totalChunks; i++) {
-                  deletePromises.push(deleteDoc(doc(db, "files", `${fileId}_${i}`)));
+                  deletePromises.push(deleteDoc(doc(db, "schools", ownerId, "files", `${fileId}_${i}`)));
               }
               await Promise.all(deletePromises);
           }

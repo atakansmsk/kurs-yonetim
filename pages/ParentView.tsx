@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService, FileService } from '../services/api';
 import { AppState, Student, LessonSlot } from '../types';
@@ -228,7 +227,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           
           // Eğer içerik bir ID ise (FileService'den çek)
           if (!content.startsWith('data:') && !content.startsWith('http')) {
-               const fetched = await FileService.getFile(content);
+               // Use teacherId for fetching files scoped to the teacher
+               const fetched = await FileService.getFile(teacherId, content);
                if (fetched) {
                    content = fetched;
                } else {

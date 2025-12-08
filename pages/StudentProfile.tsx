@@ -312,7 +312,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   };
 
   const handleAddResource = async () => {
-      if(resTitle && resUrl) {
+      if(resTitle && resUrl && user) {
           let finalType = resType;
           let finalUrlOrId = resUrl;
 
@@ -323,8 +323,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   setUploadStatusText("Buluta Yükleniyor...");
                   setUploadProgress(1); // Start progress bar
 
-                  // Pass progress callback
-                  const fileId = await FileService.saveFile(resUrl, (progress) => {
+                  // Pass progress callback AND USER ID
+                  const fileId = await FileService.saveFile(user.id, resUrl, (progress) => {
                       setUploadProgress(progress);
                       setUploadStatusText(`Yükleniyor %${progress}`);
                   });
@@ -367,14 +367,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
           let content = res.url;
           if (!content.startsWith('data:') && !content.startsWith('http')) {
-               const fetched = await FileService.getFile(content);
-               if (fetched) {
-                   content = fetched;
-               } else {
-                   alert("Dosya bulunamadı.");
-                   setIsPreviewOpen(false);
-                   setIsPreviewLoading(false);
-                   return;
+               // Use user.id as ownerId for fetching
+               if (user) {
+                   const fetched = await FileService.getFile(user.id, content);
+                   if (fetched) {
+                       content = fetched;
+                   } else {
+                       alert("Dosya bulunamadı.");
+                       setIsPreviewOpen(false);
+                       setIsPreviewLoading(false);
+                       return;
+                   }
                }
           }
 
@@ -589,8 +592,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                   <button onClick={() => handleShareResource(res.title, res.url)} className="w-6 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100"><Share2 size={12} /></button>
                                   <button onClick={async () => {
                                       if (res.type === 'IMAGE' || res.type === 'PDF') {
-                                           if(!res.url.startsWith('http') && !res.url.startsWith('data:')) {
-                                               await FileService.deleteFile(res.url);
+                                           if(!res.url.startsWith('http') && !res.url.startsWith('data:') && user) {
+                                               await FileService.deleteFile(user.id, res.url);
                                            }
                                       }
                                       actions.deleteResource(studentId, res.id);
