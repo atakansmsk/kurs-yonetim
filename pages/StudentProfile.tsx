@@ -53,7 +53,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [resType, setResType] = useState<'VIDEO' | 'PDF' | 'LINK' | 'IMAGE'>('LINK');
   const [resTab, setResTab] = useState<'LINK' | 'UPLOAD'>('LINK');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // UPLOAD STATE
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatusText, setUploadStatusText] = useState("");
 
   // Auto-fill payment amount when modal opens
   useEffect(() => {
@@ -63,13 +67,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   }, [isPastPaymentModalOpen, student]);
 
   // --- SORTER ---
-  // Tarihe göre her zaman yeniden sırala (En yeni en üstte)
   const sortedHistory = useMemo(() => {
       if (!student) return [];
       return [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [student]);
 
-  // --- HISTORY SPLITTER (CURRENT vs ARCHIVE) ---
+  // --- HISTORY SPLITTER ---
   const { currentHistory, archivedHistory, debtCount } = useMemo(() => {
       if (!student) return { currentHistory: [], archivedHistory: [], debtCount: 0 };
       
@@ -143,17 +146,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleShareResource = (title: string, resourceUrl: string) => {
       const phone = getPhoneClean();
-      // Eğer kaynak bir ID ise (dosya kasasında), bunu veliye link olarak atmak zor.
-      // Sadece Link/Video türleri için direkt paylaşım mantıklı.
-      // Dosyalar için Veli Portalına yönlendirmek daha doğru.
-      
       let message = "";
       if (resourceUrl.startsWith('http')) {
           message = `Merhaba ${student.name}, senin için yeni bir materyal ekledim. Buradan ulaşabilirsin:\n\n*${title}*\n${resourceUrl}`;
       } else {
           message = `Merhaba ${student.name}, senin için yeni bir dosya ekledim. Veli Portalından görüntüleyebilirsin.`;
       }
-      
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       window.open(url, '_blank');
   };
@@ -218,45 +216,57 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  // --- SAFE FILE UPLOAD LOGIC (COMPRESSION & SEPARATE STORAGE) ---
+  // --- COMPRESSION AND UPLOAD LOGIC ---
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
       
-      // Clear input so same file can be selected again if retry needed
-      event.target.value = "";
-      
+      // Reset State
       setIsUploading(true);
-
+      setUploadProgress(0);
+      setUploadStatusText("Dosya işleniyor...");
+      event.target.value = ""; // Reset input
+      
       try {
+          // PDF Logic
           if (file.type === 'application/pdf') {
-              // 4MB Limit for PDF (chunked storage allows larger files)
-              if (file.size > 4 * 1024 * 1024) { 
-                  alert("PDF dosyaları en fazla 4MB olabilir.");
+              if (file.size > 5 * 1024 * 1024) { 
+                  alert("PDF dosyaları en fazla 5MB olabilir.");
                   setIsUploading(false);
                   return;
               }
               const reader = new FileReader();
               reader.onload = () => {
-                  setResUrl(reader.result as string); // Temporarily hold base64
+                  setResUrl(reader.result as string);
                   setResType('PDF');
                   if (!resTitle) setResTitle(`Ödev ${new Date().toLocaleDateString('tr-TR')}`);
+                  setUploadStatusText("PDF Hazır");
                   setIsUploading(false);
               };
               reader.readAsDataURL(file);
           } 
+          // IMAGE Logic (Advanced Compression)
           else if (file.type.startsWith('image/')) {
-              // IMAGE Compression
               const img = document.createElement('img');
               const objectUrl = URL.createObjectURL(file);
               
               img.onload = () => {
                   URL.revokeObjectURL(objectUrl);
                   
-                  const MAX_WIDTH = 800;
-                  const scaleSize = MAX_WIDTH / img.width;
-                  const newWidth = (img.width > MAX_WIDTH) ? MAX_WIDTH : img.width;
-                  const newHeight = (img.width > MAX_WIDTH) ? (img.height * scaleSize) : img.height;
+                  // Aggressive resizing for mobile
+                  const MAX_DIMENSION = 1024; // 1024px max (Yeterli okunabilirlik, çok düşük boyut)
+                  let newWidth = img.width;
+                  let newHeight = img.height;
+
+                  if (newWidth > MAX_DIMENSION || newHeight > MAX_DIMENSION) {
+                      if (newWidth > newHeight) {
+                          newHeight = Math.round((newHeight * MAX_DIMENSION) / newWidth);
+                          newWidth = MAX_DIMENSION;
+                      } else {
+                          newWidth = Math.round((newWidth * MAX_DIMENSION) / newHeight);
+                          newHeight = MAX_DIMENSION;
+                      }
+                  }
 
                   const canvas = document.createElement('canvas');
                   canvas.width = newWidth;
@@ -270,16 +280,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   }
 
                   ctx.drawImage(img, 0, 0, newWidth, newHeight);
-                  // High compression for JPEG
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
                   
-                  if (dataUrl && dataUrl.length > 20) {
-                      setResUrl(dataUrl); // Temporarily hold base64
-                      setResType('IMAGE');
-                      if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
-                  } else {
-                      alert("Görüntü sıkıştırılamadı.");
-                  }
+                  // Convert to standard JPEG with medium quality (0.7)
+                  // This dramatically reduces file size (often < 200KB)
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                  
+                  setResUrl(dataUrl);
+                  setResType('IMAGE');
+                  if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
+                  
+                  setUploadStatusText("Fotoğraf Sıkıştırıldı");
                   setIsUploading(false);
               };
 
@@ -295,8 +305,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               setIsUploading(false);
           }
       } catch (error) {
-          console.error("Yükleme hatası:", error);
-          alert("Dosya işlenirken hata oluştu.");
+          console.error("İşleme hatası:", error);
+          alert("Dosya hazırlanamadı.");
           setIsUploading(false);
       }
   };
@@ -306,15 +316,25 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           let finalType = resType;
           let finalUrlOrId = resUrl;
 
-          // Eğer dosya yüklemesiyse (Base64 ise), bunu FileService'e gönderip ID al
+          // Dosya yükleme modundaysa ve URL base64 ise
           if (resTab === 'UPLOAD' && (resUrl.startsWith('data:'))) {
               try {
-                  setIsUploading(true); // Re-use loading state
-                  const fileId = await FileService.saveFile(resUrl);
-                  finalUrlOrId = fileId; // Artık URL yerine ID kaydediyoruz
+                  setIsUploading(true);
+                  setUploadStatusText("Buluta Yükleniyor...");
+                  setUploadProgress(1); // Start progress bar
+
+                  // Pass progress callback
+                  const fileId = await FileService.saveFile(resUrl, (progress) => {
+                      setUploadProgress(progress);
+                      setUploadStatusText(`Yükleniyor %${progress}`);
+                  });
+
+                  finalUrlOrId = fileId;
+                  setUploadStatusText("Tamamlandı!");
               } catch (e: any) {
-                  alert(e.message || "Dosya kaydedilemedi.");
+                  alert(e.message || "Yükleme başarısız. İnternet bağlantınızı kontrol edin.");
                   setIsUploading(false);
+                  setUploadProgress(0);
                   return;
               } finally {
                   setIsUploading(false);
@@ -327,31 +347,31 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           }
 
           actions.addResource(studentId, resTitle, finalUrlOrId, finalType);
+          
+          // Reset Form
           setResTitle(""); setResUrl(""); setResType('LINK');
+          setUploadProgress(0); setUploadStatusText("");
+          setIsResourcesModalOpen(false); // Close modal on success
       }
   };
 
-  // --- PREVIEW LOGIC (Fixing 'about:blank#blocked') ---
+  // --- PREVIEW LOGIC ---
   const handleOpenResource = async (res: any) => {
       if (res.type === 'LINK' || res.type === 'VIDEO') {
-          // Linkler direkt açılabilir
           window.open(res.url, '_blank');
       } else {
-          // PDF veya RESİM ise Modal içinde aç (Blocking önlemek için)
           setIsPreviewLoading(true);
           setIsPreviewOpen(true);
           setPreviewType(res.type);
           setPreviewContent(null);
 
           let content = res.url;
-          
-          // Eğer içerik bir ID ise (kısa string, data: ile başlamıyor, http ile başlamıyor)
           if (!content.startsWith('data:') && !content.startsWith('http')) {
                const fetched = await FileService.getFile(content);
                if (fetched) {
                    content = fetched;
                } else {
-                   alert("Dosya bulunamadı (Silinmiş olabilir).");
+                   alert("Dosya bulunamadı.");
                    setIsPreviewOpen(false);
                    setIsPreviewLoading(false);
                    return;
@@ -471,12 +491,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         </div>
       </div>
 
-      {/* 2. Content Scrollable */}
+      {/* 2. Content */}
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-6">
           
           {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-4">
-              
               <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-5 text-white shadow-xl shadow-indigo-200 flex flex-col justify-between h-48 group">
                   <div className="absolute top-[-20%] right-[-20%] w-40 h-40 bg-white/10 rounded-full blur-[40px] pointer-events-none"></div>
                   <div className="absolute bottom-[-10%] left-[-10%] w-32 h-32 bg-purple-500/30 rounded-full blur-[50px] pointer-events-none"></div>
@@ -537,7 +556,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Link size={14} /> Materyaller
                   </h3>
-                  <button onClick={() => setIsResourcesModalOpen(true)} className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors">
+                  <button onClick={() => { setIsResourcesModalOpen(true); setUploadProgress(0); setUploadStatusText(""); }} className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors">
                       <Plus size={14} />
                   </button>
               </div>
@@ -564,16 +583,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                    </div>
                               </div>
                               <div className="flex gap-1">
-                                  {/* Aç Butonu - Preview açar */}
                                   <button onClick={() => handleOpenResource(res)} className="flex-1 text-center text-[10px] font-bold bg-slate-50 text-slate-600 py-1 rounded hover:bg-slate-100 flex items-center justify-center gap-1">
                                       <Eye size={10} /> Aç
                                   </button>
                                   <button onClick={() => handleShareResource(res.title, res.url)} className="w-6 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100"><Share2 size={12} /></button>
-                                  
-                                  {/* Delete - If file, should also delete from storage but for now just remove ref */}
                                   <button onClick={async () => {
                                       if (res.type === 'IMAGE' || res.type === 'PDF') {
-                                           // Try delete file if it's an ID
                                            if(!res.url.startsWith('http') && !res.url.startsWith('data:')) {
                                                await FileService.deleteFile(res.url);
                                            }
@@ -587,29 +602,22 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               )}
           </div>
 
-          {/* HISTORY & ACTIONS */}
+          {/* HISTORY */}
           <div>
                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <CalendarDays size={14} /> {currentMonthName} Ayı Ders Tarihleri
                   </h3>
                </div>
-               
                <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-6">
                   {currentHistory.length === 0 ? (
                       <div className="bg-white rounded-[1.5rem] border border-slate-100 border-dashed p-6 text-center shadow-sm">
-                          <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2 text-slate-300">
-                               <CalendarDays size={18} />
-                          </div>
                           <p className="text-slate-900 font-bold text-xs">Hareket Yok</p>
-                          <p className="text-slate-400 text-[10px] mt-0.5">Bu dönem henüz işlem yapılmadı.</p>
                       </div>
                   ) : (
                       currentHistory.map((tx) => renderTransactionItem(tx))
                   )}
                </div>
-
-               {/* ARCHIVE LINK */}
                {archivedHistory.length > 0 && (
                   <button onClick={() => setIsArchiveModalOpen(true)} className="w-full py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors">
                       <Archive size={14} />
@@ -620,51 +628,23 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       </div>
 
       {/* --- MODALS --- */}
-
-      {/* 1. Ders Ekle Modal */}
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" 
-          actions={
-              <>
-                  <button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-                  <button onClick={handleAddPastLesson} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Ekle</button>
-              </>
-          }
+          actions={<><button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddPastLesson} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Ekle</button></>}
       >
-          <div className="py-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label>
-              <input type="date" value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
-          </div>
+          <div className="py-2"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
       </Dialog>
 
-      {/* 2. Ödeme Al Modal */}
       <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Ödeme Ekle" 
-          actions={
-              <>
-                  <button onClick={() => setIsPastPaymentModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-                  <button onClick={handleAddPastPayment} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Kaydet</button>
-              </>
-          }
+          actions={<><button onClick={() => setIsPastPaymentModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddPastPayment} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Kaydet</button></>}
       >
           <div className="flex flex-col gap-3 py-2">
-              <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label>
-                  <input type="date" value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
-              </div>
-              <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tutar (TL)</label>
-                  <input type="number" value={pastPaymentAmount} onChange={(e) => setPastPaymentAmount(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="0.00" />
-              </div>
+              <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
+              <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tutar (TL)</label><input type="number" value={pastPaymentAmount} onChange={(e) => setPastPaymentAmount(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="0.00" /></div>
           </div>
       </Dialog>
 
-      {/* 3. Düzenle Modal */}
       <Dialog isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Öğrenci Düzenle" 
-          actions={
-              <>
-                  <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-                  <button onClick={handleUpdateStudent} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Güncelle</button>
-              </>
-          }
+          actions={<><button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleUpdateStudent} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Güncelle</button></>}
       >
           <div className="flex flex-col gap-3 py-2">
               <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="İsim" />
@@ -673,50 +653,22 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
       </Dialog>
       
-      {/* 4. Ders İşlemleri (Sil/Düzenle) */}
       <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="İşlem Seçin">
           <div className="flex flex-col gap-2 py-2">
               {selectedTx?.isDebt && !selectedTx.note.includes('Telafi') && (
-                  <>
-                    <button onClick={() => handleLessonAction('ABSENT')} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-sm flex items-center gap-2">
-                        <XCircle size={16} /> Gelmedi Olarak İşaretle
-                    </button>
-                    <button onClick={() => handleLessonAction('MAKEUP')} className="p-3 bg-orange-50 text-orange-700 rounded-xl font-bold text-sm flex items-center gap-2">
-                        <RefreshCcw size={16} /> Telafi Hakkı Tanı
-                    </button>
-                  </>
+                  <><button onClick={() => handleLessonAction('ABSENT')} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-sm flex items-center gap-2"><XCircle size={16} /> Gelmedi Olarak İşaretle</button><button onClick={() => handleLessonAction('MAKEUP')} className="p-3 bg-orange-50 text-orange-700 rounded-xl font-bold text-sm flex items-center gap-2"><RefreshCcw size={16} /> Telafi Hakkı Tanı</button></>
               )}
-
-              {/* Telafi Bekleyen bir ders ise, Tamamlandı işaretle */}
-              {selectedTx?.note.includes('Telafi Bekliyor') && (
-                  <button onClick={() => handleLessonAction('MAKEUP_DONE')} className="p-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm flex items-center gap-2">
-                      <CheckCircle2 size={16} /> Telafi Yapıldı Olarak İşaretle
-                  </button>
-              )}
-
-              <button onClick={() => handleLessonAction('DELETE')} className="p-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm flex items-center gap-2">
-                  <Trash2 size={16} /> Kaydı Sil
-              </button>
+              {selectedTx?.note.includes('Telafi Bekliyor') && (<button onClick={() => handleLessonAction('MAKEUP_DONE')} className="p-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm flex items-center gap-2"><CheckCircle2 size={16} /> Telafi Yapıldı Olarak İşaretle</button>)}
+              <button onClick={() => handleLessonAction('DELETE')} className="p-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm flex items-center gap-2"><Trash2 size={16} /> Kaydı Sil</button>
           </div>
       </Dialog>
 
-      {/* 5. Telafi Tamamla Tarih Seçimi */}
-      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Tarihi"
-           actions={
-              <>
-                  <button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-                  <button onClick={handleMakeupComplete} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Tamamla</button>
-              </>
-          }
-      >
-           <div className="py-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Telafi Yapılan Tarih</label>
-              <input type="date" value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
-          </div>
+      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Tarihi" actions={<><button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleMakeupComplete} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Tamamla</button></>}>
+           <div className="py-2"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Telafi Yapılan Tarih</label><input type="date" value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
       </Dialog>
       
-      {/* 6. Materyal Ekle Modal */}
-      <Dialog isOpen={isResourcesModalOpen} onClose={() => { setIsResourcesModalOpen(false); setResUrl(""); setResTitle(""); setResType('LINK'); setIsUploading(false); }} title="Materyal Ekle"
+      {/* UPLOAD MODAL - Updated with Progress */}
+      <Dialog isOpen={isResourcesModalOpen} onClose={() => { if(!isUploading) { setIsResourcesModalOpen(false); setResUrl(""); setResTitle(""); setResType('LINK'); setUploadProgress(0); setUploadStatusText(""); } }} title="Materyal Ekle"
            actions={
               !isUploading && (
                   <>
@@ -727,88 +679,89 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           }
       >
           <div className="flex flex-col gap-3 py-1">
-              <div className="flex bg-slate-100 p-1 rounded-xl">
-                  <button onClick={() => setResTab('LINK')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'LINK' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Link / Video</button>
-                  <button onClick={() => setResTab('UPLOAD')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'UPLOAD' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Dosya Yükle</button>
-              </div>
+              {/* Tabs only if not uploading */}
+              {!isUploading && (
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                    <button onClick={() => setResTab('LINK')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'LINK' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Link / Video</button>
+                    <button onClick={() => setResTab('UPLOAD')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'UPLOAD' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Dosya Yükle</button>
+                </div>
+              )}
 
-              <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="Başlık (Örn: Ödev 1)" />
+              {/* Title Input */}
+              {!isUploading && (
+                <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="Başlık (Örn: Ödev 1)" />
+              )}
               
-              {resTab === 'LINK' ? (
-                  <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="https://..." />
-              ) : (
-                  <div>
-                      <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        accept="image/*,application/pdf" 
-                        onChange={handleFileUpload} 
-                      />
-                      <button 
-                        onClick={() => fileInputRef.current?.click()} 
-                        disabled={isUploading}
-                        className="w-full py-8 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-slate-50 hover:border-indigo-200 transition-colors"
-                      >
-                          {isUploading ? (
-                              <>
-                                <Loader2 size={24} className="animate-spin text-indigo-500" />
-                                <span className="text-xs font-bold text-indigo-500">İşleniyor...</span>
-                              </>
-                          ) : resUrl ? (
-                              <>
-                                <CheckCircle2 size={24} className="text-emerald-500" />
-                                <span className="text-xs font-bold text-emerald-600">Dosya Seçildi</span>
-                              </>
-                          ) : (
-                              <>
-                                <UploadCloud size={24} />
-                                <span className="text-xs font-bold">Resim veya PDF Seç</span>
-                              </>
-                          )}
-                      </button>
-                      <p className="text-[9px] text-slate-400 text-center mt-1">
-                          PDF boyutu en fazla 4MB olabilir.
-                      </p>
+              {isUploading ? (
+                  // UPLOAD PROGRESS VIEW
+                  <div className="flex flex-col items-center justify-center py-6 gap-3">
+                      <div className="relative w-16 h-16">
+                           <svg className="w-full h-full transform -rotate-90">
+                               <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-100" />
+                               <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={175} strokeDashoffset={175 - (175 * uploadProgress) / 100} className="text-indigo-600 transition-all duration-300 ease-linear" />
+                           </svg>
+                           <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-indigo-600">{uploadProgress}%</div>
+                      </div>
+                      <div className="text-center">
+                          <p className="font-bold text-slate-800 text-sm">{uploadStatusText}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">Lütfen bekleyin, kapatmayın...</p>
+                      </div>
                   </div>
+              ) : (
+                  // NORMAL VIEW
+                  resTab === 'LINK' ? (
+                      <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="https://..." />
+                  ) : (
+                      <div>
+                          <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            className="hidden" 
+                            accept="image/*,application/pdf" 
+                            onChange={handleFileUpload} 
+                          />
+                          <button 
+                            onClick={() => fileInputRef.current?.click()} 
+                            disabled={isUploading}
+                            className="w-full py-8 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-slate-50 hover:border-indigo-200 transition-colors"
+                          >
+                              {resUrl ? (
+                                  <>
+                                    <CheckCircle2 size={24} className="text-emerald-500" />
+                                    <span className="text-xs font-bold text-emerald-600">{resType === 'PDF' ? 'PDF Hazır' : 'Resim Hazır'}</span>
+                                  </>
+                              ) : (
+                                  <>
+                                    <UploadCloud size={24} />
+                                    <span className="text-xs font-bold">Resim veya PDF Seç</span>
+                                  </>
+                              )}
+                          </button>
+                      </div>
+                  )
               )}
           </div>
       </Dialog>
       
-      {/* 7. Arşiv Modal */}
       <Dialog isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)} title="Geçmiş Kayıtlar">
           <div className="max-h-[60vh] overflow-y-auto space-y-4 py-2 pr-1 custom-scrollbar">
                {archivedHistory.length === 0 ? <p className="text-center text-slate-400 text-sm">Kayıt yok.</p> : archivedHistory.map(tx => renderTransactionItem(tx))}
           </div>
       </Dialog>
 
-      {/* 8. PREVIEW MODAL (Fix for about:blank#blocked) */}
       <Dialog 
         isOpen={isPreviewOpen} 
         onClose={() => setIsPreviewOpen(false)} 
         title="Dosya Önizleme"
-        actions={
-            <button onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Kapat</button>
-        }
+        actions={<button onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Kapat</button>}
       >
           <div className="flex items-center justify-center min-h-[200px] max-h-[60vh] overflow-auto bg-slate-50 rounded-xl p-2 border border-slate-100">
               {isPreviewLoading ? (
-                  <div className="flex flex-col items-center gap-2">
-                      <Loader2 size={32} className="animate-spin text-indigo-600" />
-                      <span className="text-xs font-bold text-slate-400">Yükleniyor...</span>
-                  </div>
+                  <div className="flex flex-col items-center gap-2"><Loader2 size={32} className="animate-spin text-indigo-600" /><span className="text-xs font-bold text-slate-400">Yükleniyor...</span></div>
               ) : previewContent ? (
-                  previewType === 'IMAGE' ? (
-                      <img src={previewContent} alt="Preview" className="max-w-full h-auto rounded-lg shadow-sm" />
-                  ) : (
-                      // PDF için embed veya iframe kullanılabilir. Mobil uyumluluk için object daha iyi olabilir.
-                      <iframe src={previewContent} className="w-full h-[300px] rounded-lg" title="PDF Preview"></iframe>
-                  )
+                  previewType === 'IMAGE' ? (<img src={previewContent} alt="Preview" className="max-w-full h-auto rounded-lg shadow-sm" />) : (<iframe src={previewContent} className="w-full h-[300px] rounded-lg" title="PDF Preview"></iframe>)
               ) : (
-                  <div className="flex flex-col items-center gap-2">
-                      <XCircle size={32} className="text-red-300" />
-                      <span className="text-xs font-bold text-slate-400">Dosya görüntülenemedi.</span>
-                  </div>
+                  <div className="flex flex-col items-center gap-2"><XCircle size={32} className="text-red-300" /><span className="text-xs font-bold text-slate-400">Dosya görüntülenemedi.</span></div>
               )}
           </div>
       </Dialog>

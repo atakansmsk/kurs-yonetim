@@ -1,6 +1,6 @@
 import { auth, db } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
-import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, DocumentSnapshot, DocumentData } from "firebase/firestore";
 import { AppState, User } from '../types';
 
 // --- AUTH SERVİSİ ---
@@ -49,8 +49,6 @@ export const DataService = {
   // Veriyi Buluta Yaz
   async saveUserData(userId: string, data: AppState): Promise<void> {
     try {
-      // setDoc with merge:true prevents overwriting fields if we were doing partial updates,
-      // though currently we send the whole state. It's safer practice.
       await setDoc(doc(db, "schools", userId), data, { merge: true });
     } catch (e) {
       console.error("Cloud save error:", e);
@@ -96,91 +94,110 @@ export const DataService = {
 };
 
 // --- DOSYA SERVİSİ (Hybrid Storage with Chunking) ---
-// Dosyaları 'files' koleksiyonunda tutar. 1MB limitini aşan dosyaları parçalar.
-const CHUNK_SIZE = 400000; // ~400KB (Mobil ağlar için daha güvenli)
+const CHUNK_SIZE = 250000; // ~250KB (Mobil ağlar için güvenli boyut)
+
+// Retry Helper: Hata alırsan 3 kere tekrar dene
+const retryOperation = async <T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
+    try {
+        return await operation();
+    } catch (error) {
+        if (retries > 0) {
+            console.warn(`Retrying... attempts left: ${retries}`);
+            await new Promise(res => setTimeout(res, delay));
+            return retryOperation(operation, retries - 1, delay * 1.5);
+        }
+        throw error;
+    }
+};
 
 export const FileService = {
-  async saveFile(base64Data: string): Promise<string> {
+  // onProgress callback eklendi: (progress: number) => void
+  async saveFile(base64Data: string, onProgress?: (progress: number) => void): Promise<string> {
     const fileId = Math.random().toString(36).substr(2, 12);
     const totalLength = base64Data.length;
 
     try {
       if (totalLength <= CHUNK_SIZE) {
-        // Küçük dosya: Tek parça kaydet
-        await setDoc(doc(db, "files", fileId), {
+        // Küçük dosya: Tek parça
+        if(onProgress) onProgress(50);
+        await retryOperation(() => setDoc(doc(db, "files", fileId), {
           content: base64Data,
           type: 'simple',
           createdAt: new Date().toISOString()
-        });
+        }));
+        if(onProgress) onProgress(100);
       } else {
-        // Büyük dosya: Parçalara böl
+        // Büyük dosya: Parçalama
         const chunks: string[] = [];
         for (let i = 0; i < totalLength; i += CHUNK_SIZE) {
             chunks.push(base64Data.substring(i, i + CHUNK_SIZE));
         }
 
-        // Ana dosya (Meta verisi)
-        await setDoc(doc(db, "files", fileId), {
-          type: 'chunked',
-          totalChunks: chunks.length,
-          createdAt: new Date().toISOString()
-        });
+        const totalChunks = chunks.length;
 
-        // Parçaları kaydet - SIRALI (Sequential) Yükleme
-        // Promise.all yerine for döngüsü kullanarak sırayla yüklüyoruz.
-        // Bu, mobil bağlantılarda timeout hatalarını önler.
-        for (let index = 0; index < chunks.length; index++) {
-             await setDoc(doc(db, "files", `${fileId}_${index}`), {
+        // Meta verisi
+        await retryOperation(() => setDoc(doc(db, "files", fileId), {
+          type: 'chunked',
+          totalChunks: totalChunks,
+          createdAt: new Date().toISOString()
+        }));
+
+        // Parçaları sırayla yükle
+        for (let index = 0; index < totalChunks; index++) {
+             await retryOperation(() => setDoc(doc(db, "files", `${fileId}_${index}`), {
                 content: chunks[index],
                 index: index
-            });
+            }));
+            
+            // İlerleme yüzdesi hesapla
+            if(onProgress) {
+                const percent = Math.round(((index + 1) / totalChunks) * 100);
+                onProgress(percent);
+            }
         }
       }
       
       return fileId;
     } catch (error: any) {
-      console.error("File save error:", error);
-      throw new Error("Dosya kaydedilemedi. İnternet bağlantınızı kontrol edin.");
+      console.error("File save error details:", error);
+      throw new Error(`Dosya yüklenemedi: ${error.message || "Bilinmeyen Hata"}`);
     }
   },
 
   async getFile(fileId: string): Promise<string | null> {
     try {
       const metaDocRef = doc(db, "files", fileId);
-      const metaSnap = await getDoc(metaDocRef);
+      const metaSnap = await retryOperation(() => getDoc(metaDocRef));
 
       if (!metaSnap.exists()) return null;
 
       const data = metaSnap.data();
 
-      // Parçalı dosya ise birleştir
       if (data.type === 'chunked') {
           const totalChunks = data.totalChunks;
           
-          // Okurken paralel çekebiliriz (Okuma hızı genelde yazmadan iyidir)
-          // Ama garanti olsun diye yine sıralı çekim yapılabilir veya Promise.all kullanılabilir.
-          // Okuma için Promise.all genellikle sorun yaratmaz.
-          const chunkPromises = [];
+          // Promise.all ile paralel çekim daha hızlıdır okurken
+          const chunkPromises: Promise<DocumentSnapshot<DocumentData>>[] = [];
           for (let i = 0; i < totalChunks; i++) {
-              chunkPromises.push(getDoc(doc(db, "files", `${fileId}_${i}`)));
+              chunkPromises.push(retryOperation(() => getDoc(doc(db, "files", `${fileId}_${i}`))));
           }
           
           const chunkSnaps = await Promise.all(chunkPromises);
           let fullContent = "";
           
-          // Parçaları sırayla ekle
           for (let i = 0; i < totalChunks; i++) {
              const snap = chunkSnaps[i];
              if (snap.exists()) {
-                 fullContent += snap.data().content;
+                 const snapData = snap.data();
+                 if (snapData) {
+                    fullContent += snapData.content;
+                 }
              } else {
-                 console.error(`Eksik parça: ${i}`);
-                 throw new Error("Dosya parçaları eksik.");
+                 throw new Error("Dosya bozuk (eksik parça).");
              }
           }
           return fullContent;
       } else {
-          // Basit (Küçük) Dosya veya Eski Format
           return data.content || null;
       }
     } catch (error) {
@@ -196,9 +213,8 @@ export const FileService = {
       
       if (metaSnap.exists()) {
           const data = metaSnap.data();
-          await deleteDoc(metaRef); // Ana dosyayı sil
+          await deleteDoc(metaRef);
 
-          // Parçalıysa alt parçaları da sil
           if (data.type === 'chunked') {
               const totalChunks = data.totalChunks;
               const deletePromises = [];
