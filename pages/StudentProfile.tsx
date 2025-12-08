@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
@@ -224,6 +223,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const file = event.target.files?.[0];
       if (!file) return;
       
+      // Clear input so same file can be selected again if retry needed
+      event.target.value = "";
+      
       setIsUploading(true);
 
       try {
@@ -271,9 +273,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   // High compression for JPEG
                   const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
                   
-                  setResUrl(dataUrl); // Temporarily hold base64
-                  setResType('IMAGE');
-                  if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
+                  if (dataUrl && dataUrl.length > 20) {
+                      setResUrl(dataUrl); // Temporarily hold base64
+                      setResType('IMAGE');
+                      if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
+                  } else {
+                      alert("Görüntü sıkıştırılamadı.");
+                  }
                   setIsUploading(false);
               };
 

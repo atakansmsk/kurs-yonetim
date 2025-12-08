@@ -1,4 +1,3 @@
-
 import { auth, db } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc } from "firebase/firestore";
@@ -98,7 +97,7 @@ export const DataService = {
 
 // --- DOSYA SERVİSİ (Hybrid Storage with Chunking) ---
 // Dosyaları 'files' koleksiyonunda tutar. 1MB limitini aşan dosyaları parçalar.
-const CHUNK_SIZE = 800000; // ~800KB (Firestore 1MB limitinin altında güvenli boyut)
+const CHUNK_SIZE = 400000; // ~400KB (Mobil ağlar için daha güvenli)
 
 export const FileService = {
   async saveFile(base64Data: string): Promise<string> {
@@ -127,14 +126,15 @@ export const FileService = {
           createdAt: new Date().toISOString()
         });
 
-        // Parçaları kaydet
-        const chunkPromises = chunks.map((chunk, index) => 
-            setDoc(doc(db, "files", `${fileId}_${index}`), {
-                content: chunk,
+        // Parçaları kaydet - SIRALI (Sequential) Yükleme
+        // Promise.all yerine for döngüsü kullanarak sırayla yüklüyoruz.
+        // Bu, mobil bağlantılarda timeout hatalarını önler.
+        for (let index = 0; index < chunks.length; index++) {
+             await setDoc(doc(db, "files", `${fileId}_${index}`), {
+                content: chunks[index],
                 index: index
-            })
-        );
-        await Promise.all(chunkPromises);
+            });
+        }
       }
       
       return fileId;
@@ -156,6 +156,10 @@ export const FileService = {
       // Parçalı dosya ise birleştir
       if (data.type === 'chunked') {
           const totalChunks = data.totalChunks;
+          
+          // Okurken paralel çekebiliriz (Okuma hızı genelde yazmadan iyidir)
+          // Ama garanti olsun diye yine sıralı çekim yapılabilir veya Promise.all kullanılabilir.
+          // Okuma için Promise.all genellikle sorun yaratmaz.
           const chunkPromises = [];
           for (let i = 0; i < totalChunks; i++) {
               chunkPromises.push(getDoc(doc(db, "files", `${fileId}_${i}`)));
@@ -166,7 +170,6 @@ export const FileService = {
           
           // Parçaları sırayla ekle
           for (let i = 0; i < totalChunks; i++) {
-             // Promise.all sırayı korur, ama biz yine de index garantisi için sıralı döngüdeyiz
              const snap = chunkSnaps[i];
              if (snap.exists()) {
                  fullContent += snap.data().content;
