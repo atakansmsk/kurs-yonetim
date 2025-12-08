@@ -104,7 +104,8 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
   const handleAddStudent = () => {
       if(newName.trim()) {
-          actions.addStudent(newName, newPhone, newFee, newRegDate);
+          const feeValue = parseFloat(newFee.replace(',', '.')) || 0;
+          actions.addStudent(newName, newPhone, feeValue, newRegDate);
           setIsAddModalOpen(false);
           setNewName(""); setNewPhone(""); setNewFee("");
           setNewRegDate(new Date().toISOString().split('T')[0]);

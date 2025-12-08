@@ -228,9 +228,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
       try {
           if (file.type === 'application/pdf') {
-              // 750KB Limit for PDF (to allow Base64 overhead to stay under 1MB)
-              if (file.size > 750 * 1024) { 
-                  alert("PDF dosyaları veritabanı sınırları nedeniyle en fazla 750KB olabilir.");
+              // 4MB Limit for PDF (chunked storage allows larger files)
+              if (file.size > 4 * 1024 * 1024) { 
+                  alert("PDF dosyaları en fazla 4MB olabilir.");
                   setIsUploading(false);
                   return;
               }
@@ -307,7 +307,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   const fileId = await FileService.saveFile(resUrl);
                   finalUrlOrId = fileId; // Artık URL yerine ID kaydediyoruz
               } catch (e: any) {
-                  alert(e.message || "Dosya kaydedilemedi. Lütfen boyutu kontrol edip tekrar deneyin.");
+                  alert(e.message || "Dosya kaydedilemedi.");
                   setIsUploading(false);
                   return;
               } finally {
@@ -762,7 +762,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                           )}
                       </button>
                       <p className="text-[9px] text-slate-400 text-center mt-1">
-                          PDF boyutu en fazla 750KB olabilir.
+                          PDF boyutu en fazla 4MB olabilir.
                       </p>
                   </div>
               )}

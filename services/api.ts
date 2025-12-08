@@ -96,47 +96,90 @@ export const DataService = {
   }
 };
 
-// --- DOSYA SERVİSİ (Hybrid Storage) ---
-// Dosyaları ana veritabanı belgesinden ayırıp 'files' koleksiyonunda tutar.
-// Bu sayede ana belge boyutu şişmez ve uygulama çökmez.
+// --- DOSYA SERVİSİ (Hybrid Storage with Chunking) ---
+// Dosyaları 'files' koleksiyonunda tutar. 1MB limitini aşan dosyaları parçalar.
+const CHUNK_SIZE = 800000; // ~800KB (Firestore 1MB limitinin altında güvenli boyut)
+
 export const FileService = {
   async saveFile(base64Data: string): Promise<string> {
-    try {
-      // Veritabanı limiti kontrolü (1MB limitine takılmamak için)
-      // Base64 string uzunluğu kabaca byte boyutuna yakındır (biraz fazladır).
-      // 1,048,576 byte (1MB) limitine güvenli pay bırakarak kontrol ediyoruz.
-      if (base64Data.length > 1048000) {
-        throw new Error("Dosya boyutu çok yüksek. Veritabanı limitini (1MB) aşıyor.");
-      }
+    const fileId = Math.random().toString(36).substr(2, 12);
+    const totalLength = base64Data.length;
 
-      const fileId = Math.random().toString(36).substr(2, 12);
-      const fileRef = doc(collection(db, "files"), fileId);
-      
-      // Dosyayı parçalara bölmeden direkt kaydediyoruz (Firestore limiti 1MB)
-      await setDoc(fileRef, {
-        content: base64Data,
-        createdAt: new Date().toISOString()
-      });
+    try {
+      if (totalLength <= CHUNK_SIZE) {
+        // Küçük dosya: Tek parça kaydet
+        await setDoc(doc(db, "files", fileId), {
+          content: base64Data,
+          type: 'simple',
+          createdAt: new Date().toISOString()
+        });
+      } else {
+        // Büyük dosya: Parçalara böl
+        const chunks: string[] = [];
+        for (let i = 0; i < totalLength; i += CHUNK_SIZE) {
+            chunks.push(base64Data.substring(i, i + CHUNK_SIZE));
+        }
+
+        // Ana dosya (Meta verisi)
+        await setDoc(doc(db, "files", fileId), {
+          type: 'chunked',
+          totalChunks: chunks.length,
+          createdAt: new Date().toISOString()
+        });
+
+        // Parçaları kaydet
+        const chunkPromises = chunks.map((chunk, index) => 
+            setDoc(doc(db, "files", `${fileId}_${index}`), {
+                content: chunk,
+                index: index
+            })
+        );
+        await Promise.all(chunkPromises);
+      }
       
       return fileId;
     } catch (error: any) {
       console.error("File save error:", error);
-      if (error.message.includes("Dosya boyutu")) {
-        throw error;
-      }
-      throw new Error("Dosya kaydedilemedi.");
+      throw new Error("Dosya kaydedilemedi. İnternet bağlantınızı kontrol edin.");
     }
   },
 
   async getFile(fileId: string): Promise<string | null> {
     try {
-      const fileRef = doc(db, "files", fileId);
-      const docSnap = await getDoc(fileRef);
-      
-      if (docSnap.exists()) {
-        return docSnap.data().content;
+      const metaDocRef = doc(db, "files", fileId);
+      const metaSnap = await getDoc(metaDocRef);
+
+      if (!metaSnap.exists()) return null;
+
+      const data = metaSnap.data();
+
+      // Parçalı dosya ise birleştir
+      if (data.type === 'chunked') {
+          const totalChunks = data.totalChunks;
+          const chunkPromises = [];
+          for (let i = 0; i < totalChunks; i++) {
+              chunkPromises.push(getDoc(doc(db, "files", `${fileId}_${i}`)));
+          }
+          
+          const chunkSnaps = await Promise.all(chunkPromises);
+          let fullContent = "";
+          
+          // Parçaları sırayla ekle
+          for (let i = 0; i < totalChunks; i++) {
+             // Promise.all sırayı korur, ama biz yine de index garantisi için sıralı döngüdeyiz
+             const snap = chunkSnaps[i];
+             if (snap.exists()) {
+                 fullContent += snap.data().content;
+             } else {
+                 console.error(`Eksik parça: ${i}`);
+                 throw new Error("Dosya parçaları eksik.");
+             }
+          }
+          return fullContent;
+      } else {
+          // Basit (Küçük) Dosya veya Eski Format
+          return data.content || null;
       }
-      return null;
     } catch (error) {
       console.error("File fetch error:", error);
       return null;
@@ -145,7 +188,23 @@ export const FileService = {
 
   async deleteFile(fileId: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, "files", fileId));
+      const metaRef = doc(db, "files", fileId);
+      const metaSnap = await getDoc(metaRef);
+      
+      if (metaSnap.exists()) {
+          const data = metaSnap.data();
+          await deleteDoc(metaRef); // Ana dosyayı sil
+
+          // Parçalıysa alt parçaları da sil
+          if (data.type === 'chunked') {
+              const totalChunks = data.totalChunks;
+              const deletePromises = [];
+              for (let i = 0; i < totalChunks; i++) {
+                  deletePromises.push(deleteDoc(doc(db, "files", `${fileId}_${i}`)));
+              }
+              await Promise.all(deletePromises);
+          }
+      }
     } catch (error) {
       console.error("File delete error:", error);
     }
