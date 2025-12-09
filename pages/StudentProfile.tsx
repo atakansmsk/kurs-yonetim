@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, Eye } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, Eye, AlertTriangle } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { FileService } from '../services/api';
@@ -224,7 +225,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       
       // Reset State
       setIsProcessing(true); // Dosya işleniyor göstergesi
-      setUploadStatusText("Dosya hazırlanıyor...");
+      setUploadStatusText("Sıkıştırılıyor...");
       event.target.value = ""; // Reset input
       
       try {
@@ -319,24 +320,28 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           if (resTab === 'UPLOAD' && (resUrl.startsWith('data:'))) {
               try {
                   setIsUploading(true);
-                  setUploadStatusText("Buluta Yükleniyor...");
-                  setUploadProgress(10); // Start progress bar
+                  setUploadStatusText("Güvenli Bağlantı Kuruluyor...");
+                  setUploadProgress(5); 
 
                   // Pass progress callback AND USER ID
                   const fileId = await FileService.saveFile(user.id, resUrl, (progress) => {
                       setUploadProgress(progress);
-                      setUploadStatusText(progress === 100 ? "Tamamlandı!" : `Yükleniyor %${progress}`);
+                      if (progress < 30) setUploadStatusText("Hazırlanıyor...");
+                      else if (progress < 80) setUploadStatusText("Yükleniyor...");
+                      else setUploadStatusText("Tamamlanıyor...");
                   });
 
                   finalUrlOrId = fileId;
-                  setUploadStatusText("Tamamlandı!");
+                  setUploadStatusText("Başarılı!");
                   // Short delay to show 100%
                   await new Promise(r => setTimeout(r, 500));
 
               } catch (e: any) {
-                  alert(e.message || "Yükleme başarısız. İnternet bağlantınızı kontrol edin.");
+                  console.error(e);
+                  alert(e.message || "Yükleme hatası. Lütfen tekrar deneyin.");
                   setIsUploading(false);
                   setUploadProgress(0);
+                  setUploadStatusText("Hata oluştu");
                   return;
               } finally {
                   setIsUploading(false);

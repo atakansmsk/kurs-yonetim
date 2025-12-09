@@ -103,9 +103,10 @@ const retryOperation = async <T>(operation: () => Promise<T>, retries = 3, delay
         return await operation();
     } catch (error) {
         if (retries > 0) {
-            console.warn(`Retrying... attempts left: ${retries}`);
+            console.warn(`Retrying... attempts left: ${retries}. Error:`, error);
             await new Promise(res => setTimeout(res, delay));
-            return retryOperation(operation, retries - 1, delay * 1.5);
+            // Exponential backoff
+            return retryOperation(operation, retries - 1, delay * 2);
         }
         throw error;
     }
@@ -113,32 +114,31 @@ const retryOperation = async <T>(operation: () => Promise<T>, retries = 3, delay
 
 export const FileService = {
   // BATCH UPLOAD: Tüm parçaları tek seferde atomik olarak yükler.
-  // Bu sayede "yarım yüklenen" dosya sorunu ortadan kalkar.
+  // CRITICAL FIX: Batch oluşturma işlemi retry döngüsünün İÇİNDE yapılmalıdır.
   async saveFile(ownerId: string, base64Data: string, onProgress?: (progress: number) => void): Promise<string> {
     const fileId = Math.random().toString(36).substr(2, 12);
     const totalLength = base64Data.length;
 
     // 1. Veriyi hazırla (Chunks)
-    // Retry sırasında veriyi tekrar tekrar bölmeye gerek yok, bir kere hazırlıyoruz.
+    // Veriyi parçalama işlemi bir kere yapılır, retry sırasında tekrar edilmez.
     const chunks: string[] = [];
-    let isChunked = false;
+    const isChunked = totalLength > CHUNK_SIZE;
 
-    if (totalLength <= CHUNK_SIZE) {
+    if (!isChunked) {
         chunks.push(base64Data);
     } else {
-        isChunked = true;
         for (let i = 0; i < totalLength; i += CHUNK_SIZE) {
             chunks.push(base64Data.substring(i, i + CHUNK_SIZE));
         }
     }
 
-    if(onProgress) onProgress(20);
+    if(onProgress) onProgress(10);
 
-    // 2. Retry için sarılmış işlem fonksiyonu
-    // KRİTİK DÜZELTME: Her denemede YENİ bir batch oluşturuyoruz.
-    // Eskiden batch dışarıda oluşturulup içeride commit ediliyordu, bu da hata veriyordu.
-    const uploadOperation = async () => {
-        const batch = writeBatch(db); // YENİ BATCH OLUŞTUR
+    // 2. Yükleme Fonksiyonu (Her çağrıldığında YENİ bir batch oluşturur)
+    const performBatchUpload = async () => {
+        // BURASI KRİTİK: writeBatch() her denemede yeni bir instance döndürmeli.
+        // Asla global veya dış scope'taki batch'i kullanma.
+        const batch = writeBatch(db); 
         
         if (!isChunked) {
              const docRef = doc(db, "schools", ownerId, "files", fileId);
@@ -164,21 +164,23 @@ export const FileService = {
              });
         }
         
-        // Batch'i commit et
+        // Batch commit edilince işlem biter veya hata fırlatır
         await batch.commit();
     };
 
     try {
-        if(onProgress) onProgress(50);
-        // RetryHelper tüm işlemi (batch oluşturma + commit) baştan dener
-        await retryOperation(uploadOperation);
+        if(onProgress) onProgress(30);
+        
+        // Retry mekanizması performBatchUpload fonksiyonunu baştan çağırır.
+        // Böylece her seferinde clean bir batch ile denenir.
+        await retryOperation(performBatchUpload, 3, 2000);
         
         if(onProgress) onProgress(100);
         
         return fileId;
     } catch (error: any) {
-        console.error("File save error details:", error);
-        throw new Error(`Dosya yüklenemedi: ${error.message || "Bağlantı hatası"}`);
+        console.error("File save final failure:", error);
+        throw new Error(`Yükleme başarısız oldu: ${error.message}`);
     }
   },
 
