@@ -50,14 +50,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   // Resource Form
   const [resTitle, setResTitle] = useState("");
-  const [resUrl, setResUrl] = useState("");
+  const [resUrl, setResUrl] = useState(""); // This holds the PREVIEW URL (local) or Final URL
+  const [resFile, setResFile] = useState<Blob | File | null>(null); // Actual file to upload
   const [resType, setResType] = useState<'VIDEO' | 'PDF' | 'LINK' | 'IMAGE'>('LINK');
   const [resTab, setResTab] = useState<'LINK' | 'UPLOAD'>('LINK');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // UPLOAD STATE
   const [isUploading, setIsUploading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false); // Yeni: Dosya hazırlama durumu
+  const [isProcessing, setIsProcessing] = useState(false); 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusText, setUploadStatusText] = useState("");
 
@@ -218,33 +219,31 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  // --- COMPRESSION AND UPLOAD LOGIC ---
+  // --- COMPRESSION AND FILE SELECTION LOGIC ---
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
       
       // Reset State
-      setIsProcessing(true); // Dosya işleniyor göstergesi
+      setIsProcessing(true);
       setUploadStatusText("Sıkıştırılıyor...");
       event.target.value = ""; // Reset input
       
       try {
           // PDF Logic
           if (file.type === 'application/pdf') {
-              if (file.size > 3 * 1024 * 1024) { 
-                  alert("PDF dosyaları en fazla 3MB olabilir. Lütfen daha küçük bir dosya seçin.");
+              if (file.size > 10 * 1024 * 1024) { // 10MB limit for PDF
+                  alert("PDF dosyaları en fazla 10MB olabilir.");
                   setIsProcessing(false);
                   return;
               }
-              const reader = new FileReader();
-              reader.onload = () => {
-                  setResUrl(reader.result as string);
-                  setResType('PDF');
-                  if (!resTitle) setResTitle(`Ödev ${new Date().toLocaleDateString('tr-TR')}`);
-                  setUploadStatusText("PDF Hazır");
-                  setIsProcessing(false);
-              };
-              reader.readAsDataURL(file);
+              const previewUrl = URL.createObjectURL(file);
+              setResUrl(previewUrl); // Local Preview
+              setResFile(file); // Actual File for Upload
+              setResType('PDF');
+              if (!resTitle) setResTitle(`Ödev ${new Date().toLocaleDateString('tr-TR')}`);
+              setUploadStatusText("PDF Hazır");
+              setIsProcessing(false);
           } 
           // IMAGE Logic (Optimized Compression)
           else if (file.type.startsWith('image/')) {
@@ -254,8 +253,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               img.onload = () => {
                   URL.revokeObjectURL(objectUrl);
                   
-                  // Aggressive resizing for reliable uploads
-                  const MAX_DIMENSION = 1024; 
+                  // Reasonable resizing for web viewing
+                  const MAX_DIMENSION = 1280; 
                   let newWidth = img.width;
                   let newHeight = img.height;
 
@@ -282,15 +281,20 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
                   ctx.drawImage(img, 0, 0, newWidth, newHeight);
                   
-                  // Convert to JPEG with lower quality (0.6) for smaller size
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-                  
-                  setResUrl(dataUrl);
-                  setResType('IMAGE');
-                  if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
-                  
-                  setUploadStatusText("Fotoğraf Sıkıştırıldı");
-                  setIsProcessing(false);
+                  // Convert to Blob (File) instead of Base64 String
+                  canvas.toBlob((blob) => {
+                      if (blob) {
+                           const previewUrl = URL.createObjectURL(blob);
+                           setResUrl(previewUrl);
+                           setResFile(blob);
+                           setResType('IMAGE');
+                           if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
+                           setUploadStatusText("Fotoğraf Sıkıştırıldı");
+                      } else {
+                           alert("Sıkıştırma hatası.");
+                      }
+                      setIsProcessing(false);
+                  }, 'image/jpeg', 0.8);
               };
 
               img.onerror = () => {
@@ -316,29 +320,27 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           let finalType = resType;
           let finalUrlOrId = resUrl;
 
-          // Dosya yükleme modundaysa ve URL base64 ise
-          if (resTab === 'UPLOAD' && (resUrl.startsWith('data:'))) {
+          // UPLOAD MODE: Send File to Firebase Storage
+          if (resTab === 'UPLOAD' && resFile) {
               try {
                   setIsUploading(true);
-                  setUploadStatusText("Güvenli Bağlantı Kuruluyor...");
-                  setUploadProgress(5); 
+                  setUploadStatusText("Yükleme Başlatılıyor...");
+                  setUploadProgress(0); 
 
-                  // Pass progress callback AND USER ID
-                  const fileId = await FileService.saveFile(user.id, resUrl, (progress) => {
+                  // Upload to Firebase Storage
+                  const downloadURL = await FileService.saveFile(user.id, resFile, (progress) => {
                       setUploadProgress(progress);
-                      if (progress < 30) setUploadStatusText("Hazırlanıyor...");
-                      else if (progress < 80) setUploadStatusText("Yükleniyor...");
-                      else setUploadStatusText("Tamamlanıyor...");
+                      setUploadStatusText(`Yükleniyor... %${progress}`);
                   });
 
-                  finalUrlOrId = fileId;
-                  setUploadStatusText("Başarılı!");
-                  // Short delay to show 100%
+                  finalUrlOrId = downloadURL;
+                  
+                  setUploadStatusText("Yükleme Tamamlandı!");
                   await new Promise(r => setTimeout(r, 500));
 
               } catch (e: any) {
                   console.error(e);
-                  alert(e.message || "Yükleme hatası. Lütfen tekrar deneyin.");
+                  alert("Yükleme sırasında hata oluştu: " + e.message);
                   setIsUploading(false);
                   setUploadProgress(0);
                   setUploadStatusText("Hata oluştu");
@@ -353,42 +355,27 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               if (!finalUrlOrId.startsWith('http://') && !finalUrlOrId.startsWith('https://')) finalUrlOrId = `https://${finalUrlOrId}`;
           }
 
+          // Save metadata to Firestore
           actions.addResource(studentId, resTitle, finalUrlOrId, finalType);
           
           // Reset Form
-          setResTitle(""); setResUrl(""); setResType('LINK');
+          setResTitle(""); setResUrl(""); setResFile(null); setResType('LINK');
           setUploadProgress(0); setUploadStatusText("");
-          setIsResourcesModalOpen(false); // Close modal on success
+          setIsResourcesModalOpen(false); 
       }
   };
 
   // --- PREVIEW LOGIC ---
   const handleOpenResource = async (res: any) => {
+      // Artık tüm dosyalar birer URL (Storage Linki veya Dış Link)
+      // Base64 chunk birleştirme derdi yok.
       if (res.type === 'LINK' || res.type === 'VIDEO') {
           window.open(res.url, '_blank');
       } else {
           setIsPreviewLoading(true);
           setIsPreviewOpen(true);
           setPreviewType(res.type);
-          setPreviewContent(null);
-
-          let content = res.url;
-          if (!content.startsWith('data:') && !content.startsWith('http')) {
-               // Use user.id as ownerId for fetching
-               if (user) {
-                   const fetched = await FileService.getFile(user.id, content);
-                   if (fetched) {
-                       content = fetched;
-                   } else {
-                       alert("Dosya bulunamadı veya silinmiş.");
-                       setIsPreviewOpen(false);
-                       setIsPreviewLoading(false);
-                       return;
-                   }
-               }
-          }
-
-          setPreviewContent(content);
+          setPreviewContent(res.url); // Directly use the URL
           setIsPreviewLoading(false);
       }
   };
@@ -598,10 +585,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                   </button>
                                   <button onClick={() => handleShareResource(res.title, res.url)} className="w-6 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100"><Share2 size={12} /></button>
                                   <button onClick={async () => {
-                                      if (res.type === 'IMAGE' || res.type === 'PDF') {
-                                           if(!res.url.startsWith('http') && !res.url.startsWith('data:') && user) {
-                                               await FileService.deleteFile(user.id, res.url);
-                                           }
+                                      // Eğer Storage linki ise sil
+                                      if (res.url.includes('firebasestorage')) {
+                                           await FileService.deleteFile(res.url);
                                       }
                                       actions.deleteResource(studentId, res.id);
                                   }} className="w-6 flex items-center justify-center bg-red-50 text-red-500 rounded hover:bg-red-100"><X size={12} /></button>
@@ -678,7 +664,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       </Dialog>
       
       {/* UPLOAD MODAL - Updated with Progress */}
-      <Dialog isOpen={isResourcesModalOpen} onClose={() => { if(!isUploading && !isProcessing) { setIsResourcesModalOpen(false); setResUrl(""); setResTitle(""); setResType('LINK'); setUploadProgress(0); setUploadStatusText(""); } }} title="Materyal Ekle"
+      <Dialog isOpen={isResourcesModalOpen} onClose={() => { if(!isUploading && !isProcessing) { setIsResourcesModalOpen(false); setResUrl(""); setResTitle(""); setResType('LINK'); setUploadProgress(0); setUploadStatusText(""); setResFile(null); } }} title="Materyal Ekle"
            actions={
               !isUploading && !isProcessing && (
                   <>

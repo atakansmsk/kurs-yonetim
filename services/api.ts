@@ -1,7 +1,8 @@
 
-import { auth, db } from '../firebaseConfig';
+import { auth, db, storage } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
-import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, DocumentSnapshot, DocumentData, writeBatch } from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot, DocumentSnapshot, DocumentData } from "firebase/firestore";
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { AppState, User } from '../types';
 
 // --- AUTH SERVİSİ ---
@@ -45,7 +46,7 @@ export const AuthService = {
   }
 };
 
-// --- DATA SERVİSİ (FIRESTORE MODULAR API) ---
+// --- DATA SERVİSİ (FIRESTORE) ---
 export const DataService = {
   // Veriyi Buluta Yaz
   async saveUserData(userId: string, data: AppState): Promise<void> {
@@ -94,162 +95,67 @@ export const DataService = {
   }
 };
 
-// --- DOSYA SERVİSİ (Hybrid Storage with Batching) ---
-const CHUNK_SIZE = 250000; // ~250KB
-
-// Retry Helper
-const retryOperation = async <T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
-    try {
-        return await operation();
-    } catch (error) {
-        if (retries > 0) {
-            console.warn(`Retrying... attempts left: ${retries}. Error:`, error);
-            await new Promise(res => setTimeout(res, delay));
-            // Exponential backoff
-            return retryOperation(operation, retries - 1, delay * 2);
-        }
-        throw error;
-    }
-};
-
+// --- DOSYA SERVİSİ (FIREBASE STORAGE) ---
 export const FileService = {
-  // BATCH UPLOAD: Tüm parçaları tek seferde atomik olarak yükler.
-  // CRITICAL FIX: Batch oluşturma işlemi retry döngüsünün İÇİNDE yapılmalıdır.
-  async saveFile(ownerId: string, base64Data: string, onProgress?: (progress: number) => void): Promise<string> {
-    const fileId = Math.random().toString(36).substr(2, 12);
-    const totalLength = base64Data.length;
-
-    // 1. Veriyi hazırla (Chunks)
-    // Veriyi parçalama işlemi bir kere yapılır, retry sırasında tekrar edilmez.
-    const chunks: string[] = [];
-    const isChunked = totalLength > CHUNK_SIZE;
-
-    if (!isChunked) {
-        chunks.push(base64Data);
-    } else {
-        for (let i = 0; i < totalLength; i += CHUNK_SIZE) {
-            chunks.push(base64Data.substring(i, i + CHUNK_SIZE));
-        }
+  // PROFESYONEL YÖNTEM: Google Cloud Storage Upload
+  async saveFile(ownerId: string, file: Blob | File, onProgress?: (progress: number) => void): Promise<string> {
+    // 1. Dosya için benzersiz bir yol oluştur
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    // Dosya uzantısını tahmin etmeye çalış (Blob ise jpg varsay, File ise name'den al)
+    let extension = 'jpg'; 
+    if (file instanceof File) {
+        extension = file.name.split('.').pop() || 'file';
+    } else if (file.type === 'application/pdf') {
+        extension = 'pdf';
     }
 
-    if(onProgress) onProgress(10);
+    const fileName = `files/${timestamp}_${random}.${extension}`;
+    const storageRef = ref(storage, `schools/${ownerId}/${fileName}`);
 
-    // 2. Yükleme Fonksiyonu (Her çağrıldığında YENİ bir batch oluşturur)
-    const performBatchUpload = async () => {
-        // BURASI KRİTİK: writeBatch() her denemede yeni bir instance döndürmeli.
-        // Asla global veya dış scope'taki batch'i kullanma.
-        const batch = writeBatch(db); 
-        
-        if (!isChunked) {
-             const docRef = doc(db, "schools", ownerId, "files", fileId);
-             batch.set(docRef, {
-                 content: chunks[0],
-                 type: 'simple',
-                 createdAt: new Date().toISOString()
-             });
-        } else {
-             const metaRef = doc(db, "schools", ownerId, "files", fileId);
-             batch.set(metaRef, {
-                 type: 'chunked',
-                 totalChunks: chunks.length,
-                 createdAt: new Date().toISOString()
-             });
+    // 2. Yükleme işlemini başlat (Resumable Upload)
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
-             chunks.forEach((chunk, index) => {
-                 const chunkRef = doc(db, "schools", ownerId, "files", `${fileId}_${index}`);
-                 batch.set(chunkRef, {
-                     content: chunk,
-                     index: index
-                 });
-             });
-        }
-        
-        // Batch commit edilince işlem biter veya hata fırlatır
-        await batch.commit();
-    };
-
-    try {
-        if(onProgress) onProgress(30);
-        
-        // Retry mekanizması performBatchUpload fonksiyonunu baştan çağırır.
-        // Böylece her seferinde clean bir batch ile denenir.
-        await retryOperation(performBatchUpload, 3, 2000);
-        
-        if(onProgress) onProgress(100);
-        
-        return fileId;
-    } catch (error: any) {
-        console.error("File save final failure:", error);
-        throw new Error(`Yükleme başarısız oldu: ${error.message}`);
-    }
+    return new Promise((resolve, reject) => {
+        uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+                // İlerleme yüzdesi
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                if (onProgress) onProgress(Math.round(progress));
+            },
+            (error) => {
+                // Hata durumu
+                console.error("Upload error:", error);
+                reject(error);
+            },
+            async () => {
+                // 3. Başarılı bitiş - İndirme linkini al
+                try {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    resolve(downloadURL);
+                } catch (e) {
+                    reject(e);
+                }
+            }
+        );
+    });
   },
 
-  async getFile(ownerId: string, fileId: string): Promise<string | null> {
+  // Storage'dan dosya silme
+  async deleteFile(url: string): Promise<void> {
     try {
-      const metaDocRef = doc(db, "schools", ownerId, "files", fileId);
-      const metaSnap = await retryOperation<DocumentSnapshot<DocumentData>>(() => getDoc(metaDocRef));
-
-      if (!metaSnap.exists()) return null;
-
-      const data = metaSnap.data();
-
-      if (data && data.type === 'chunked') {
-          const totalChunks = data.totalChunks;
-          
-          // Promise.all ile paralel çekim
-          const chunkPromises: Promise<DocumentSnapshot<DocumentData>>[] = [];
-          for (let i = 0; i < totalChunks; i++) {
-              chunkPromises.push(retryOperation<DocumentSnapshot<DocumentData>>(() => getDoc(doc(db, "schools", ownerId, "files", `${fileId}_${i}`))));
-          }
-          
-          const chunkSnaps = await Promise.all(chunkPromises);
-          let fullContent = "";
-          
-          for (let i = 0; i < totalChunks; i++) {
-             const snap = chunkSnaps[i];
-             if (snap.exists()) {
-                 const snapData = snap.data();
-                 if (snapData) {
-                    fullContent += snapData.content;
-                 }
-             } else {
-                 throw new Error("Dosya bozuk (eksik parça).");
-             }
-          }
-          return fullContent;
-      } else {
-          return data?.content || null;
-      }
+      // URL'den referans oluşturup silme
+      const storageRef = ref(storage, url);
+      await deleteObject(storageRef);
     } catch (error) {
-      console.error("File fetch error:", error);
-      return null;
+      console.warn("File delete warning (might already be deleted):", error);
     }
   },
-
-  async deleteFile(ownerId: string, fileId: string): Promise<void> {
-    try {
-      const metaRef = doc(db, "schools", ownerId, "files", fileId);
-      const metaSnap = await getDoc(metaRef);
-      
-      if (metaSnap.exists()) {
-          const data = metaSnap.data();
-          const batch = writeBatch(db);
-          
-          // Meta verisini sil
-          batch.delete(metaRef);
-
-          if (data && data.type === 'chunked') {
-              const totalChunks = data.totalChunks;
-              for (let i = 0; i < totalChunks; i++) {
-                  const chunkRef = doc(db, "schools", ownerId, "files", `${fileId}_${i}`);
-                  batch.delete(chunkRef);
-              }
-          }
-          
-          await batch.commit();
-      }
-    } catch (error) {
-      console.error("File delete error:", error);
-    }
+  
+  // URL zaten public olduğu için fetch etmeye gerek yok, direkt URL döner
+  // Eski kod ile uyumluluk için var.
+  async getFile(ownerId: string, fileIdOrUrl: string): Promise<string | null> {
+      return fileIdOrUrl;
   }
 };
