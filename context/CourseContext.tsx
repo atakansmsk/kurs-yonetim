@@ -123,12 +123,12 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                        let note = "";
                        
                        if (slot.label === 'MAKEUP') {
-                           note = "Telafi Dersi İşlendi";
+                           note = "Telafi Dersi İşlendi (Otomatik)";
                        } else if (slot.label === 'TRIAL') {
-                           note = "Deneme Dersi İşlendi";
+                           note = "Deneme Dersi İşlendi (Otomatik)";
                        } else {
                            newDebtCount += 1;
-                           note = `${newDebtCount}. Ders İşlendi`;
+                           note = `${newDebtCount}. Ders İşlendi (Otomatik)`;
                        }
 
                        const newTx: Transaction = {
@@ -360,11 +360,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (isDebt) {
               newDebtCount += 1;
           } else {
-              // Ödeme işlemi
-              // Sadece "Şimdi Ödeme Al" dendiğinde (tarih yoksa) sayacı sıfırla.
-              if (!customDate) {
-                 newDebtCount = 0;
-              }
+              // ÖDEME İŞLEMİ:
+              // Ödeme alındığında (tarih eski bile olsa), birikmiş ders borç sayacını SIFIRLA.
+              // Bu, yeni dönemin başlangıcı olarak kabul edilir.
+              newDebtCount = 0;
           }
 
           const parsedAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 

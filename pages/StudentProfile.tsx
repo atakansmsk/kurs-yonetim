@@ -94,7 +94,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const debtLessons = current.filter(tx => 
           tx.isDebt && 
           !tx.note.toLowerCase().includes("telafi") && 
-          !tx.note.toLowerCase().includes("deneme") 
+          !tx.note.toLowerCase().includes("deneme") &&
+          !tx.note.toLowerCase().includes("gelmedi") &&
+          !tx.note.toLowerCase().includes("iptal")
       );
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
