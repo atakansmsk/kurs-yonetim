@@ -99,24 +99,36 @@ export const DataService = {
 export const FileService = {
   // PROFESYONEL YÖNTEM: Google Cloud Storage Upload
   async saveFile(ownerId: string, file: Blob | File, onProgress?: (progress: number) => void): Promise<string> {
-    // 1. Dosya için benzersiz bir yol oluştur
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    // Dosya uzantısını tahmin etmeye çalış (Blob ise jpg varsay, File ise name'den al)
-    let extension = 'jpg'; 
+    // 1. Dosya türünü ve uzantısını belirle
+    let extension = 'bin';
+    let contentType = 'application/octet-stream';
+
     if (file instanceof File) {
         const parts = file.name.split('.');
-        if (parts.length > 1) extension = parts.pop() || 'file';
-    } else if (file.type === 'application/pdf') {
-        extension = 'pdf';
+        if (parts.length > 1) extension = parts.pop() || 'bin';
+        contentType = file.type;
+    } else if (file.type) {
+        // Blob ise ve type varsa
+        contentType = file.type;
+        if (file.type === 'application/pdf') extension = 'pdf';
+        else if (file.type === 'image/jpeg') extension = 'jpg';
+        else if (file.type === 'image/png') extension = 'png';
     }
 
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
     const fileName = `files/${timestamp}_${random}.${extension}`;
+    
     // Klasörleme: schools / {okul_sahibi_id} / files / {dosya_adi}
     const storageRef = ref(storage, `schools/${ownerId}/${fileName}`);
 
+    // Metadata ekle (CORS ve Browser handling için önemli)
+    const metadata = {
+        contentType: contentType,
+    };
+
     // 2. Yükleme işlemini başlat (Resumable Upload)
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
     return new Promise((resolve, reject) => {
         uploadTask.on(
@@ -128,7 +140,8 @@ export const FileService = {
             },
             (error) => {
                 // Hata durumu
-                console.error("Upload error:", error);
+                console.error("Upload error detail:", error);
+                // Kullanıcı dostu hata mesajı gerekebilir ama şimdilik raw hatayı reject ediyoruz
                 reject(error);
             },
             async () => {
@@ -137,6 +150,7 @@ export const FileService = {
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
                     resolve(downloadURL);
                 } catch (e) {
+                    console.error("GetDownloadURL error:", e);
                     reject(e);
                 }
             }
@@ -159,7 +173,6 @@ export const FileService = {
   },
   
   // URL zaten public olduğu için fetch etmeye gerek yok, direkt URL döner
-  // Eski kod ile uyumluluk için var.
   async getFile(ownerId: string, fileIdOrUrl: string): Promise<string | null> {
       return fileIdOrUrl;
   }

@@ -9,7 +9,8 @@ const firebaseConfig = {
   apiKey: "AIzaSyAKrvZ45I2LffVzzg_q9exIZjMqhkR_3Hg",
   authDomain: "kurs-yonetim-pro.firebaseapp.com",
   projectId: "kurs-yonetim-pro",
-  storageBucket: "kurs-yonetim-pro.firebasestorage.app",
+  // Düzeltme: Varsayılan bucket genellikle .appspot.com ile biter
+  storageBucket: "kurs-yonetim-pro.appspot.com", 
   messagingSenderId: "50487616288",
   appId: "1:50487616288:web:36a3ad2fe7a73ce94e2d45"
 };
