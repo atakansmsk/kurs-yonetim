@@ -100,24 +100,37 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
   }, [sortedHistory]);
   
+  // --- LESSON NUMBERING LOGIC (UPDATED) ---
   const lessonNumberMap = useMemo(() => {
       if (!student) return new Map();
       const map = new Map<string, number>();
       
-      const allRegularLessons = sortedHistory.filter(tx => 
-        tx.isDebt && 
-        !tx.note.toLowerCase().includes("telafi") && 
-        !tx.note.toLowerCase().includes("deneme") && 
-        !tx.note.toLowerCase().includes("iptal")
-      );
-      
-      const ascLessons = [...allRegularLessons].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // Tarihçeyi eskiden yeniye sırala
+      const ascHistory = [...student.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      ascLessons.forEach((tx, index) => {
-          map.set(tx.id, index + 1);
+      let currentCounter = 0;
+
+      ascHistory.forEach(tx => {
+          if (!tx.isDebt) {
+              // ÖDEME: Sayacı sıfırla
+              currentCounter = 0;
+          } else {
+              // DERS: Sadece normal dersleri say (Telafi, Deneme, İptal hariç)
+              const lowerNote = tx.note.toLowerCase();
+              const isRegularLesson = !lowerNote.includes("telafi") && 
+                                      !lowerNote.includes("deneme") && 
+                                      !lowerNote.includes("iptal") &&
+                                      !lowerNote.includes("gelmedi");
+              
+              if (isRegularLesson) {
+                  currentCounter++;
+                  map.set(tx.id, currentCounter);
+              }
+          }
       });
+
       return map;
-  }, [sortedHistory]);
+  }, [student]);
 
   const currentMonthName = useMemo(() => {
       return new Date().toLocaleDateString('tr-TR', { month: 'long' });
