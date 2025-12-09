@@ -105,12 +105,14 @@ export const FileService = {
     // Dosya uzantısını tahmin etmeye çalış (Blob ise jpg varsay, File ise name'den al)
     let extension = 'jpg'; 
     if (file instanceof File) {
-        extension = file.name.split('.').pop() || 'file';
+        const parts = file.name.split('.');
+        if (parts.length > 1) extension = parts.pop() || 'file';
     } else if (file.type === 'application/pdf') {
         extension = 'pdf';
     }
 
     const fileName = `files/${timestamp}_${random}.${extension}`;
+    // Klasörleme: schools / {okul_sahibi_id} / files / {dosya_adi}
     const storageRef = ref(storage, `schools/${ownerId}/${fileName}`);
 
     // 2. Yükleme işlemini başlat (Resumable Upload)
@@ -145,6 +147,9 @@ export const FileService = {
   // Storage'dan dosya silme
   async deleteFile(url: string): Promise<void> {
     try {
+      // Eğer URL Firebase Storage URL'i değilse işlem yapma
+      if (!url.includes('firebasestorage')) return;
+      
       // URL'den referans oluşturup silme
       const storageRef = ref(storage, url);
       await deleteObject(storageRef);

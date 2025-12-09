@@ -232,8 +232,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       try {
           // PDF Logic
           if (file.type === 'application/pdf') {
-              if (file.size > 10 * 1024 * 1024) { // 10MB limit for PDF
-                  alert("PDF dosyaları en fazla 10MB olabilir.");
+              if (file.size > 20 * 1024 * 1024) { // 20MB limit for PDF
+                  alert("PDF dosyaları en fazla 20MB olabilir.");
                   setIsProcessing(false);
                   return;
               }
@@ -254,7 +254,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   URL.revokeObjectURL(objectUrl);
                   
                   // Reasonable resizing for web viewing
-                  const MAX_DIMENSION = 1280; 
+                  const MAX_DIMENSION = 1600; 
                   let newWidth = img.width;
                   let newHeight = img.height;
 
@@ -286,7 +286,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       if (blob) {
                            const previewUrl = URL.createObjectURL(blob);
                            setResUrl(previewUrl);
-                           setResFile(blob);
+                           setResFile(blob); // Upload compressed blob
                            setResType('IMAGE');
                            if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
                            setUploadStatusText("Fotoğraf Sıkıştırıldı");
@@ -294,7 +294,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                            alert("Sıkıştırma hatası.");
                       }
                       setIsProcessing(false);
-                  }, 'image/jpeg', 0.8);
+                  }, 'image/jpeg', 0.85); // 0.85 Quality
               };
 
               img.onerror = () => {
