@@ -1,3 +1,4 @@
+
 import { auth, db } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
 import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, DocumentSnapshot, DocumentData, writeBatch } from "firebase/firestore";
@@ -117,57 +118,67 @@ export const FileService = {
     const fileId = Math.random().toString(36).substr(2, 12);
     const totalLength = base64Data.length;
 
-    try {
-      const batch = writeBatch(db);
-      
-      if(onProgress) onProgress(10); // Başlangıç
+    // 1. Veriyi hazırla (Chunks)
+    // Retry sırasında veriyi tekrar tekrar bölmeye gerek yok, bir kere hazırlıyoruz.
+    const chunks: string[] = [];
+    let isChunked = false;
 
-      if (totalLength <= CHUNK_SIZE) {
-        // Küçük dosya: Tek parça
-        const docRef = doc(db, "schools", ownerId, "files", fileId);
-        batch.set(docRef, {
-          content: base64Data,
-          type: 'simple',
-          createdAt: new Date().toISOString()
-        });
-      } else {
-        // Büyük dosya: Parçalama
-        const chunks: string[] = [];
+    if (totalLength <= CHUNK_SIZE) {
+        chunks.push(base64Data);
+    } else {
+        isChunked = true;
         for (let i = 0; i < totalLength; i += CHUNK_SIZE) {
             chunks.push(base64Data.substring(i, i + CHUNK_SIZE));
         }
+    }
 
-        const totalChunks = chunks.length;
+    if(onProgress) onProgress(20);
 
-        // Meta verisi
-        const metaRef = doc(db, "schools", ownerId, "files", fileId);
-        batch.set(metaRef, {
-          type: 'chunked',
-          totalChunks: totalChunks,
-          createdAt: new Date().toISOString()
-        });
-
-        // Parçaları batch'e ekle
-        chunks.forEach((chunk, index) => {
-             const chunkRef = doc(db, "schools", ownerId, "files", `${fileId}_${index}`);
-             batch.set(chunkRef, {
-                content: chunk,
-                index: index
+    // 2. Retry için sarılmış işlem fonksiyonu
+    // KRİTİK DÜZELTME: Her denemede YENİ bir batch oluşturuyoruz.
+    // Eskiden batch dışarıda oluşturulup içeride commit ediliyordu, bu da hata veriyordu.
+    const uploadOperation = async () => {
+        const batch = writeBatch(db); // YENİ BATCH OLUŞTUR
+        
+        if (!isChunked) {
+             const docRef = doc(db, "schools", ownerId, "files", fileId);
+             batch.set(docRef, {
+                 content: chunks[0],
+                 type: 'simple',
+                 createdAt: new Date().toISOString()
              });
-        });
-      }
+        } else {
+             const metaRef = doc(db, "schools", ownerId, "files", fileId);
+             batch.set(metaRef, {
+                 type: 'chunked',
+                 totalChunks: chunks.length,
+                 createdAt: new Date().toISOString()
+             });
 
-      if(onProgress) onProgress(50); // Hazırlandı, gönderiliyor
+             chunks.forEach((chunk, index) => {
+                 const chunkRef = doc(db, "schools", ownerId, "files", `${fileId}_${index}`);
+                 batch.set(chunkRef, {
+                     content: chunk,
+                     index: index
+                 });
+             });
+        }
+        
+        // Batch'i commit et
+        await batch.commit();
+    };
 
-      // Firestore Batch Commit (Atomik İşlem)
-      await retryOperation(() => batch.commit());
-      
-      if(onProgress) onProgress(100); // Bitti
-      
-      return fileId;
+    try {
+        if(onProgress) onProgress(50);
+        // RetryHelper tüm işlemi (batch oluşturma + commit) baştan dener
+        await retryOperation(uploadOperation);
+        
+        if(onProgress) onProgress(100);
+        
+        return fileId;
     } catch (error: any) {
-      console.error("File save error details:", error);
-      throw new Error(`Dosya yüklenemedi: ${error.message || "Erişim Reddedildi"}`);
+        console.error("File save error details:", error);
+        throw new Error(`Dosya yüklenemedi: ${error.message || "Bağlantı hatası"}`);
     }
   },
 
