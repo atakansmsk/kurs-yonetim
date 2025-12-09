@@ -99,6 +99,8 @@ export const DataService = {
 export const FileService = {
   // PROFESYONEL YÖNTEM: Google Cloud Storage Upload
   async saveFile(ownerId: string, file: Blob | File, onProgress?: (progress: number) => void): Promise<string> {
+    if (!file) throw new Error("Dosya seçilmedi.");
+
     // 1. Dosya türünü ve uzantısını belirle
     let extension = 'bin';
     let contentType = 'application/octet-stream';
@@ -125,7 +127,12 @@ export const FileService = {
     // Metadata ekle (CORS ve Browser handling için önemli)
     const metadata = {
         contentType: contentType,
+        customMetadata: {
+          'ownerId': ownerId
+        }
     };
+
+    console.log("Upload başlıyor:", { path: storageRef.fullPath, type: contentType });
 
     // 2. Yükleme işlemini başlat (Resumable Upload)
     const uploadTask = uploadBytesResumable(storageRef, file, metadata);
@@ -135,19 +142,31 @@ export const FileService = {
             'state_changed',
             (snapshot) => {
                 // İlerleme yüzdesi
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                if (onProgress) onProgress(Math.round(progress));
+                if (snapshot.totalBytes > 0) {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    console.log(`Upload Progress: ${Math.round(progress)}%`);
+                    if (onProgress) onProgress(Math.round(progress));
+                }
             },
             (error) => {
                 // Hata durumu
                 console.error("Upload error detail:", error);
-                // Kullanıcı dostu hata mesajı gerekebilir ama şimdilik raw hatayı reject ediyoruz
-                reject(error);
+                
+                if (error.code === 'storage/unauthorized') {
+                   reject(new Error("Yükleme izniniz yok. Lütfen Firebase Storage Rules ayarlarını kontrol edin."));
+                } else if (error.code === 'storage/canceled') {
+                   reject(new Error("Yükleme iptal edildi."));
+                } else if (error.code === 'storage/unknown') {
+                   reject(new Error("Bilinmeyen hata (Muhtemelen CORS ayarı eksik)."));
+                } else {
+                   reject(error);
+                }
             },
             async () => {
                 // 3. Başarılı bitiş - İndirme linkini al
                 try {
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    console.log("Upload tamamlandı, URL:", downloadURL);
                     resolve(downloadURL);
                 } catch (e) {
                     console.error("GetDownloadURL error:", e);

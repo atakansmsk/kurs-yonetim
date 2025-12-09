@@ -240,7 +240,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       // Reset State
       setIsProcessing(true);
       setUploadStatusText("Sıkıştırılıyor...");
-      event.target.value = ""; // Reset input
+      // Not: input value'yu hemen sıfırlamıyoruz ki referans kaybolmasın, işlem bitince sıfırlayacağız.
       
       try {
           // PDF Logic
@@ -299,7 +299,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       if (blob) {
                            const previewUrl = URL.createObjectURL(blob);
                            setResUrl(previewUrl);
-                           setResFile(blob); // Upload compressed blob
+                           // Blob'a type eklemek önemli
+                           const newFile = new File([blob], "image.jpg", { type: "image/jpeg" });
+                           setResFile(newFile); // Upload compressed blob as File
                            setResType('IMAGE');
                            if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
                            setUploadStatusText("Fotoğraf Sıkıştırıldı");
@@ -329,15 +331,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   };
 
   const handleAddResource = async () => {
-      if(resTitle && resUrl && user) {
+      if(resTitle && user) {
           let finalType = resType;
           let finalUrlOrId = resUrl;
 
           // UPLOAD MODE: Send File to Firebase Storage
-          if (resTab === 'UPLOAD' && resFile) {
+          if (resTab === 'UPLOAD') {
+              if (!resFile) {
+                  alert("Lütfen bir dosya seçin");
+                  return;
+              }
               try {
                   setIsUploading(true);
-                  setUploadStatusText("Yükleme Başlatılıyor...");
+                  setUploadStatusText("Sunucuya bağlanıyor...");
                   setUploadProgress(0); 
 
                   // Upload to Firebase Storage
@@ -349,11 +355,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   finalUrlOrId = downloadURL;
                   
                   setUploadStatusText("Yükleme Tamamlandı!");
+                  // Short delay to show 100%
                   await new Promise(r => setTimeout(r, 500));
 
               } catch (e: any) {
                   console.error(e);
-                  alert("Yükleme sırasında hata oluştu: " + e.message);
+                  alert("HATA: " + (e.message || "Yükleme başarısız"));
                   setIsUploading(false);
                   setUploadProgress(0);
                   setUploadStatusText("Hata oluştu");
@@ -362,6 +369,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   setIsUploading(false);
               }
           } else if (resTab === 'LINK') {
+              if (!resUrl) return;
               finalType = 'LINK';
               if (finalUrlOrId.includes('youtube.com') || finalUrlOrId.includes('youtu.be')) finalType = 'VIDEO';
               if (finalUrlOrId.endsWith('.pdf')) finalType = 'PDF';
@@ -374,6 +382,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           // Reset Form
           setResTitle(""); setResUrl(""); setResFile(null); setResType('LINK');
           setUploadProgress(0); setUploadStatusText("");
+          if (fileInputRef.current) fileInputRef.current.value = "";
           setIsResourcesModalOpen(false); 
       }
   };
@@ -682,7 +691,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               !isUploading && !isProcessing && (
                   <>
                       <button onClick={() => setIsResourcesModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-                      <button onClick={handleAddResource} disabled={!resTitle || !resUrl} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>
+                      <button onClick={handleAddResource} disabled={!resTitle || (!resUrl && !resFile)} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>
                   </>
               )
           }
