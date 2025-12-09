@@ -56,6 +56,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   
   // UPLOAD STATE
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // Yeni: Dosya hazırlama durumu
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusText, setUploadStatusText] = useState("");
 
@@ -222,17 +223,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       if (!file) return;
       
       // Reset State
-      setIsUploading(true);
-      setUploadProgress(0);
-      setUploadStatusText("Dosya işleniyor...");
+      setIsProcessing(true); // Dosya işleniyor göstergesi
+      setUploadStatusText("Dosya hazırlanıyor...");
       event.target.value = ""; // Reset input
       
       try {
           // PDF Logic
           if (file.type === 'application/pdf') {
-              if (file.size > 5 * 1024 * 1024) { 
-                  alert("PDF dosyaları en fazla 5MB olabilir.");
-                  setIsUploading(false);
+              if (file.size > 3 * 1024 * 1024) { 
+                  alert("PDF dosyaları en fazla 3MB olabilir. Lütfen daha küçük bir dosya seçin.");
+                  setIsProcessing(false);
                   return;
               }
               const reader = new FileReader();
@@ -241,11 +241,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   setResType('PDF');
                   if (!resTitle) setResTitle(`Ödev ${new Date().toLocaleDateString('tr-TR')}`);
                   setUploadStatusText("PDF Hazır");
-                  setIsUploading(false);
+                  setIsProcessing(false);
               };
               reader.readAsDataURL(file);
           } 
-          // IMAGE Logic (Advanced Compression)
+          // IMAGE Logic (Optimized Compression)
           else if (file.type.startsWith('image/')) {
               const img = document.createElement('img');
               const objectUrl = URL.createObjectURL(file);
@@ -253,8 +253,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               img.onload = () => {
                   URL.revokeObjectURL(objectUrl);
                   
-                  // Aggressive resizing for mobile
-                  const MAX_DIMENSION = 1024; // 1024px max (Yeterli okunabilirlik, çok düşük boyut)
+                  // Aggressive resizing for reliable uploads
+                  const MAX_DIMENSION = 1024; 
                   let newWidth = img.width;
                   let newHeight = img.height;
 
@@ -275,39 +275,38 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   const ctx = canvas.getContext('2d');
                   if (!ctx) {
                       alert("Görüntü işlenemedi.");
-                      setIsUploading(false);
+                      setIsProcessing(false);
                       return;
                   }
 
                   ctx.drawImage(img, 0, 0, newWidth, newHeight);
                   
-                  // Convert to standard JPEG with medium quality (0.7)
-                  // This dramatically reduces file size (often < 200KB)
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                  // Convert to JPEG with lower quality (0.6) for smaller size
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
                   
                   setResUrl(dataUrl);
                   setResType('IMAGE');
                   if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
                   
                   setUploadStatusText("Fotoğraf Sıkıştırıldı");
-                  setIsUploading(false);
+                  setIsProcessing(false);
               };
 
               img.onerror = () => {
                   alert("Resim yüklenirken hata oluştu.");
-                  setIsUploading(false);
+                  setIsProcessing(false);
               };
 
               img.src = objectUrl;
           } 
           else {
               alert("Sadece Resim ve PDF dosyaları desteklenir.");
-              setIsUploading(false);
+              setIsProcessing(false);
           }
       } catch (error) {
           console.error("İşleme hatası:", error);
           alert("Dosya hazırlanamadı.");
-          setIsUploading(false);
+          setIsProcessing(false);
       }
   };
 
@@ -321,16 +320,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               try {
                   setIsUploading(true);
                   setUploadStatusText("Buluta Yükleniyor...");
-                  setUploadProgress(1); // Start progress bar
+                  setUploadProgress(10); // Start progress bar
 
                   // Pass progress callback AND USER ID
                   const fileId = await FileService.saveFile(user.id, resUrl, (progress) => {
                       setUploadProgress(progress);
-                      setUploadStatusText(`Yükleniyor %${progress}`);
+                      setUploadStatusText(progress === 100 ? "Tamamlandı!" : `Yükleniyor %${progress}`);
                   });
 
                   finalUrlOrId = fileId;
                   setUploadStatusText("Tamamlandı!");
+                  // Short delay to show 100%
+                  await new Promise(r => setTimeout(r, 500));
+
               } catch (e: any) {
                   alert(e.message || "Yükleme başarısız. İnternet bağlantınızı kontrol edin.");
                   setIsUploading(false);
@@ -373,7 +375,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                    if (fetched) {
                        content = fetched;
                    } else {
-                       alert("Dosya bulunamadı.");
+                       alert("Dosya bulunamadı veya silinmiş.");
                        setIsPreviewOpen(false);
                        setIsPreviewLoading(false);
                        return;
@@ -671,9 +673,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       </Dialog>
       
       {/* UPLOAD MODAL - Updated with Progress */}
-      <Dialog isOpen={isResourcesModalOpen} onClose={() => { if(!isUploading) { setIsResourcesModalOpen(false); setResUrl(""); setResTitle(""); setResType('LINK'); setUploadProgress(0); setUploadStatusText(""); } }} title="Materyal Ekle"
+      <Dialog isOpen={isResourcesModalOpen} onClose={() => { if(!isUploading && !isProcessing) { setIsResourcesModalOpen(false); setResUrl(""); setResTitle(""); setResType('LINK'); setUploadProgress(0); setUploadStatusText(""); } }} title="Materyal Ekle"
            actions={
-              !isUploading && (
+              !isUploading && !isProcessing && (
                   <>
                       <button onClick={() => setIsResourcesModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
                       <button onClick={handleAddResource} disabled={!resTitle || !resUrl} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>
@@ -683,7 +685,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       >
           <div className="flex flex-col gap-3 py-1">
               {/* Tabs only if not uploading */}
-              {!isUploading && (
+              {!isUploading && !isProcessing && (
                 <div className="flex bg-slate-100 p-1 rounded-xl">
                     <button onClick={() => setResTab('LINK')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'LINK' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Link / Video</button>
                     <button onClick={() => setResTab('UPLOAD')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'UPLOAD' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Dosya Yükle</button>
@@ -691,20 +693,26 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               )}
 
               {/* Title Input */}
-              {!isUploading && (
+              {!isUploading && !isProcessing && (
                 <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="Başlık (Örn: Ödev 1)" />
               )}
               
-              {isUploading ? (
+              {isUploading || isProcessing ? (
                   // UPLOAD PROGRESS VIEW
                   <div className="flex flex-col items-center justify-center py-6 gap-3">
-                      <div className="relative w-16 h-16">
-                           <svg className="w-full h-full transform -rotate-90">
-                               <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-100" />
-                               <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={175} strokeDashoffset={175 - (175 * uploadProgress) / 100} className="text-indigo-600 transition-all duration-300 ease-linear" />
-                           </svg>
-                           <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-indigo-600">{uploadProgress}%</div>
-                      </div>
+                      {isProcessing ? (
+                          <div className="flex flex-col items-center gap-2">
+                             <Loader2 size={40} className="text-indigo-600 animate-spin" />
+                          </div>
+                      ) : (
+                          <div className="relative w-16 h-16">
+                               <svg className="w-full h-full transform -rotate-90">
+                                   <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-100" />
+                                   <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={175} strokeDashoffset={175 - (175 * uploadProgress) / 100} className="text-indigo-600 transition-all duration-300 ease-linear" />
+                               </svg>
+                               <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-indigo-600">{uploadProgress}%</div>
+                          </div>
+                      )}
                       <div className="text-center">
                           <p className="font-bold text-slate-800 text-sm">{uploadStatusText}</p>
                           <p className="text-[10px] text-slate-400 mt-1">Lütfen bekleyin, kapatmayın...</p>

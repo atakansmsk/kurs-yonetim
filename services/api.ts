@@ -1,6 +1,6 @@
 import { auth, db } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
-import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, DocumentSnapshot, DocumentData } from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, DocumentSnapshot, DocumentData, writeBatch } from "firebase/firestore";
 import { AppState, User } from '../types';
 
 // --- AUTH SERVİSİ ---
@@ -93,10 +93,10 @@ export const DataService = {
   }
 };
 
-// --- DOSYA SERVİSİ (Hybrid Storage with Chunking) ---
-const CHUNK_SIZE = 250000; // ~250KB (Mobil ağlar için güvenli boyut)
+// --- DOSYA SERVİSİ (Hybrid Storage with Batching) ---
+const CHUNK_SIZE = 250000; // ~250KB
 
-// Retry Helper: Hata alırsan 3 kere tekrar dene
+// Retry Helper
 const retryOperation = async <T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
     try {
         return await operation();
@@ -111,22 +111,25 @@ const retryOperation = async <T>(operation: () => Promise<T>, retries = 3, delay
 };
 
 export const FileService = {
-  // onProgress callback eklendi: (progress: number) => void
+  // BATCH UPLOAD: Tüm parçaları tek seferde atomik olarak yükler.
+  // Bu sayede "yarım yüklenen" dosya sorunu ortadan kalkar.
   async saveFile(ownerId: string, base64Data: string, onProgress?: (progress: number) => void): Promise<string> {
     const fileId = Math.random().toString(36).substr(2, 12);
     const totalLength = base64Data.length;
 
     try {
+      const batch = writeBatch(db);
+      
+      if(onProgress) onProgress(10); // Başlangıç
+
       if (totalLength <= CHUNK_SIZE) {
         // Küçük dosya: Tek parça
-        if(onProgress) onProgress(50);
-        // Path updated to: schools/{ownerId}/files/{fileId}
-        await retryOperation(() => setDoc(doc(db, "schools", ownerId, "files", fileId), {
+        const docRef = doc(db, "schools", ownerId, "files", fileId);
+        batch.set(docRef, {
           content: base64Data,
           type: 'simple',
           createdAt: new Date().toISOString()
-        }));
-        if(onProgress) onProgress(100);
+        });
       } else {
         // Büyük dosya: Parçalama
         const chunks: string[] = [];
@@ -136,27 +139,30 @@ export const FileService = {
 
         const totalChunks = chunks.length;
 
-        // Meta verisi - schools/{ownerId}/files/{fileId}
-        await retryOperation(() => setDoc(doc(db, "schools", ownerId, "files", fileId), {
+        // Meta verisi
+        const metaRef = doc(db, "schools", ownerId, "files", fileId);
+        batch.set(metaRef, {
           type: 'chunked',
           totalChunks: totalChunks,
           createdAt: new Date().toISOString()
-        }));
+        });
 
-        // Parçaları sırayla yükle - schools/{ownerId}/files/{fileId}_{index}
-        for (let index = 0; index < totalChunks; index++) {
-             await retryOperation(() => setDoc(doc(db, "schools", ownerId, "files", `${fileId}_${index}`), {
-                content: chunks[index],
+        // Parçaları batch'e ekle
+        chunks.forEach((chunk, index) => {
+             const chunkRef = doc(db, "schools", ownerId, "files", `${fileId}_${index}`);
+             batch.set(chunkRef, {
+                content: chunk,
                 index: index
-            }));
-            
-            // İlerleme yüzdesi hesapla
-            if(onProgress) {
-                const percent = Math.round(((index + 1) / totalChunks) * 100);
-                onProgress(percent);
-            }
-        }
+             });
+        });
       }
+
+      if(onProgress) onProgress(50); // Hazırlandı, gönderiliyor
+
+      // Firestore Batch Commit (Atomik İşlem)
+      await retryOperation(() => batch.commit());
+      
+      if(onProgress) onProgress(100); // Bitti
       
       return fileId;
     } catch (error: any) {
@@ -167,9 +173,7 @@ export const FileService = {
 
   async getFile(ownerId: string, fileId: string): Promise<string | null> {
     try {
-      // Look in user specific path
       const metaDocRef = doc(db, "schools", ownerId, "files", fileId);
-      // Explicitly type the generic to avoid 'unknown' inference
       const metaSnap = await retryOperation<DocumentSnapshot<DocumentData>>(() => getDoc(metaDocRef));
 
       if (!metaSnap.exists()) return null;
@@ -216,16 +220,20 @@ export const FileService = {
       
       if (metaSnap.exists()) {
           const data = metaSnap.data();
-          await deleteDoc(metaRef);
+          const batch = writeBatch(db);
+          
+          // Meta verisini sil
+          batch.delete(metaRef);
 
           if (data && data.type === 'chunked') {
               const totalChunks = data.totalChunks;
-              const deletePromises = [];
               for (let i = 0; i < totalChunks; i++) {
-                  deletePromises.push(deleteDoc(doc(db, "schools", ownerId, "files", `${fileId}_${i}`)));
+                  const chunkRef = doc(db, "schools", ownerId, "files", `${fileId}_${i}`);
+                  batch.delete(chunkRef);
               }
-              await Promise.all(deletePromises);
           }
+          
+          await batch.commit();
       }
     } catch (error) {
       console.error("File delete error:", error);
