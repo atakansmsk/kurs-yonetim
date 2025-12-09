@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService, FileService } from '../services/api';
 import { AppState, Student, LessonSlot } from '../types';
@@ -455,7 +456,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                         } else if (lowerNote.includes("gelmedi") || lowerNote.includes("iptal")) {
                             // ABSENT
                             title = "Katılım Yok";
-                            subtitle = "Habersiz";
+                            subtitle = "İşlenmedi";
                             iconColor = "text-red-600 bg-red-50";
                             Icon = XCircle;
                         } else if (lowerNote.includes("deneme")) {

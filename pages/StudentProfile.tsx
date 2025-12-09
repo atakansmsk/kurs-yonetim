@@ -203,7 +203,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       if (action === 'DELETE') {
           actions.deleteTransaction(studentId, selectedTx.id);
       } else if (action === 'ABSENT') {
-          actions.updateTransaction(studentId, selectedTx.id, "Gelmedi (Habersiz)");
+          actions.updateTransaction(studentId, selectedTx.id, "Gelmedi");
       } else if (action === 'MAKEUP') {
           actions.updateTransaction(studentId, selectedTx.id, "Telafi Bekliyor");
       } else if (action === 'MAKEUP_DONE') {
@@ -421,7 +421,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           }
       } else if (tx.note.includes('Gelmedi')) {
            title = "Katılım Yok";
-           sub = "Habersiz";
+           sub = "İşlenmedi";
            icon = <XCircle size={16} />;
            iconClass = "bg-red-50 text-red-600";
       } else {
