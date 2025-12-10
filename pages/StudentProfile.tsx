@@ -93,10 +93,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
       const debtLessons = current.filter(tx => 
           tx.isDebt && 
-          !tx.note.toLowerCase().includes("telafi") && 
-          !tx.note.toLowerCase().includes("deneme") &&
-          !tx.note.toLowerCase().includes("gelmedi") &&
-          !tx.note.toLowerCase().includes("iptal")
+          !(tx.note || "").toLowerCase().includes("telafi") && 
+          !(tx.note || "").toLowerCase().includes("deneme") &&
+          !(tx.note || "").toLowerCase().includes("gelmedi") &&
+          !(tx.note || "").toLowerCase().includes("iptal")
       );
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
@@ -118,7 +118,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               currentCounter = 0;
           } else {
               // DERS: Sadece normal dersleri say (Telafi, Deneme, İptal hariç)
-              const lowerNote = tx.note.toLowerCase();
+              const lowerNote = (tx.note || "").toLowerCase();
               const isRegularLesson = !lowerNote.includes("telafi") && 
                                       !lowerNote.includes("deneme") && 
                                       !lowerNote.includes("iptal") &&
