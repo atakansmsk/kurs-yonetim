@@ -32,7 +32,7 @@ export default {
         textMuted: '#64748B', 
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
       },
       boxShadow: {
         'soft': '0 10px 40px -10px rgba(0,0,0,0.05)',

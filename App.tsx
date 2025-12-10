@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CourseProvider, useCourse } from './context/CourseContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -42,9 +41,9 @@ const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
     const startExit = () => setIsExiting(true);
     const finish = () => onFinish();
 
-    // Süreleri kısalttık ve sıraladık
-    const t1 = setTimeout(startExit, 1000); // 1.0s sonra çıkış animasyonu başlar
-    const t2 = setTimeout(finish, 1600);    // 1.6s sonra komponent tamamen kalkar
+    // Süreleri kısalttık: Hızlı açılış için
+    const t1 = setTimeout(startExit, 500); // 0.5s sonra çıkış animasyonu başlar
+    const t2 = setTimeout(finish, 800);    // 0.8s sonra komponent tamamen kalkar
 
     return () => {
       clearTimeout(t1);
@@ -54,7 +53,7 @@ const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
 
   const handleForceFinish = () => {
       setIsExiting(true);
-      setTimeout(onFinish, 200);
+      setTimeout(onFinish, 100);
   };
 
   return (
@@ -77,7 +76,7 @@ const SplashScreen = ({ onFinish, logoStr }: SplashScreenProps) => {
         </div>
         <div className="mt-8 text-center animate-pulse-slow px-4">
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Kurs Pro</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Yükleniyor...</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Hazır</p>
         </div>
     </div>
   );
