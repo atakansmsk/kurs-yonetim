@@ -108,7 +108,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
                   // Check if ANY debt/lesson transaction already exists for TODAY
                   // This prevents duplication if the teacher manually added "Absent" or "Lesson Done" earlier.
-                  const hasTx = student.history.some(tx => {
+                  // Defensive coding: student.history might be undefined in legacy data
+                  const history = student.history || [];
+                  const hasTx = history.some(tx => {
                       if (!tx.isDebt) return false; // Ignore payments
                       const txDate = new Date(tx.date);
                       return txDate.getDate() === now.getDate() && 
@@ -146,7 +148,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                                [student.id]: {
                                    ...student,
                                    debtLessonCount: newDebtCount,
-                                   history: [newTx, ...student.history]
+                                   history: [newTx, ...history]
                                }
                            }
                        };
@@ -354,6 +356,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           const date = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
           const isDebt = type === 'LESSON';
+          const history = student.history || [];
           
           let newDebtCount = student.debtLessonCount;
 
@@ -385,7 +388,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   [studentId]: {
                       ...student,
                       debtLessonCount: newDebtCount,
-                      history: [newTx, ...student.history]
+                      history: [newTx, ...history]
                   }
               }
           };
@@ -403,7 +406,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               // Usually handled at booking, but if manually marking
           }
 
-          const updatedHistory = student.history.map(tx => {
+          const updatedHistory = (student.history || []).map(tx => {
               if (tx.id === transactionId) {
                   return { ...tx, note };
               }
@@ -427,7 +430,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const student = s.students[studentId];
           if (!student) return s;
 
-          const tx = student.history.find(t => t.id === transactionId);
+          const history = student.history || [];
+          const tx = history.find(t => t.id === transactionId);
           let newDebtCount = student.debtLessonCount;
           
           if (tx && tx.isDebt) {
@@ -441,7 +445,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   [studentId]: {
                       ...student,
                       debtLessonCount: newDebtCount,
-                      history: student.history.filter(t => t.id !== transactionId)
+                      history: history.filter(t => t.id !== transactionId)
                   }
               }
           };
@@ -461,7 +465,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           };
           return {
               ...s,
-              students: { ...s.students, [studentId]: { ...student, resources: [newRes, ...student.resources] } }
+              students: { ...s.students, [studentId]: { ...student, resources: [newRes, ...(student.resources || [])] } }
           };
       }),
 
@@ -470,7 +474,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if(!student) return s;
           return {
               ...s,
-              students: { ...s.students, [studentId]: { ...student, resources: student.resources.filter(r => r.id !== resourceId) } }
+              students: { ...s.students, [studentId]: { ...student, resources: (student.resources || []).filter(r => r.id !== resourceId) } }
           };
       }),
 

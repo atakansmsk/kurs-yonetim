@@ -72,7 +72,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   // --- SORTER ---
   const sortedHistory = useMemo(() => {
       if (!student) return [];
-      return [...student.history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return [...(student.history || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [student]);
 
   // --- HISTORY SPLITTER ---
@@ -102,7 +102,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       });
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
-  }, [sortedHistory]);
+  }, [sortedHistory, student]);
   
   // --- LESSON NUMBERING LOGIC (UPDATED) ---
   const lessonNumberMap = useMemo(() => {
@@ -110,7 +110,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const map = new Map<string, number>();
       
       // Tarihçeyi eskiden yeniye sırala
-      const ascHistory = [...student.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const ascHistory = [...(student.history || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       let currentCounter = 0;
 
