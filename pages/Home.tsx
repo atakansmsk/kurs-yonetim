@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, LayoutGrid, Share2, Copy } from 'lucide-react';
+import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, ChevronLeft, LayoutGrid, Share2, Copy } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface HomeProps {
@@ -29,35 +29,35 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [newTeacherName, setNewTeacherName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Day Navigation State
+  const [dayOffset, setDayOffset] = useState(0);
+
   const isCustomLogo = state.schoolIcon.startsWith('data:');
   const CurrentIcon = !isCustomLogo ? (ICONS[state.schoolIcon] || Sparkles) : Sparkles;
   
   // --- Dynamic Date Logic ---
-  const [todayData, setTodayData] = useState({ count: 0, label: "Bugün" });
-
-  useEffect(() => {
+  const dailyStats = useMemo(() => {
     // JS getDay(): 0=Pazar, 1=Pazartesi ... 6=Cumartesi
-    // Map to App Keys used in schedule (defined in types.ts as DAYS)
     const jsDayToAppKey: Record<number, string> = {
-        0: "Pazar",
-        1: "Pazartesi",
-        2: "Salı",
-        3: "Çarşamba",
-        4: "Perşembe",
-        5: "Cuma",
-        6: "Cmt"
+        0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
     };
     
-    const today = new Date();
-    const dayIndex = today.getDay();
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + dayOffset);
+    
+    const dayIndex = targetDate.getDay();
     const appDayKey = jsDayToAppKey[dayIndex];
     
     const key = `${state.currentTeacher}|${appDayKey}`;
     const count = (state.schedule[key] || []).filter(s => s.studentId).length;
-    
-    setTodayData({ count, label: appDayKey });
-  }, [state.schedule, state.currentTeacher]);
-  // --------------------------
+
+    let label = appDayKey;
+    if (dayOffset === 0) label = "Bugün";
+    else if (dayOffset === 1) label = "Yarın";
+    else if (dayOffset === -1) label = "Dün";
+
+    return { count, label, fullDayName: appDayKey };
+  }, [state.schedule, state.currentTeacher, dayOffset]);
   
   // HELPER: Belirli bir öğretmenin kaç farklı öğrencisi olduğunu hesapla
   const getStudentCountForTeacher = (teacherName: string) => {
@@ -162,10 +162,33 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide z-10">Öğrenciniz</span>
           </div>
 
-          <div className="bg-purple-50/50 p-4 rounded-3xl border border-purple-100 flex flex-col items-start justify-center relative overflow-hidden">
-             <div className="absolute right-[-10px] top-[-10px] text-purple-100 opacity-50"><CalendarRange size={60} /></div>
-             <span className="text-3xl font-black text-purple-900 z-10">{todayData.count}</span>
-             <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide z-10">{todayData.label} Dersi</span>
+          <div className="bg-purple-50/50 p-1 rounded-3xl border border-purple-100 flex items-center justify-between relative overflow-hidden">
+             <button 
+                onClick={() => setDayOffset(prev => prev - 1)}
+                className="w-8 h-full flex items-center justify-center text-purple-400 hover:text-purple-700 hover:bg-purple-100/50 rounded-l-2xl transition-colors z-20"
+             >
+                 <ChevronLeft size={20} strokeWidth={3} />
+             </button>
+
+             <div className="flex flex-col items-center justify-center py-3 z-10 flex-1">
+                 <span className="text-3xl font-black text-purple-900 leading-none mb-1">{dailyStats.count}</span>
+                 <div className="flex flex-col items-center leading-none">
+                     <span className="text-[10px] font-black text-purple-600 uppercase tracking-wide">{dailyStats.label}</span>
+                     {dailyStats.label !== dailyStats.fullDayName && (
+                        <span className="text-[8px] font-bold text-purple-400 uppercase tracking-tight mt-0.5">{dailyStats.fullDayName}</span>
+                     )}
+                 </div>
+             </div>
+
+             <button 
+                onClick={() => setDayOffset(prev => prev + 1)}
+                className="w-8 h-full flex items-center justify-center text-purple-400 hover:text-purple-700 hover:bg-purple-100/50 rounded-r-2xl transition-colors z-20"
+             >
+                 <ChevronRight size={20} strokeWidth={3} />
+             </button>
+             
+             {/* Background Icon */}
+             <div className="absolute right-[-15px] top-[-15px] text-purple-100 opacity-40 pointer-events-none"><CalendarRange size={70} /></div>
           </div>
       </div>
 
