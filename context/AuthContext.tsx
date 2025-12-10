@@ -11,8 +11,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Güvenlik: Eğer Firebase 2 saniye içinde yanıt vermezse yüklemeyi bitir (Offline/Slow Network durumları için)
+    const timeout = setTimeout(() => {
+        setLoading(false);
+    }, 2000);
+
     // Firebase Auth Durum Dinleyicisi
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      clearTimeout(timeout); // Bağlantı başarılıysa zamanlayıcıyı iptal et
       if (firebaseUser) {
         setUser({
           id: firebaseUser.uid,
@@ -26,7 +32,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Component unmount olduğunda dinleyiciyi kaldır
-    return () => unsubscribe();
+    return () => {
+        unsubscribe();
+        clearTimeout(timeout);
+    };
   }, []);
 
   const login = async (email: string, pass: string) => {
