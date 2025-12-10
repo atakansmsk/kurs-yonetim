@@ -1,7 +1,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // Firebase proje ayarları
@@ -18,7 +18,14 @@ const firebaseConfig = {
 // Initialize Firebase (Modular SDK)
 const app = initializeApp(firebaseConfig);
 
-export const db = getFirestore(app);
+// Enable offline persistence (Çevrimdışı veritabanı desteği)
+// Bu özellik sayesinde DNS sorunu olsa bile program önbellekten açılır
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
+
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
