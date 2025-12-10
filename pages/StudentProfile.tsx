@@ -91,13 +91,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           current = sortedHistory;
       }
 
-      const debtLessons = current.filter(tx => 
-          tx.isDebt && 
-          !(tx.note || "").toLowerCase().includes("telafi") && 
-          !(tx.note || "").toLowerCase().includes("deneme") &&
-          !(tx.note || "").toLowerCase().includes("gelmedi") &&
-          !(tx.note || "").toLowerCase().includes("iptal")
-      );
+      const debtLessons = current.filter(tx => {
+          if (!tx.isDebt) return false;
+          const lowerNote = (tx.note || "").toLowerCase();
+          return !lowerNote.includes("telafi") && 
+                 !lowerNote.includes("deneme") &&
+                 !lowerNote.includes("gelmedi") &&
+                 !lowerNote.includes("katılım yok") &&
+                 !lowerNote.includes("iptal");
+      });
 
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
   }, [sortedHistory]);
@@ -117,11 +119,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               // ÖDEME: Sayacı sıfırla
               currentCounter = 0;
           } else {
-              // DERS: Sadece normal dersleri say (Telafi, Deneme, İptal hariç)
+              // DERS: Sadece normal dersleri say (Telafi, Deneme, İptal, Gelmedi hariç)
               const lowerNote = (tx.note || "").toLowerCase();
               const isRegularLesson = !lowerNote.includes("telafi") && 
                                       !lowerNote.includes("deneme") && 
                                       !lowerNote.includes("iptal") &&
+                                      !lowerNote.includes("katılım yok") &&
                                       !lowerNote.includes("gelmedi");
               
               if (isRegularLesson) {
@@ -242,7 +245,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       // Reset State
       setIsProcessing(true);
       setUploadStatusText("Sıkıştırılıyor...");
-      // Not: input value'yu hemen sıfırlamıyoruz ki referans kaybolmasın, işlem bitince sıfırlayacağız.
       
       try {
           // PDF Logic
@@ -392,7 +394,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   // --- PREVIEW LOGIC ---
   const handleOpenResource = async (res: any) => {
       // Artık tüm dosyalar birer URL (Storage Linki veya Dış Link)
-      // Base64 chunk birleştirme derdi yok.
       if (res.type === 'LINK' || res.type === 'VIDEO') {
           window.open(res.url, '_blank');
       } else {
@@ -410,28 +411,36 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
       const month = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
       
-      let title = tx.note;
+      let title = tx.note || "";
       let sub = isPayment ? "Ödeme" : "Tamamlandı";
       let icon = <Check size={16} />;
       let iconClass = "bg-indigo-50 text-indigo-600";
       let showAmount = isPayment;
       
+      // Güvenli string kontrolü
+      const lowerNote = title.toLowerCase();
+
       if (isPayment) {
           title = "Ödeme Alındı";
           icon = <Banknote size={16} />;
           iconClass = "bg-emerald-50 text-emerald-600";
-      } else if (tx.note.includes('Telafi')) {
+      } else if (lowerNote.includes('telafi')) {
           icon = <RefreshCcw size={16} />;
           iconClass = "bg-orange-50 text-orange-600";
-          if (tx.note.includes('Bekliyor')) {
+          if (lowerNote.includes('bekliyor')) {
               title = "Telafi Hakkı";
               sub = "Planlanacaktır";
           } else {
               title = "Telafi Dersi";
               sub = "Yapıldı";
           }
-      } else if (tx.note.includes('Gelmedi')) {
+      } else if (lowerNote.includes('gelmedi') || lowerNote.includes('katılım yok')) {
            title = "Katılım Yok";
+           sub = "İşlenmedi";
+           icon = <XCircle size={16} />;
+           iconClass = "bg-red-50 text-red-600";
+      } else if (lowerNote.includes('iptal')) {
+           title = "Ders İptal";
            sub = "İşlenmedi";
            icon = <XCircle size={16} />;
            iconClass = "bg-red-50 text-red-600";
