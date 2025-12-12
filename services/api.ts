@@ -101,7 +101,7 @@ export const FileService = {
   async saveFile(ownerId: string, file: Blob | File, onProgress?: (progress: number) => void): Promise<string> {
     if (!file) throw new Error("Dosya seçilmedi.");
 
-    // 1. Dosya türünü ve uzantısını belirle
+    // 1. Dosya türünü belirle
     let extension = 'bin';
     let contentType = 'application/octet-stream';
 
@@ -110,13 +110,13 @@ export const FileService = {
         if (parts.length > 1) extension = parts.pop() || 'bin';
         contentType = file.type;
     } else if (file.type) {
-        // Blob ise ve type varsa
         contentType = file.type;
         if (file.type === 'application/pdf') extension = 'pdf';
         else if (file.type === 'image/jpeg') extension = 'jpg';
         else if (file.type === 'image/png') extension = 'png';
     }
 
+    // Dosya ismini temizle
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const fileName = `files/${timestamp}_${random}.${extension}`;
@@ -124,12 +124,9 @@ export const FileService = {
     // Klasörleme: schools / {okul_sahibi_id} / files / {dosya_adi}
     const storageRef = ref(storage, `schools/${ownerId}/${fileName}`);
 
-    // Metadata ekle (CORS ve Browser handling için önemli)
+    // Metadata: Custom metadata genelde CORS hatasına yol açar, o yüzden sadece contentType gönderiyoruz.
     const metadata = {
         contentType: contentType,
-        customMetadata: {
-          'ownerId': ownerId
-        }
     };
 
     console.log("Upload başlıyor:", { path: storageRef.fullPath, type: contentType });
@@ -144,7 +141,6 @@ export const FileService = {
                 // İlerleme yüzdesi
                 if (snapshot.totalBytes > 0) {
                     const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    console.log(`Upload Progress: ${Math.round(progress)}%`);
                     if (onProgress) onProgress(Math.round(progress));
                 }
             },
@@ -153,13 +149,11 @@ export const FileService = {
                 console.error("Upload error detail:", error);
                 
                 if (error.code === 'storage/unauthorized') {
-                   reject(new Error("Yükleme izniniz yok. Lütfen Firebase Storage Rules ayarlarını kontrol edin."));
+                   reject(new Error("Yükleme izniniz yok. Lütfen Firebase Storage kurallarını kontrol edin."));
                 } else if (error.code === 'storage/canceled') {
                    reject(new Error("Yükleme iptal edildi."));
-                } else if (error.code === 'storage/unknown') {
-                   reject(new Error("Bilinmeyen hata (Muhtemelen CORS ayarı eksik)."));
                 } else {
-                   reject(error);
+                   reject(new Error("Yükleme başarısız: " + error.message));
                 }
             },
             async () => {
@@ -191,7 +185,6 @@ export const FileService = {
     }
   },
   
-  // URL zaten public olduğu için fetch etmeye gerek yok, direkt URL döner
   async getFile(ownerId: string, fileIdOrUrl: string): Promise<string | null> {
       return fileIdOrUrl;
   }

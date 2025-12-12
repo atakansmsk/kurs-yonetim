@@ -244,7 +244,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       
       // Reset State
       setIsProcessing(true);
-      setUploadStatusText("Sıkıştırılıyor...");
+      setResUrl(""); // Clear old preview
+      setResFile(null);
+      setUploadStatusText("Dosya hazırlanıyor...");
       
       try {
           // PDF Logic
@@ -258,12 +260,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               setResUrl(previewUrl); // Local Preview
               setResFile(file); // Actual File for Upload
               setResType('PDF');
-              if (!resTitle) setResTitle(`Ödev ${new Date().toLocaleDateString('tr-TR')}`);
+              if (!resTitle) setResTitle(file.name.replace('.pdf', ''));
               setUploadStatusText("PDF Hazır");
               setIsProcessing(false);
           } 
           // IMAGE Logic (Optimized Compression)
           else if (file.type.startsWith('image/')) {
+              setUploadStatusText("Fotoğraf sıkıştırılıyor...");
               const img = document.createElement('img');
               const objectUrl = URL.createObjectURL(file);
               
@@ -271,7 +274,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   URL.revokeObjectURL(objectUrl);
                   
                   // Reasonable resizing for web viewing
-                  const MAX_DIMENSION = 1600; 
+                  const MAX_DIMENSION = 1920; 
                   let newWidth = img.width;
                   let newHeight = img.height;
 
@@ -298,22 +301,27 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
                   ctx.drawImage(img, 0, 0, newWidth, newHeight);
                   
-                  // Convert to Blob (File) instead of Base64 String
+                  // Convert to Blob (File)
                   canvas.toBlob((blob) => {
                       if (blob) {
                            const previewUrl = URL.createObjectURL(blob);
                            setResUrl(previewUrl);
-                           // Blob'a type eklemek önemli
-                           const newFile = new File([blob], "image.jpg", { type: "image/jpeg" });
-                           setResFile(newFile); // Upload compressed blob as File
+                           
+                           // Create a proper File object from Blob
+                           const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { 
+                               type: "image/jpeg",
+                               lastModified: Date.now()
+                           });
+                           
+                           setResFile(newFile); 
                            setResType('IMAGE');
                            if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
-                           setUploadStatusText("Fotoğraf Sıkıştırıldı");
+                           setUploadStatusText("Fotoğraf Hazır");
                       } else {
                            alert("Sıkıştırma hatası.");
                       }
                       setIsProcessing(false);
-                  }, 'image/jpeg', 0.85); // 0.85 Quality
+                  }, 'image/jpeg', 0.8); // 0.8 Quality is good
               };
 
               img.onerror = () => {
@@ -347,8 +355,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               }
               try {
                   setIsUploading(true);
-                  setUploadStatusText("Sunucuya bağlanıyor...");
-                  setUploadProgress(0); 
+                  setUploadStatusText("Sunucuya yükleniyor...");
+                  setUploadProgress(1); 
 
                   // Upload to Firebase Storage
                   const downloadURL = await FileService.saveFile(user.id, resFile, (progress) => {
@@ -364,7 +372,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
               } catch (e: any) {
                   console.error(e);
-                  alert("HATA: " + (e.message || "Yükleme başarısız"));
+                  alert("YÜKLEME HATASI: " + (e.message || "Bilinmeyen hata"));
                   setIsUploading(false);
                   setUploadProgress(0);
                   setUploadStatusText("Hata oluştu");
@@ -696,7 +704,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            <div className="py-2"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Telafi Yapılan Tarih</label><input type="date" value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
       </Dialog>
       
-      {/* UPLOAD MODAL - Updated with Progress */}
+      {/* UPLOAD MODAL - Updated with Progress and Processing State */}
       <Dialog isOpen={isResourcesModalOpen} onClose={() => { if(!isUploading && !isProcessing) { setIsResourcesModalOpen(false); setResUrl(""); setResTitle(""); setResType('LINK'); setUploadProgress(0); setUploadStatusText(""); setResFile(null); } }} title="Materyal Ekle"
            actions={
               !isUploading && !isProcessing && (
@@ -722,10 +730,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               )}
               
               {isUploading || isProcessing ? (
-                  // UPLOAD PROGRESS VIEW
+                  // UPLOAD/PROCESSING PROGRESS VIEW
                   <div className="flex flex-col items-center justify-center py-6 gap-3">
                       {isProcessing ? (
-                          <div className="flex flex-col items-center gap-2">
+                          <div className="flex flex-col items-center gap-2 animate-pulse">
                              <Loader2 size={40} className="text-indigo-600 animate-spin" />
                           </div>
                       ) : (
@@ -739,7 +747,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       )}
                       <div className="text-center">
                           <p className="font-bold text-slate-800 text-sm">{uploadStatusText}</p>
-                          <p className="text-[10px] text-slate-400 mt-1">Lütfen bekleyin, kapatmayın...</p>
+                          <p className="text-[10px] text-slate-400 mt-1">Lütfen bekleyin...</p>
                       </div>
                   </div>
               ) : (
@@ -756,19 +764,28 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                             onChange={handleFileUpload} 
                           />
                           <button 
-                            onClick={() => fileInputRef.current?.click()} 
-                            disabled={isUploading}
+                            onClick={() => { 
+                                if (fileInputRef.current) {
+                                    fileInputRef.current.value = ""; // Reset input to allow same file selection
+                                    fileInputRef.current.click();
+                                }
+                            }}
                             className="w-full py-8 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-slate-50 hover:border-indigo-200 transition-colors"
                           >
-                              {resUrl ? (
+                              {resFile ? (
                                   <>
                                     <CheckCircle2 size={24} className="text-emerald-500" />
-                                    <span className="text-xs font-bold text-emerald-600">{resType === 'PDF' ? 'PDF Hazır' : 'Resim Hazır'}</span>
+                                    <div className="text-center">
+                                        <span className="text-xs font-bold text-emerald-600 block">{resType === 'PDF' ? 'PDF Hazır' : 'Resim Hazır'}</span>
+                                        <span className="text-[10px] text-emerald-400 block mt-0.5 max-w-[150px] truncate mx-auto">{resFile.name}</span>
+                                    </div>
+                                    <span className="text-[9px] text-slate-300 mt-2 font-bold underline">Değiştirmek için tıkla</span>
                                   </>
                               ) : (
                                   <>
                                     <UploadCloud size={24} />
                                     <span className="text-xs font-bold">Resim veya PDF Seç</span>
+                                    <span className="text-[9px] text-slate-300 mt-1">Otomatik sıkıştırılır</span>
                                   </>
                               )}
                           </button>
