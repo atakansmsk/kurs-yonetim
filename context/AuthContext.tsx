@@ -11,11 +11,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Güvenlik: Eğer Firebase 1 saniye içinde yanıt vermezse yüklemeyi bitir.
-    // DNS veya ağ sorunu olduğunda kullanıcıyı bekletmemek için süre 1 saniyeye düşürüldü.
+    // Güvenlik: Eğer Firebase 0.5 saniye içinde yanıt vermezse yüklemeyi bitir.
+    // Bu sayede internet olmasa bile program anında açılır (Eskiden 1 saniyeydi).
     const timeout = setTimeout(() => {
         setLoading(false);
-    }, 1000);
+    }, 500);
 
     // Firebase Auth Durum Dinleyicisi
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {

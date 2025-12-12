@@ -167,8 +167,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
     }
 
-    // Yavaş bağlantılar için agresif yükleme: 0.8 sn içinde yanıt gelmezse aç.
-    const timer = setTimeout(() => setIsLoaded(true), 800);
+    // Yavaş bağlantılar için agresif yükleme: 0.5 sn içinde yanıt gelmezse aç.
+    // Eskiden 0.8 saniyeydi, daha da hızlandırıldı.
+    const timer = setTimeout(() => setIsLoaded(true), 500);
 
     const unsubscribe = DataService.subscribeToUserData(
         user.id,
