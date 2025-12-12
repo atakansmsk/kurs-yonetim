@@ -1,3 +1,4 @@
+
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore, memoryLocalCache } from "firebase/firestore";
@@ -8,7 +9,9 @@ const firebaseConfig = {
   apiKey: "AIzaSyAKrvZ45I2LffVzzg_q9exIZjMqhkR_3Hg",
   authDomain: "kurs-yonetim-pro.firebaseapp.com",
   projectId: "kurs-yonetim-pro",
-  storageBucket: "kurs-yonetim-pro.appspot.com", 
+  // ÖNEMLİ: Yeni projelerde bucket ismi genellikle 'firebasestorage.app' ile biter.
+  // Eğer konsolda 'appspot.com' görüyorsanız burayı eski haline getirin.
+  storageBucket: "kurs-yonetim-pro.firebasestorage.app", 
   messagingSenderId: "50487616288",
   appId: "1:50487616288:web:36a3ad2fe7a73ce94e2d45"
 };
@@ -17,8 +20,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // DATABASE INITIALIZATION WITH SAFE FALLBACK
-// MEB/Kurumsal ağlarda veya Gizli Sekmede "persistentLocalCache" (IndexedDB) engellenebilir.
-// Bu durumda uygulama çökmek yerine "memoryLocalCache" (RAM) kullanarak açılmaya devam etmelidir.
 let dbInstance;
 
 try {

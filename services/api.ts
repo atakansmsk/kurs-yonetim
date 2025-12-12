@@ -97,76 +97,74 @@ export const DataService = {
 
 // --- DOSYA SERVİSİ (FIREBASE STORAGE) ---
 export const FileService = {
-  // PROFESYONEL YÖNTEM: Bellek dostu upload
+  // GÜVENLİ YÜKLEME
   async saveFile(ownerId: string, file: Blob | File, onProgress?: (progress: number) => void): Promise<string> {
     if (!file) throw new Error("Dosya seçilmedi.");
 
-    // 1. Dosya türünü belirle
+    // 1. Dosya uzantısı belirle
     let extension = 'bin';
-    let contentType = 'application/octet-stream';
-
     if (file instanceof File) {
         const parts = file.name.split('.');
         if (parts.length > 1) extension = parts.pop() || 'bin';
-        contentType = file.type;
-    } else if (file.type) {
-        contentType = file.type;
-        if (file.type === 'application/pdf') extension = 'pdf';
-        else if (file.type === 'image/jpeg') extension = 'jpg';
-        else if (file.type === 'image/png') extension = 'png';
+    } else if (file.type === 'application/pdf') {
+        extension = 'pdf';
+    } else if (file.type === 'image/jpeg') {
+        extension = 'jpg';
     }
 
-    // Dosya ismini temizle ve benzersiz yap
+    // Dosya yolu
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
+    const random = Math.random().toString(36).substring(2, 6);
     const fileName = `files/${timestamp}_${random}.${extension}`;
-    
-    // Klasörleme: schools / {okul_sahibi_id} / files / {dosya_adi}
     const storageRef = ref(storage, `schools/${ownerId}/${fileName}`);
 
-    // Metadata: Custom metadata genelde CORS hatasına yol açar.
-    // Sadece contentType gönderiyoruz. Bu en güvenli yöntemdir.
-    const metadata = {
-        contentType: contentType,
-    };
+    console.log("Upload Başlatılıyor ->", storageRef.fullPath);
 
-    console.log("Upload başlıyor:", { path: storageRef.fullPath, type: contentType, size: file.size });
-
-    // 2. Yükleme işlemini başlat (Resumable Upload)
-    const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
     return new Promise((resolve, reject) => {
+        // Zaman aşımı kontrolü (10 saniye içinde %0'ı geçmezse iptal et)
+        const timeoutId = setTimeout(() => {
+             if (uploadTask.snapshot.bytesTransferred === 0) {
+                 uploadTask.cancel();
+                 reject(new Error("Zaman aşımı: Bağlantı kurulamadı. Firebase Storage ayarlarını (CORS/Rules) kontrol edin."));
+             }
+        }, 15000);
+
         uploadTask.on(
             'state_changed',
             (snapshot) => {
-                // İlerleme yüzdesi hesapla
-                if (snapshot.totalBytes > 0) {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    if (onProgress) onProgress(Math.round(progress));
+                if (snapshot.bytesTransferred > 0) clearTimeout(timeoutId);
+
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                console.log('Upload is ' + progress + '% done');
+                if (onProgress) {
+                    try {
+                        onProgress(Math.round(progress));
+                    } catch (e) {}
                 }
             },
             (error) => {
-                // Hata durumu
-                console.error("Upload error detail:", error);
+                clearTimeout(timeoutId);
+                console.error("Firebase Storage Hatası:", error.code, error.message);
                 
                 if (error.code === 'storage/unauthorized') {
-                   reject(new Error("Yükleme izniniz yok. Firebase Storage kurallarını kontrol edin."));
+                   reject(new Error("YETKİ HATASI: Storage Rules (Kurallar) yazmaya izin vermiyor. Konsoldan 'allow write: if request.auth != null;' ekleyin."));
                 } else if (error.code === 'storage/canceled') {
-                   reject(new Error("Yükleme iptal edildi."));
-                } else if (error.code === 'storage/unknown') {
-                   reject(new Error("Bilinmeyen bir hata oluştu. Lütfen tekrar deneyin."));
+                   reject(new Error("Yükleme iptal edildi veya zaman aşımına uğradı."));
+                } else if (error.code === 'storage/object-not-found' || error.code === 'storage/bucket-not-found') {
+                   reject(new Error("Depolama alanı (Bucket) bulunamadı. firebaseConfig.ts dosyasındaki storageBucket adresini kontrol edin."));
                 } else {
-                   reject(new Error("Yükleme başarısız: " + error.message));
+                   reject(new Error(`Yükleme başarısız: (${error.code})`));
                 }
             },
             async () => {
-                // 3. Başarılı bitiş - İndirme linkini al
+                clearTimeout(timeoutId);
                 try {
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    console.log("Upload tamamlandı, URL:", downloadURL);
                     resolve(downloadURL);
                 } catch (e) {
-                    console.error("GetDownloadURL error:", e);
+                    console.error("Download URL alma hatası:", e);
                     reject(e);
                 }
             }
@@ -174,17 +172,13 @@ export const FileService = {
     });
   },
 
-  // Storage'dan dosya silme
   async deleteFile(url: string): Promise<void> {
     try {
-      // Eğer URL Firebase Storage URL'i değilse işlem yapma
       if (!url.includes('firebasestorage')) return;
-      
-      // URL'den referans oluşturup silme
       const storageRef = ref(storage, url);
       await deleteObject(storageRef);
     } catch (error) {
-      console.warn("File delete warning (might already be deleted):", error);
+      console.warn("Dosya silinemedi:", error);
     }
   },
   
