@@ -1,13 +1,44 @@
 
 import { auth, db, storage } from '../firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
-import { doc, setDoc, getDoc, onSnapshot, DocumentSnapshot, DocumentData } from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { AppState, User } from '../types';
+
+// --- YEREL MOD KONTROLÜ ---
+let IS_LOCAL_MODE = false;
+
+export const setLocalMode = (status: boolean) => {
+  IS_LOCAL_MODE = status;
+  if (status) {
+    console.log("🔌 Uygulama YEREL MOD (Offline) olarak çalışıyor.");
+  }
+};
+
+// --- INDEXED DB (Büyük dosyalar için yerel veritabanı) ---
+const IDB_CONFIG = { name: 'KursProDB', store: 'files', version: 1 };
+
+const openDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(IDB_CONFIG.name, IDB_CONFIG.version);
+    request.onupgradeneeded = (event: any) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(IDB_CONFIG.store)) {
+        db.createObjectStore(IDB_CONFIG.store, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
 
 // --- AUTH SERVİSİ ---
 export const AuthService = {
   async login(email: string, pass: string): Promise<User | null> {
+    if (IS_LOCAL_MODE) {
+        // Yerel Modda sahte giriş
+        return { id: "local_user", email: "yerel@cihaz", name: "Misafir Eğitmen" };
+    }
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const u = userCredential.user;
@@ -18,7 +49,13 @@ export const AuthService = {
     }
   },
 
+  async loginGuest(): Promise<User> {
+      setLocalMode(true);
+      return { id: "local_user", email: "offline@app", name: "Misafir Eğitmen" };
+  },
+
   async register(email: string, pass: string, name: string): Promise<boolean> {
+    if (IS_LOCAL_MODE) return true; // Yerel modda kayıt simülasyonu
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(userCredential.user, { displayName: name });
@@ -30,6 +67,11 @@ export const AuthService = {
   },
 
   async logout() {
+    if (IS_LOCAL_MODE) {
+        setLocalMode(false);
+        window.location.reload(); // State temizlemek için en temizi
+        return;
+    }
     try {
       await signOut(auth);
     } catch (error) {
@@ -38,6 +80,7 @@ export const AuthService = {
   },
 
   getCurrentUser(): User | null {
+    if (IS_LOCAL_MODE) return { id: "local_user", email: "offline@app", name: "Misafir Eğitmen" };
     const u = auth.currentUser;
     if (u) {
       return { id: u.uid, email: u.email!, name: u.displayName || "Kullanıcı" };
@@ -46,20 +89,28 @@ export const AuthService = {
   }
 };
 
-// --- DATA SERVİSİ (FIRESTORE) ---
+// --- DATA SERVİSİ ---
 export const DataService = {
-  // Veriyi Buluta Yaz
   async saveUserData(userId: string, data: AppState): Promise<void> {
+    if (IS_LOCAL_MODE) {
+        localStorage.setItem(`kurs_data_${userId}`, JSON.stringify(data));
+        return;
+    }
     try {
       await setDoc(doc(db, "schools", userId), data, { merge: true });
     } catch (e) {
       console.error("Cloud save error:", e);
+      // Hata durumunda local storage'a yedekle (Offline desteği)
+      localStorage.setItem(`kurs_data_backup_${userId}`, JSON.stringify(data));
       throw e;
     }
   },
 
-  // Tek Seferlik Veri Çekme (Public View için)
   async getPublicSchoolData(userId: string): Promise<AppState | null> {
+    if (IS_LOCAL_MODE || userId === 'local_user') {
+        const localData = localStorage.getItem(`kurs_data_${userId}`);
+        return localData ? JSON.parse(localData) : null;
+    }
     try {
       const docRef = doc(db, "schools", userId);
       const docSnap = await getDoc(docRef);
@@ -73,21 +124,47 @@ export const DataService = {
     }
   },
 
-  // Canlı Dinleme (Realtime Sync)
   subscribeToUserData(userId: string, onUpdate: (data: AppState) => void, onError: (error: any) => void): () => void {
+    if (IS_LOCAL_MODE) {
+        // İlk yükleme
+        const localData = localStorage.getItem(`kurs_data_${userId}`);
+        if (localData) {
+            onUpdate(JSON.parse(localData));
+        }
+        
+        // Storage olaylarını dinle (Başka sekmede değişirse diye)
+        const handler = (e: StorageEvent) => {
+            if (e.key === `kurs_data_${userId}` && e.newValue) {
+                onUpdate(JSON.parse(e.newValue));
+            }
+        };
+        window.addEventListener('storage', handler);
+        return () => window.removeEventListener('storage', handler);
+    }
+
     const docRef = doc(db, "schools", userId);
     
+    // Firebase Bağlantısı
     const unsubscribe = onSnapshot(
       docRef,
       { includeMetadataChanges: true },
       (docSnap) => {
         if (docSnap.exists()) {
           onUpdate(docSnap.data() as AppState);
+        } else {
+          // Eğer döküman yoksa (yeni kullanıcı), boş dönmeyelim, bekleyelim.
         }
       }, 
       (error) => {
         console.error("Sync error:", error);
-        onError(error);
+        // Firebase hatası verirse LocalStorage'dan kurtarmayı dene
+        const backup = localStorage.getItem(`kurs_data_backup_${userId}`);
+        if (backup) {
+            console.log("Firebase çöktü, yerel yedekten yükleniyor...");
+            onUpdate(JSON.parse(backup));
+        } else {
+            onError(error);
+        }
       }
     );
 
@@ -95,13 +172,40 @@ export const DataService = {
   }
 };
 
-// --- DOSYA SERVİSİ (FIREBASE STORAGE) ---
+// --- DOSYA SERVİSİ ---
 export const FileService = {
-  // GÜVENLİ YÜKLEME
   async saveFile(ownerId: string, file: Blob | File, onProgress?: (progress: number) => void): Promise<string> {
     if (!file) throw new Error("Dosya seçilmedi.");
 
-    // 1. Dosya uzantısı belirle
+    // YEREL MOD (Local Mode)
+    if (IS_LOCAL_MODE) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                if (onProgress) onProgress(50);
+                
+                // Blob'u Base64'e çevirip saklayabiliriz veya IndexedDB kullanabiliriz.
+                // IndexedDB daha güvenli ve büyük dosyaları destekler.
+                const db = await openDB();
+                const tx = db.transaction(IDB_CONFIG.store, 'readwrite');
+                const store = tx.objectStore(IDB_CONFIG.store);
+                
+                const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                
+                // Dosyayı Blob olarak sakla
+                await store.put({ id: fileId, file: file, type: file.type, date: new Date() });
+                
+                if (onProgress) onProgress(100);
+                console.log("Dosya yerel veritabanına kaydedildi:", fileId);
+                
+                // Yerel modda dosya ID'si döndürüyoruz. Görüntülerken bu ID ile çekeceğiz.
+                resolve(fileId);
+            } catch (e) {
+                reject(new Error("Yerel kaydetme hatası: " + e));
+            }
+        });
+    }
+
+    // FIREBASE MODU
     let extension = 'bin';
     if (file instanceof File) {
         const parts = file.name.split('.');
@@ -112,7 +216,6 @@ export const FileService = {
         extension = 'jpg';
     }
 
-    // Dosya yolu
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 6);
     const fileName = `files/${timestamp}_${random}.${extension}`;
@@ -123,11 +226,10 @@ export const FileService = {
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     return new Promise((resolve, reject) => {
-        // Zaman aşımı kontrolü (10 saniye içinde %0'ı geçmezse iptal et)
         const timeoutId = setTimeout(() => {
              if (uploadTask.snapshot.bytesTransferred === 0) {
                  uploadTask.cancel();
-                 reject(new Error("Zaman aşımı: Bağlantı kurulamadı. Firebase Storage ayarlarını (CORS/Rules) kontrol edin."));
+                 reject(new Error("Bağlantı zaman aşımı. İnternetinizi kontrol edin."));
              }
         }, 15000);
 
@@ -135,28 +237,13 @@ export const FileService = {
             'state_changed',
             (snapshot) => {
                 if (snapshot.bytesTransferred > 0) clearTimeout(timeoutId);
-
                 const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                console.log('Upload is ' + progress + '% done');
-                if (onProgress) {
-                    try {
-                        onProgress(Math.round(progress));
-                    } catch (e) {}
-                }
+                if (onProgress) onProgress(Math.round(progress));
             },
             (error) => {
                 clearTimeout(timeoutId);
-                console.error("Firebase Storage Hatası:", error.code, error.message);
-                
-                if (error.code === 'storage/unauthorized') {
-                   reject(new Error("YETKİ HATASI: Storage Rules (Kurallar) yazmaya izin vermiyor. Konsoldan 'allow write: if request.auth != null;' ekleyin."));
-                } else if (error.code === 'storage/canceled') {
-                   reject(new Error("Yükleme iptal edildi veya zaman aşımına uğradı."));
-                } else if (error.code === 'storage/object-not-found' || error.code === 'storage/bucket-not-found') {
-                   reject(new Error("Depolama alanı (Bucket) bulunamadı. firebaseConfig.ts dosyasındaki storageBucket adresini kontrol edin."));
-                } else {
-                   reject(new Error(`Yükleme başarısız: (${error.code})`));
-                }
+                console.error("Firebase Storage Hatası:", error);
+                reject(new Error("Yükleme başarısız. Yetki veya bağlantı hatası."));
             },
             async () => {
                 clearTimeout(timeoutId);
@@ -164,7 +251,6 @@ export const FileService = {
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
                     resolve(downloadURL);
                 } catch (e) {
-                    console.error("Download URL alma hatası:", e);
                     reject(e);
                 }
             }
@@ -172,17 +258,48 @@ export const FileService = {
     });
   },
 
-  async deleteFile(url: string): Promise<void> {
+  async deleteFile(urlOrId: string): Promise<void> {
+    if (IS_LOCAL_MODE || !urlOrId.startsWith('http')) {
+        try {
+            const db = await openDB();
+            const tx = db.transaction(IDB_CONFIG.store, 'readwrite');
+            tx.objectStore(IDB_CONFIG.store).delete(urlOrId);
+        } catch (e) { console.warn("Local delete error", e); }
+        return;
+    }
+
     try {
-      if (!url.includes('firebasestorage')) return;
-      const storageRef = ref(storage, url);
+      if (!urlOrId.includes('firebasestorage')) return;
+      const storageRef = ref(storage, urlOrId);
       await deleteObject(storageRef);
     } catch (error) {
       console.warn("Dosya silinemedi:", error);
     }
   },
   
+  // Dosyayı görüntülemek için URL üretir
   async getFile(ownerId: string, fileIdOrUrl: string): Promise<string | null> {
-      return fileIdOrUrl;
+      // Eğer bir HTTP linki ise direkt döndür
+      if (fileIdOrUrl.startsWith('http') || fileIdOrUrl.startsWith('data:')) return fileIdOrUrl;
+
+      // Yerel dosya ID'si ise IndexedDB'den çekip URL oluştur
+      try {
+          const db = await openDB();
+          const tx = db.transaction(IDB_CONFIG.store, 'readonly');
+          const store = tx.objectStore(IDB_CONFIG.store);
+          
+          const record: any = await new Promise((resolve, reject) => {
+              const req = store.get(fileIdOrUrl);
+              req.onsuccess = () => resolve(req.result);
+              req.onerror = () => reject(req.error);
+          });
+
+          if (record && record.file) {
+              return URL.createObjectURL(record.file);
+          }
+      } catch (e) {
+          console.error("Local file fetch error:", e);
+      }
+      return null;
   }
 };

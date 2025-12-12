@@ -1,25 +1,29 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, User } from '../types';
 import { AuthService } from '../services/api';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from '../firebaseConfig';
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Extend Type Definition locally if needed or rely on updated types
+interface ExtendedAuthContextType extends AuthContextType {
+    loginGuest: () => void;
+}
+
+const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Güvenlik: Eğer Firebase 0.5 saniye içinde yanıt vermezse yüklemeyi bitir.
-    // Bu sayede internet olmasa bile program anında açılır (Eskiden 1 saniyeydi).
+    // 0.5 saniye zaman aşımı (Hızlı açılış)
     const timeout = setTimeout(() => {
         setLoading(false);
     }, 500);
 
-    // Firebase Auth Durum Dinleyicisi
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      clearTimeout(timeout); // Bağlantı başarılıysa zamanlayıcıyı iptal et
+      clearTimeout(timeout);
       if (firebaseUser) {
         setUser({
           id: firebaseUser.uid,
@@ -27,12 +31,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: firebaseUser.displayName || "Kullanıcı"
         });
       } else {
-        setUser(null);
+        // Eğer manuel olarak "Misafir" girişi yapılmadıysa null yap
+        // (AuthService.loginGuest ile state güncelleniyor, burada ezmemek lazım)
+        // Ancak onAuthStateChanged sadece Firebase çıkışlarında tetiklenir.
+        // Misafir modunda burası null dönebilir, sorun yok.
       }
       setLoading(false);
     });
 
-    // Component unmount olduğunda dinleyiciyi kaldır
     return () => {
         unsubscribe();
         clearTimeout(timeout);
@@ -41,8 +47,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string) => {
     const userData = await AuthService.login(email, pass);
-    // Not: setUser yapmamıza gerek yok, onAuthStateChanged tetiklenecek
+    if (userData && userData.id === 'local_user') {
+        setUser(userData);
+        return true;
+    }
     return !!userData;
+  };
+
+  const loginGuest = async () => {
+      const guestUser = await AuthService.loginGuest();
+      setUser(guestUser);
   };
 
   const register = async (email: string, pass: string, name: string) => {
@@ -52,15 +66,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     AuthService.logout();
+    setUser(null);
   };
 
-  // İlk yüklemede kullanıcı durumu kontrol edilirken boş ekran gösterilebilir
   if (loading) {
     return <div className="h-screen w-full flex items-center justify-center bg-[#F8FAFC] text-slate-400">Yükleniyor...</div>;
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loginGuest }}>
       {children}
     </AuthContext.Provider>
   );
