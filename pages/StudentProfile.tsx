@@ -69,6 +69,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       }
   }, [isPastPaymentModalOpen, student]);
 
+  // Clean up object URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+        if (resUrl && resUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(resUrl);
+        }
+    };
+  }, [resUrl]);
+
   // --- SORTER ---
   const sortedHistory = useMemo(() => {
       if (!student) return [];
@@ -104,7 +113,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
   }, [sortedHistory, student]);
   
-  // --- LESSON NUMBERING LOGIC (UPDATED) ---
+  // --- LESSON NUMBERING LOGIC ---
   const lessonNumberMap = useMemo(() => {
       if (!student) return new Map();
       const map = new Map<string, number>();
@@ -116,10 +125,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
       ascHistory.forEach(tx => {
           if (!tx.isDebt) {
-              // ÖDEME: Sayacı sıfırla
               currentCounter = 0;
           } else {
-              // DERS: Sadece normal dersleri say (Telafi, Deneme, İptal, Gelmedi hariç)
               const lowerNote = (tx.note || "").toLowerCase();
               const isRegularLesson = !lowerNote.includes("telafi") && 
                                       !lowerNote.includes("deneme") && 
@@ -237,43 +244,52 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  // --- COMPRESSION AND FILE SELECTION LOGIC ---
+  // --- BELLEK DOSTU DOSYA İŞLEME VE SIKIŞTIRMA ---
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
       
+      // Önceki URL'i temizle (Memory leak önlemek için)
+      if (resUrl && resUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(resUrl);
+      }
+      
       // Reset State
       setIsProcessing(true);
-      setResUrl(""); // Clear old preview
+      setResUrl(""); 
       setResFile(null);
       setUploadStatusText("Dosya hazırlanıyor...");
       
       try {
-          // PDF Logic
+          // PDF Kontrolü
           if (file.type === 'application/pdf') {
-              if (file.size > 20 * 1024 * 1024) { // 20MB limit for PDF
+              // 20MB Limiti
+              if (file.size > 20 * 1024 * 1024) { 
                   alert("PDF dosyaları en fazla 20MB olabilir.");
                   setIsProcessing(false);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
                   return;
               }
               const previewUrl = URL.createObjectURL(file);
-              setResUrl(previewUrl); // Local Preview
-              setResFile(file); // Actual File for Upload
+              setResUrl(previewUrl); 
+              setResFile(file); 
               setResType('PDF');
               if (!resTitle) setResTitle(file.name.replace('.pdf', ''));
               setUploadStatusText("PDF Hazır");
               setIsProcessing(false);
           } 
-          // IMAGE Logic (Optimized Compression)
+          // RESİM Kontrolü ve Optimizasyonu
           else if (file.type.startsWith('image/')) {
-              setUploadStatusText("Fotoğraf sıkıştırılıyor...");
+              setUploadStatusText("Fotoğraf optimize ediliyor...");
+              
               const img = document.createElement('img');
+              // Create Object URL for the source (faster than reading FileReader)
               const objectUrl = URL.createObjectURL(file);
               
               img.onload = () => {
-                  URL.revokeObjectURL(objectUrl);
+                  URL.revokeObjectURL(objectUrl); // Hemen serbest bırak
                   
-                  // Reasonable resizing for web viewing
+                  // Maksimum boyutları sınırla (Bellek şişmesini önler)
                   const MAX_DIMENSION = 1920; 
                   let newWidth = img.width;
                   let newHeight = img.height;
@@ -299,15 +315,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       return;
                   }
 
+                  // Kaliteli çizim
                   ctx.drawImage(img, 0, 0, newWidth, newHeight);
                   
-                  // Convert to Blob (File)
+                  // Blob'a çevir (JPEG, 0.8 kalite - Boyut ve kalite dengesi)
                   canvas.toBlob((blob) => {
                       if (blob) {
                            const previewUrl = URL.createObjectURL(blob);
                            setResUrl(previewUrl);
                            
-                           // Create a proper File object from Blob
+                           // Yeni dosya oluştur
                            const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { 
                                type: "image/jpeg",
                                lastModified: Date.now()
@@ -320,11 +337,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       } else {
                            alert("Sıkıştırma hatası.");
                       }
+                      
+                      // Canvas'ı temizle (Memory cleanup)
+                      canvas.width = 0;
+                      canvas.height = 0;
                       setIsProcessing(false);
-                  }, 'image/jpeg', 0.8); // 0.8 Quality is good
+                  }, 'image/jpeg', 0.8);
               };
 
               img.onerror = () => {
+                  URL.revokeObjectURL(objectUrl);
                   alert("Resim yüklenirken hata oluştu.");
                   setIsProcessing(false);
               };
@@ -392,8 +414,18 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           actions.addResource(studentId, resTitle, finalUrlOrId, finalType);
           
           // Reset Form
-          setResTitle(""); setResUrl(""); setResFile(null); setResType('LINK');
-          setUploadProgress(0); setUploadStatusText("");
+          setResTitle(""); 
+          
+          // Cleanup Preview URL
+          if (resUrl && resUrl.startsWith('blob:')) {
+              URL.revokeObjectURL(resUrl);
+          }
+          setResUrl(""); 
+          setResFile(null); 
+          setResType('LINK');
+          setUploadProgress(0); 
+          setUploadStatusText("");
+          
           if (fileInputRef.current) fileInputRef.current.value = "";
           setIsResourcesModalOpen(false); 
       }
@@ -709,7 +741,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            actions={
               !isUploading && !isProcessing && (
                   <>
-                      <button onClick={() => setIsResourcesModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
+                      <button onClick={() => { setIsResourcesModalOpen(false); if(resUrl) URL.revokeObjectURL(resUrl); }} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
                       <button onClick={handleAddResource} disabled={!resTitle || (!resUrl && !resFile)} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">Ekle</button>
                   </>
               )
@@ -785,7 +817,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                   <>
                                     <UploadCloud size={24} />
                                     <span className="text-xs font-bold">Resim veya PDF Seç</span>
-                                    <span className="text-[9px] text-slate-300 mt-1">Otomatik sıkıştırılır</span>
+                                    <span className="text-[9px] text-slate-300 mt-1">Otomatik sıkıştırılır (Max 20MB)</span>
                                   </>
                               )}
                           </button>

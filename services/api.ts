@@ -97,7 +97,7 @@ export const DataService = {
 
 // --- DOSYA SERVİSİ (FIREBASE STORAGE) ---
 export const FileService = {
-  // PROFESYONEL YÖNTEM: Google Cloud Storage Upload
+  // PROFESYONEL YÖNTEM: Bellek dostu upload
   async saveFile(ownerId: string, file: Blob | File, onProgress?: (progress: number) => void): Promise<string> {
     if (!file) throw new Error("Dosya seçilmedi.");
 
@@ -116,7 +116,7 @@ export const FileService = {
         else if (file.type === 'image/png') extension = 'png';
     }
 
-    // Dosya ismini temizle
+    // Dosya ismini temizle ve benzersiz yap
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const fileName = `files/${timestamp}_${random}.${extension}`;
@@ -124,12 +124,13 @@ export const FileService = {
     // Klasörleme: schools / {okul_sahibi_id} / files / {dosya_adi}
     const storageRef = ref(storage, `schools/${ownerId}/${fileName}`);
 
-    // Metadata: Custom metadata genelde CORS hatasına yol açar, o yüzden sadece contentType gönderiyoruz.
+    // Metadata: Custom metadata genelde CORS hatasına yol açar.
+    // Sadece contentType gönderiyoruz. Bu en güvenli yöntemdir.
     const metadata = {
         contentType: contentType,
     };
 
-    console.log("Upload başlıyor:", { path: storageRef.fullPath, type: contentType });
+    console.log("Upload başlıyor:", { path: storageRef.fullPath, type: contentType, size: file.size });
 
     // 2. Yükleme işlemini başlat (Resumable Upload)
     const uploadTask = uploadBytesResumable(storageRef, file, metadata);
@@ -138,7 +139,7 @@ export const FileService = {
         uploadTask.on(
             'state_changed',
             (snapshot) => {
-                // İlerleme yüzdesi
+                // İlerleme yüzdesi hesapla
                 if (snapshot.totalBytes > 0) {
                     const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
                     if (onProgress) onProgress(Math.round(progress));
@@ -149,9 +150,11 @@ export const FileService = {
                 console.error("Upload error detail:", error);
                 
                 if (error.code === 'storage/unauthorized') {
-                   reject(new Error("Yükleme izniniz yok. Lütfen Firebase Storage kurallarını kontrol edin."));
+                   reject(new Error("Yükleme izniniz yok. Firebase Storage kurallarını kontrol edin."));
                 } else if (error.code === 'storage/canceled') {
                    reject(new Error("Yükleme iptal edildi."));
+                } else if (error.code === 'storage/unknown') {
+                   reject(new Error("Bilinmeyen bir hata oluştu. Lütfen tekrar deneyin."));
                 } else {
                    reject(new Error("Yükleme başarısız: " + error.message));
                 }
