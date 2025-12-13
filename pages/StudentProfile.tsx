@@ -85,8 +85,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   }, [student]);
 
   // --- HISTORY SPLITTER & COUNTERS ---
-  const { currentHistory, archivedHistory, debtCount, makeupDoneCount } = useMemo(() => {
-      if (!student) return { currentHistory: [], archivedHistory: [], debtCount: 0, makeupDoneCount: 0 };
+  const { currentHistory, archivedHistory, totalDoneCount } = useMemo(() => {
+      if (!student) return { currentHistory: [], archivedHistory: [], totalDoneCount: 0 };
       
       const lastPaymentIndex = sortedHistory.findIndex(tx => !tx.isDebt);
       
@@ -100,30 +100,32 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           current = sortedHistory;
       }
 
-      // Normal Ders Sayısı
-      const debtLessons = current.filter(tx => {
-          if (!tx.isDebt) return false;
+      // TOPLAM YAPILAN DERS SAYISI (Total Lesson Count)
+      // Normal Dersler + Yapılan Telafiler
+      const doneLessons = current.filter(tx => {
+          if (!tx.isDebt) return false; // Sadece borçlandırma işlemleri (dersler)
+          
           const lowerNote = (tx.note || "").toLowerCase();
-          return !lowerNote.includes("telafi") && 
-                 !lowerNote.includes("deneme") &&
-                 !lowerNote.includes("gelmedi") &&
-                 !lowerNote.includes("katılım yok") &&
-                 !lowerNote.includes("iptal");
-      });
+          
+          // Sayılmayacaklar:
+          // 1. "Gelmedi" veya "Katılım Yok" (Yapılmadı)
+          // 2. "İptal"
+          // 3. "Telafi Bekliyor" (Henüz yapılmadı)
+          if (lowerNote.includes("gelmedi") || 
+              lowerNote.includes("katılım yok") || 
+              lowerNote.includes("iptal") ||
+              lowerNote.includes("telafi bekliyor")) {
+              return false;
+          }
 
-      // Yapılan Telafi Sayısı (Tamamlanmış olanlar)
-      const makeupsDone = current.filter(tx => {
-          if (!tx.isDebt) return false;
-          const lowerNote = (tx.note || "").toLowerCase();
-          // "Telafi" geçmeli AMA "Bekliyor" geçmemeli. 
-          return lowerNote.includes("telafi") && !lowerNote.includes("bekliyor");
+          // Geri kalan her şey (Normal Ders, Telafi Dersi, Deneme Dersi) "Yapıldı" sayılır.
+          return true;
       });
 
       return { 
           currentHistory: current, 
           archivedHistory: archived, 
-          debtCount: debtLessons.length,
-          makeupDoneCount: makeupsDone.length
+          totalDoneCount: doneLessons.length
       };
   }, [sortedHistory, student]);
   
@@ -139,16 +141,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
       ascHistory.forEach(tx => {
           if (!tx.isDebt) {
+              // Ödeme yapıldığında sayaç sıfırlanıyor (Mevcut mantık)
               currentCounter = 0;
           } else {
               const lowerNote = (tx.note || "").toLowerCase();
-              const isRegularLesson = !lowerNote.includes("telafi") && 
-                                      !lowerNote.includes("deneme") && 
-                                      !lowerNote.includes("iptal") &&
-                                      !lowerNote.includes("katılım yok") &&
-                                      !lowerNote.includes("gelmedi");
               
-              if (isRegularLesson) {
+              // Sayılmayacak durumlar
+              const isMissed = lowerNote.includes("gelmedi") || 
+                               lowerNote.includes("katılım yok") || 
+                               lowerNote.includes("iptal") ||
+                               lowerNote.includes("telafi bekliyor");
+              
+              if (!isMissed) {
+                  // Normal ders VEYA Telafi dersi ise sayacı artır
                   currentCounter++;
                   map.set(tx.id, currentCounter);
               }
@@ -454,8 +459,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            icon = <XCircle size={16} />;
            iconClass = "bg-red-50 text-red-600";
       } else {
+          // Normal Ders veya "Ders" içerenler
+          // Eğer ders numarası haritasında varsa onu kullan
           const num = lessonNumberMap.get(tx.id);
-          if (num) title = `${num}. Ders`;
+          if (num) {
+              title = `${num}. Ders`;
+          } else if (!lowerNote.includes('ders')) {
+              // Özel bir not ise ve ders ibaresi yoksa başa ekle
+              title = tx.note;
+          }
       }
 
       return (
@@ -544,17 +556,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                            <span className="text-[10px] font-bold uppercase tracking-widest">Ders Durumu</span>
                         </div>
                         <div className="flex items-end gap-1.5 flex-wrap">
-                           <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{debtCount}</span>
+                           {/* TOPLAM YAPILAN DERS (Normal + Telafi) */}
+                           <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{totalDoneCount}</span>
                            <span className="text-xs font-bold text-indigo-200 uppercase tracking-wide mb-1.5">Ders</span>
-                           
-                           {/* Yapılan Telafi Göstergesi */}
-                           {makeupDoneCount > 0 && (
-                               <div className="ml-1 mb-1.5 bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1">
-                                   <RefreshCcw size={10} /> +{makeupDoneCount} Telafi
-                               </div>
-                           )}
                         </div>
-                        <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Bu dönem işlenen</p>
+                        <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Bu dönem tamamlanan</p>
                      </div>
 
                      <button 
