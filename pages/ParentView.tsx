@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { DataService, FileService } from '../services/api';
 import { AppState, Student, LessonSlot } from '../types';
-import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight, UserCheck, Loader2, Eye, Download } from 'lucide-react';
+import { Clock, Layers, Sparkles, XCircle, Banknote, AlertCircle, Palette, Music, BookOpen, Trophy, Activity, Link, Youtube, FileText, Image, ChevronRight, ExternalLink, CheckCircle2, Ban, Calendar, CalendarCheck, ArrowRight, UserCheck, Loader2, Eye, Download, TrendingUp } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface ParentViewProps {
@@ -68,10 +68,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       lastPaymentStr,
       currentPeriodHistory,
       safeResources,
-      lessonNumberMap
+      lessonNumberMap,
+      totalDoneCount
   } = useMemo(() => {
       if (!student || !appState) return { 
-          nextLesson: null, lastPaymentStr: "Ödeme Kaydı Yok", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map()
+          nextLesson: null, lastPaymentStr: "Ödeme Kaydı Yok", currentPeriodHistory: [], safeResources: [], lessonNumberMap: new Map(), totalDoneCount: 0
       };
 
       // Resources Safety Check
@@ -180,19 +181,26 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           }
       }
 
-      // 5. Dynamic Lesson Numbering Logic
+      // 5. Dynamic Lesson Numbering Logic & Total Count
       const lessonNumberMap = new Map<string, number>();
-      const regularLessons = filteredHistory.filter(tx => 
-        tx.isDebt && 
-        !(tx.note || "").toLowerCase().includes("telafi") && 
-        !(tx.note || "").toLowerCase().includes("deneme") && 
-        !(tx.note || "").toLowerCase().includes("iptal") && 
-        !(tx.note || "").toLowerCase().includes("gelmedi")
-      );
       
-      regularLessons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // Hangi dersler sayaca dahil edilecek?
+      // - Normal dersler
+      // - Yapılan telafiler (bekleyenler değil)
+      // - Deneme dersleri
+      const countableLessons = filteredHistory.filter(tx => {
+          if (!tx.isDebt) return false;
+          const lowerNote = (tx.note || "").toLowerCase();
+          return !lowerNote.includes("gelmedi") && 
+                 !lowerNote.includes("katılım yok") &&
+                 !lowerNote.includes("iptal") &&
+                 !lowerNote.includes("telafi bekliyor");
+      });
+      
+      // Numaralandırma için eskiden yeniye sırala
+      countableLessons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      regularLessons.forEach((tx, index) => {
+      countableLessons.forEach((tx, index) => {
           lessonNumberMap.set(tx.id, index + 1);
       });
       
@@ -201,7 +209,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           lastPaymentStr: lastPaymentDateStr,
           currentPeriodHistory: filteredHistory, 
           safeResources,
-          lessonNumberMap
+          lessonNumberMap,
+          totalDoneCount: countableLessons.length
       };
 
   }, [student, appState]);
@@ -387,19 +396,20 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                 </div>
             </div>
 
-            {/* PAYMENT STATUS CARD */}
-            <div className="bg-white rounded-[1.5rem] p-4 border border-slate-100 shadow-sm flex flex-col justify-between h-40 relative overflow-hidden">
-                 <div>
-                    <div className="flex items-center gap-1.5 mb-3 h-4">
-                        <Banknote size={14} className="text-emerald-500" />
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">SON ÖDEME</span>
-                    </div>
-
-                    <div>
-                        <span className="text-sm font-black text-slate-800 leading-tight truncate block" title={lastPaymentStr}>{lastPaymentStr}</span>
-                    </div>
-                 </div>
-            </div>
+            {/* STATS CARD (Total Done) */}
+            <div className="relative overflow-hidden rounded-[1.5rem] bg-white border border-slate-100 p-4 shadow-sm flex flex-col justify-between h-40">
+                <div>
+                   <div className="flex items-center gap-1.5 mb-3 text-slate-400">
+                      <TrendingUp size={14} />
+                      <span className="text-[9px] font-bold uppercase tracking-widest leading-none">DERS DURUMU</span>
+                   </div>
+                   <div className="flex items-end gap-1.5">
+                      <span className="text-5xl font-black text-slate-800 tracking-tighter leading-none">{totalDoneCount}</span>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Ders</span>
+                   </div>
+                   <p className="text-[9px] text-slate-400 font-medium mt-1">Bu dönem tamamlanan</p>
+                </div>
+             </div>
         </div>
 
         {/* --- TIMELINE HISTORY (COMPACT & CLEAN) --- */}
@@ -450,8 +460,15 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                                 title = "Telafi Hakkı";
                                 subtitle = "Planlanacaktır";
                             } else {
-                                title = "Telafi Dersi";
-                                subtitle = "Tamamlandı";
+                                // Telafi Tamamlandı: "Asıl:" ayrıştırması
+                                if (tx.note.includes("(Asıl:")) {
+                                    const parts = tx.note.split("(Asıl:");
+                                    title = parts[0].trim();
+                                    subtitle = "Asıl Ders:" + parts[1].replace(")", "");
+                                } else {
+                                    title = "Telafi Dersi";
+                                    subtitle = "Tamamlandı";
+                                }
                             }
                         } else if (lowerNote.includes("gelmedi") || lowerNote.includes("iptal")) {
                             // ABSENT
@@ -471,7 +488,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             if (num) {
                                 title = `${num}. Ders`;
                             } else {
-                                title = "Ders";
+                                // Özel ders notu varsa onu göster
+                                title = tx.note || "Ders";
                             }
                             subtitle = "Tamamlandı";
                         }
