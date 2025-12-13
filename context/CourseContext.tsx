@@ -402,7 +402,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           };
       }),
 
-      updateTransaction: (studentId, transactionId, note) => updateState(s => {
+      updateTransaction: (studentId, transactionId, note, customDate) => updateState(s => {
           const student = s.students[studentId];
           if (!student) return s;
 
@@ -416,7 +416,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           const updatedHistory = (student.history || []).map(tx => {
               if (tx.id === transactionId) {
-                  return { ...tx, note };
+                  return { 
+                      ...tx, 
+                      note,
+                      date: customDate ? new Date(customDate).toISOString() : tx.date
+                  };
               }
               return tx;
           });

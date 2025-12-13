@@ -248,10 +248,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleMakeupComplete = () => {
       if (!selectedTx || !makeupCompleteDate) return;
-      const dateObj = new Date(makeupCompleteDate);
-      const dateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-      const newNote = `Telafi Edildi (${dateStr})`;
-      actions.updateTransaction(studentId, selectedTx.id, newNote);
+      
+      // Kaçırılan dersin orijinal tarihi
+      const originalDateObj = new Date(selectedTx.date);
+      const originalDateStr = originalDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+      
+      // Yeni not: Telafi Dersi (Asıl: 12 Ekim)
+      const newNote = `Telafi Dersi (Asıl: ${originalDateStr})`;
+      
+      // İşlemi güncelle: Notu değiştir VE Tarihi telafinin yapıldığı tarihe çek.
+      actions.updateTransaction(studentId, selectedTx.id, newNote, makeupCompleteDate);
+      
       setIsMakeupCompleteModalOpen(false);
       setMakeupCompleteDate(getTodayString());
       setSelectedTx(null);
@@ -445,8 +452,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               icon = <Layers size={16} />;
           } else {
               // Telafi Tamamlandı
-              title = "Telafi Dersi";
-              sub = "Yapıldı";
+              // Eğer "Asıl:" içeriyorsa ayrıştır
+              if (title.includes("(Asıl:")) {
+                  const parts = title.split("(Asıl:");
+                  title = parts[0].trim();
+                  sub = "Asıl Ders:" + parts[1].replace(")", "");
+              } else {
+                  title = "Telafi Dersi";
+                  sub = "Yapıldı";
+              }
           }
       } else if (lowerNote.includes('gelmedi') || lowerNote.includes('katılım yok')) {
            title = "Katılım Yok";
