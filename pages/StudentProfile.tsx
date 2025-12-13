@@ -84,9 +84,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return [...(student.history || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [student]);
 
-  // --- HISTORY SPLITTER ---
-  const { currentHistory, archivedHistory, debtCount } = useMemo(() => {
-      if (!student) return { currentHistory: [], archivedHistory: [], debtCount: 0 };
+  // --- HISTORY SPLITTER & COUNTERS ---
+  const { currentHistory, archivedHistory, debtCount, makeupDoneCount } = useMemo(() => {
+      if (!student) return { currentHistory: [], archivedHistory: [], debtCount: 0, makeupDoneCount: 0 };
       
       const lastPaymentIndex = sortedHistory.findIndex(tx => !tx.isDebt);
       
@@ -100,6 +100,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           current = sortedHistory;
       }
 
+      // Normal Ders Sayısı
       const debtLessons = current.filter(tx => {
           if (!tx.isDebt) return false;
           const lowerNote = (tx.note || "").toLowerCase();
@@ -110,7 +111,20 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  !lowerNote.includes("iptal");
       });
 
-      return { currentHistory: current, archivedHistory: archived, debtCount: debtLessons.length };
+      // Yapılan Telafi Sayısı (Tamamlanmış olanlar)
+      const makeupsDone = current.filter(tx => {
+          if (!tx.isDebt) return false;
+          const lowerNote = (tx.note || "").toLowerCase();
+          // "Telafi" geçmeli AMA "Bekliyor" geçmemeli. 
+          return lowerNote.includes("telafi") && !lowerNote.includes("bekliyor");
+      });
+
+      return { 
+          currentHistory: current, 
+          archivedHistory: archived, 
+          debtCount: debtLessons.length,
+          makeupDoneCount: makeupsDone.length
+      };
   }, [sortedHistory, student]);
   
   // --- LESSON NUMBERING LOGIC ---
@@ -244,26 +258,20 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(portalUrl, '_blank');
   };
 
-  // --- BELLEK DOSTU DOSYA İŞLEME VE SIKIŞTIRMA ---
+  // --- FILE HANDLING ... (Aynı)
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
       
-      // Önceki URL'i temizle (Memory leak önlemek için)
-      if (resUrl && resUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(resUrl);
-      }
+      if (resUrl && resUrl.startsWith('blob:')) URL.revokeObjectURL(resUrl);
       
-      // Reset State
       setIsProcessing(true);
       setResUrl(""); 
       setResFile(null);
       setUploadStatusText("Dosya hazırlanıyor...");
       
       try {
-          // PDF Kontrolü
           if (file.type === 'application/pdf') {
-              // 20MB Limiti
               if (file.size > 20 * 1024 * 1024) { 
                   alert("PDF dosyaları en fazla 20MB olabilir.");
                   setIsProcessing(false);
@@ -278,18 +286,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               setUploadStatusText("PDF Hazır");
               setIsProcessing(false);
           } 
-          // RESİM Kontrolü ve Optimizasyonu
           else if (file.type.startsWith('image/')) {
               setUploadStatusText("Fotoğraf optimize ediliyor...");
-              
               const img = document.createElement('img');
-              // Create Object URL for the source (faster than reading FileReader)
               const objectUrl = URL.createObjectURL(file);
               
               img.onload = () => {
-                  URL.revokeObjectURL(objectUrl); // Hemen serbest bırak
-                  
-                  // Maksimum boyutları sınırla (Bellek şişmesini önler)
+                  URL.revokeObjectURL(objectUrl);
                   const MAX_DIMENSION = 1920; 
                   let newWidth = img.width;
                   let newHeight = img.height;
@@ -307,29 +310,21 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   const canvas = document.createElement('canvas');
                   canvas.width = newWidth;
                   canvas.height = newHeight;
-                  
                   const ctx = canvas.getContext('2d');
                   if (!ctx) {
                       alert("Görüntü işlenemedi.");
                       setIsProcessing(false);
                       return;
                   }
-
-                  // Kaliteli çizim
                   ctx.drawImage(img, 0, 0, newWidth, newHeight);
-                  
-                  // Blob'a çevir (JPEG, 0.8 kalite - Boyut ve kalite dengesi)
                   canvas.toBlob((blob) => {
                       if (blob) {
                            const previewUrl = URL.createObjectURL(blob);
                            setResUrl(previewUrl);
-                           
-                           // Yeni dosya oluştur
                            const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { 
                                type: "image/jpeg",
                                lastModified: Date.now()
                            });
-                           
                            setResFile(newFile); 
                            setResType('IMAGE');
                            if (!resTitle) setResTitle(`Görsel ${new Date().toLocaleDateString('tr-TR')}`);
@@ -337,23 +332,18 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       } else {
                            alert("Sıkıştırma hatası.");
                       }
-                      
-                      // Canvas'ı temizle (Memory cleanup)
                       canvas.width = 0;
                       canvas.height = 0;
                       setIsProcessing(false);
                   }, 'image/jpeg', 0.8);
               };
-
               img.onerror = () => {
                   URL.revokeObjectURL(objectUrl);
                   alert("Resim yüklenirken hata oluştu.");
                   setIsProcessing(false);
               };
-
               img.src = objectUrl;
-          } 
-          else {
+          } else {
               alert("Sadece Resim ve PDF dosyaları desteklenir.");
               setIsProcessing(false);
           }
@@ -369,29 +359,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           let finalType = resType;
           let finalUrlOrId = resUrl;
 
-          // UPLOAD MODE: Send File to Firebase Storage
           if (resTab === 'UPLOAD') {
-              if (!resFile) {
-                  alert("Lütfen bir dosya seçin");
-                  return;
-              }
+              if (!resFile) { alert("Lütfen bir dosya seçin"); return; }
               try {
                   setIsUploading(true);
                   setUploadStatusText("Sunucuya yükleniyor...");
                   setUploadProgress(1); 
-
-                  // Upload to Firebase Storage
                   const downloadURL = await FileService.saveFile(user.id, resFile, (progress) => {
                       setUploadProgress(progress);
                       setUploadStatusText(`Yükleniyor... %${progress}`);
                   });
-
                   finalUrlOrId = downloadURL;
-                  
                   setUploadStatusText("Yükleme Tamamlandı!");
-                  // Short delay to show 100%
                   await new Promise(r => setTimeout(r, 500));
-
               } catch (e: any) {
                   console.error(e);
                   alert("YÜKLEME HATASI: " + (e.message || "Bilinmeyen hata"));
@@ -410,22 +390,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               if (!finalUrlOrId.startsWith('http://') && !finalUrlOrId.startsWith('https://')) finalUrlOrId = `https://${finalUrlOrId}`;
           }
 
-          // Save metadata to Firestore
           actions.addResource(studentId, resTitle, finalUrlOrId, finalType);
-          
-          // Reset Form
           setResTitle(""); 
-          
-          // Cleanup Preview URL
-          if (resUrl && resUrl.startsWith('blob:')) {
-              URL.revokeObjectURL(resUrl);
-          }
-          setResUrl(""); 
-          setResFile(null); 
-          setResType('LINK');
-          setUploadProgress(0); 
-          setUploadStatusText("");
-          
+          if (resUrl && resUrl.startsWith('blob:')) URL.revokeObjectURL(resUrl);
+          setResUrl(""); setResFile(null); setResType('LINK');
+          setUploadProgress(0); setUploadStatusText("");
           if (fileInputRef.current) fileInputRef.current.value = "";
           setIsResourcesModalOpen(false); 
       }
@@ -433,7 +402,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   // --- PREVIEW LOGIC ---
   const handleOpenResource = async (res: any) => {
-      // Artık tüm dosyalar birer URL (Storage Linki veya Dış Link)
       if (res.type === 'LINK' || res.type === 'VIDEO') {
           window.open(res.url, '_blank');
       } else {
@@ -457,7 +425,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       let iconClass = "bg-indigo-50 text-indigo-600";
       let showAmount = isPayment;
       
-      // Güvenli string kontrolü
       const lowerNote = title.toLowerCase();
 
       if (isPayment) {
@@ -470,7 +437,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           if (lowerNote.includes('bekliyor')) {
               title = "Telafi Hakkı";
               sub = "Planlanacaktır";
+              icon = <Layers size={16} />;
           } else {
+              // Telafi Tamamlandı
               title = "Telafi Dersi";
               sub = "Yapıldı";
           }
@@ -513,8 +482,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
       );
   };
-
-  const displayedLessonCount = debtCount;
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
@@ -574,11 +541,18 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      <div>
                         <div className="flex items-center gap-2 mb-2 text-indigo-200 opacity-90">
                            <TrendingUp size={16} />
-                           <span className="text-[10px] font-bold uppercase tracking-widest">Ders Sayacı</span>
+                           <span className="text-[10px] font-bold uppercase tracking-widest">Ders Durumu</span>
                         </div>
-                        <div className="flex items-baseline gap-1.5">
-                           <span className="text-6xl font-black tracking-tighter drop-shadow-sm">{displayedLessonCount}</span>
-                           <span className="text-sm font-bold text-indigo-200 uppercase tracking-wide">Ders</span>
+                        <div className="flex items-end gap-1.5 flex-wrap">
+                           <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{debtCount}</span>
+                           <span className="text-xs font-bold text-indigo-200 uppercase tracking-wide mb-1.5">Ders</span>
+                           
+                           {/* Yapılan Telafi Göstergesi */}
+                           {makeupDoneCount > 0 && (
+                               <div className="ml-1 mb-1.5 bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1">
+                                   <RefreshCcw size={10} /> +{makeupDoneCount} Telafi
+                               </div>
+                           )}
                         </div>
                         <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Bu dönem işlenen</p>
                      </div>
@@ -620,7 +594,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
           </div>
 
-          {/* RESOURCES SECTION */}
+          {/* RESOURCES SECTION ... (Aynı kalacak, sadece üst kısım değişti) */}
           <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
               <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -658,7 +632,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                   </button>
                                   <button onClick={() => handleShareResource(res.title, res.url)} className="w-6 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100"><Share2 size={12} /></button>
                                   <button onClick={async () => {
-                                      // Eğer Storage linki ise sil
                                       if (res.url.includes('firebasestorage')) {
                                            await FileService.deleteFile(res.url);
                                       }
@@ -696,7 +669,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
       </div>
 
-      {/* --- MODALS --- */}
+      {/* --- MODALS (Diğerleri aynı, sadece eklediğimiz yeni mantıklar devrede) --- */}
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" 
           actions={<><button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddPastLesson} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Ekle</button></>}
       >
@@ -736,7 +709,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            <div className="py-2"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Telafi Yapılan Tarih</label><input type="date" value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
       </Dialog>
       
-      {/* UPLOAD MODAL - Updated with Progress and Processing State */}
       <Dialog isOpen={isResourcesModalOpen} onClose={() => { if(!isUploading && !isProcessing) { setIsResourcesModalOpen(false); setResUrl(""); setResTitle(""); setResType('LINK'); setUploadProgress(0); setUploadStatusText(""); setResFile(null); } }} title="Materyal Ekle"
            actions={
               !isUploading && !isProcessing && (
@@ -748,21 +720,16 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           }
       >
           <div className="flex flex-col gap-3 py-1">
-              {/* Tabs only if not uploading */}
               {!isUploading && !isProcessing && (
                 <div className="flex bg-slate-100 p-1 rounded-xl">
                     <button onClick={() => setResTab('LINK')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'LINK' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Link / Video</button>
                     <button onClick={() => setResTab('UPLOAD')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${resTab === 'UPLOAD' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}>Dosya Yükle</button>
                 </div>
               )}
-
-              {/* Title Input */}
               {!isUploading && !isProcessing && (
                 <input type="text" value={resTitle} onChange={e=>setResTitle(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="Başlık (Örn: Ödev 1)" />
               )}
-              
               {isUploading || isProcessing ? (
-                  // UPLOAD/PROCESSING PROGRESS VIEW
                   <div className="flex flex-col items-center justify-center py-6 gap-3">
                       {isProcessing ? (
                           <div className="flex flex-col items-center gap-2 animate-pulse">
@@ -783,43 +750,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       </div>
                   </div>
               ) : (
-                  // NORMAL VIEW
                   resTab === 'LINK' ? (
                       <input type="text" value={resUrl} onChange={e=>setResUrl(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm outline-none" placeholder="https://..." />
                   ) : (
                       <div>
-                          <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            className="hidden" 
-                            accept="image/*,application/pdf" 
-                            onChange={handleFileUpload} 
-                          />
-                          <button 
-                            onClick={() => { 
-                                if (fileInputRef.current) {
-                                    fileInputRef.current.value = ""; // Reset input to allow same file selection
-                                    fileInputRef.current.click();
-                                }
-                            }}
-                            className="w-full py-8 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-slate-50 hover:border-indigo-200 transition-colors"
-                          >
-                              {resFile ? (
-                                  <>
-                                    <CheckCircle2 size={24} className="text-emerald-500" />
-                                    <div className="text-center">
-                                        <span className="text-xs font-bold text-emerald-600 block">{resType === 'PDF' ? 'PDF Hazır' : 'Resim Hazır'}</span>
-                                        <span className="text-[10px] text-emerald-400 block mt-0.5 max-w-[150px] truncate mx-auto">{resFile.name}</span>
-                                    </div>
-                                    <span className="text-[9px] text-slate-300 mt-2 font-bold underline">Değiştirmek için tıkla</span>
-                                  </>
-                              ) : (
-                                  <>
-                                    <UploadCloud size={24} />
-                                    <span className="text-xs font-bold">Resim veya PDF Seç</span>
-                                    <span className="text-[9px] text-slate-300 mt-1">Otomatik sıkıştırılır (Max 20MB)</span>
-                                  </>
-                              )}
+                          <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
+                          <button onClick={() => { if (fileInputRef.current) { fileInputRef.current.value = ""; fileInputRef.current.click(); } }} className="w-full py-8 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-slate-50 hover:border-indigo-200 transition-colors">
+                              {resFile ? (<><CheckCircle2 size={24} className="text-emerald-500" /><div className="text-center"><span className="text-xs font-bold text-emerald-600 block">{resType === 'PDF' ? 'PDF Hazır' : 'Resim Hazır'}</span><span className="text-[10px] text-emerald-400 block mt-0.5 max-w-[150px] truncate mx-auto">{resFile.name}</span></div></>) : (<><UploadCloud size={24} /><span className="text-xs font-bold">Resim veya PDF Seç</span></>)}
                           </button>
                       </div>
                   )
@@ -833,23 +770,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
       </Dialog>
 
-      <Dialog 
-        isOpen={isPreviewOpen} 
-        onClose={() => setIsPreviewOpen(false)} 
-        title="Dosya Önizleme"
-        actions={<button onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Kapat</button>}
-      >
+      <Dialog isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title="Dosya Önizleme" actions={<button onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Kapat</button>}>
           <div className="flex items-center justify-center min-h-[200px] max-h-[60vh] overflow-auto bg-slate-50 rounded-xl p-2 border border-slate-100">
-              {isPreviewLoading ? (
-                  <div className="flex flex-col items-center gap-2"><Loader2 size={32} className="animate-spin text-indigo-600" /><span className="text-xs font-bold text-slate-400">Yükleniyor...</span></div>
-              ) : previewContent ? (
-                  previewType === 'IMAGE' ? (<img src={previewContent} alt="Preview" className="max-w-full h-auto rounded-lg shadow-sm" />) : (<iframe src={previewContent} className="w-full h-[300px] rounded-lg" title="PDF Preview"></iframe>)
-              ) : (
-                  <div className="flex flex-col items-center gap-2"><XCircle size={32} className="text-red-300" /><span className="text-xs font-bold text-slate-400">Dosya görüntülenemedi.</span></div>
-              )}
+              {isPreviewLoading ? (<div className="flex flex-col items-center gap-2"><Loader2 size={32} className="animate-spin text-indigo-600" /><span className="text-xs font-bold text-slate-400">Yükleniyor...</span></div>) : previewContent ? (previewType === 'IMAGE' ? (<img src={previewContent} alt="Preview" className="max-w-full h-auto rounded-lg shadow-sm" />) : (<iframe src={previewContent} className="w-full h-[300px] rounded-lg" title="PDF Preview"></iframe>)) : (<div className="flex flex-col items-center gap-2"><XCircle size={32} className="text-red-300" /><span className="text-xs font-bold text-slate-400">Dosya görüntülenemedi.</span></div>)}
           </div>
       </Dialog>
-
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource, WeekDay, DAYS } from '../types';
 import { useAuth } from './AuthContext';
@@ -124,9 +125,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                        let note = "";
                        
                        if (slot.label === 'MAKEUP') {
-                           note = "Telafi Dersi İşlendi (Otomatik)";
+                           note = "Telafi Dersi (Tamamlandı)";
                        } else if (slot.label === 'TRIAL') {
-                           note = "Deneme Dersi İşlendi (Otomatik)";
+                           note = "Deneme Dersi (Tamamlandı)";
                        } else {
                            newDebtCount += 1;
                            note = `${newDebtCount}. Ders İşlendi (Otomatik)`;
@@ -168,7 +169,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // Yavaş bağlantılar için agresif yükleme: 0.5 sn içinde yanıt gelmezse aç.
-    // Eskiden 0.8 saniyeydi, daha da hızlandırıldı.
     const timer = setTimeout(() => setIsLoaded(true), 500);
 
     const unsubscribe = DataService.subscribeToUserData(
@@ -442,7 +442,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const tx = history.find(t => t.id === transactionId);
           let newDebtCount = student.debtLessonCount;
           
-          if (tx && tx.isDebt) {
+          // Eğer silinen şey NORMAL bir ders ise sayacı düşür.
+          // Telafi ise sayacı düşürme çünkü telafi sayacı artırmamıştı.
+          if (tx && tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme")) {
               newDebtCount = Math.max(0, newDebtCount - 1);
           }
 
