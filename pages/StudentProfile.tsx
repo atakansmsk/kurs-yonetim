@@ -98,22 +98,29 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   }, [student]);
 
   // --- HISTORY SPLITTER & COUNTERS ---
+  // YENİ MANTIK: Geçmişi "Ödeme Sonrası" değil "AY BAZLI" böl.
+  // Bu ay içinde yapılan her şeyi (ödeme dahil) göster.
   const { currentHistory, archivedHistory, totalDoneCount } = useMemo(() => {
       if (!student) return { currentHistory: [], archivedHistory: [], totalDoneCount: 0 };
       
-      const lastPaymentIndex = sortedHistory.findIndex(tx => !tx.isDebt);
-      
-      let current: Transaction[] = [];
-      let archived: Transaction[] = [];
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
 
-      if (lastPaymentIndex !== -1) {
-          current = sortedHistory.slice(0, lastPaymentIndex + 1);
-          archived = sortedHistory.slice(lastPaymentIndex + 1);
-      } else {
-          current = sortedHistory;
-      }
+      // CURRENT: Bu ayın işlemleri
+      const current = sortedHistory.filter(tx => {
+          const txDate = new Date(tx.date);
+          return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+      });
 
-      const doneLessons = current.filter(tx => {
+      // ARCHIVE: Eski aylar
+      const archived = sortedHistory.filter(tx => {
+          const txDate = new Date(tx.date);
+          return txDate.getMonth() !== currentMonth || txDate.getFullYear() !== currentYear;
+      });
+
+      // TOTAL DONE COUNT (Normal Ders + Telafi)
+      const doneLessons = sortedHistory.filter(tx => {
           if (!tx.isDebt) return false; 
           const lowerNote = (tx.note || "").toLowerCase();
           if (lowerNote.includes("gelmedi") || 
@@ -125,10 +132,20 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           return true;
       });
 
+      // SADECE BU AY YAPILAN DERS SAYISI (Kutucukta göstermek için)
+      const thisMonthDoneCount = current.filter(tx => {
+          if (!tx.isDebt) return false;
+          const lowerNote = (tx.note || "").toLowerCase();
+          return !lowerNote.includes("gelmedi") && 
+                 !lowerNote.includes("katılım yok") &&
+                 !lowerNote.includes("iptal") &&
+                 !lowerNote.includes("telafi bekliyor");
+      }).length;
+
       return { 
           currentHistory: current, 
           archivedHistory: archived, 
-          totalDoneCount: doneLessons.length
+          totalDoneCount: thisMonthDoneCount // Bu ayki ders sayısı
       };
   }, [sortedHistory, student]);
   
@@ -223,7 +240,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const handleMakeupComplete = () => {
       if (!selectedTx || !makeupCompleteDate) return;
       
-      // Kaçırılan dersin orijinal tarihi
       const originalDateObj = new Date(selectedTx.date);
       const originalDateStr = originalDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       
@@ -443,6 +459,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            iconClass = "bg-red-50 text-red-600";
       } else {
           // Normal Ders
+          // Ders numarası zaten Note içinde kayıtlı (1. Ders İşlendi)
+          // Sadece 'Ders İşlendi' yazıyorsa (Eski kayıt) onu olduğu gibi göster
           if (!lowerNote.includes('ders')) {
               title = tx.note;
           }
@@ -547,11 +565,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                            <span className="text-[10px] font-bold uppercase tracking-widest">Ders Durumu</span>
                         </div>
                         <div className="flex items-end gap-1.5 flex-wrap">
-                           {/* TOPLAM YAPILAN DERS (Normal + Telafi) */}
+                           {/* BU AY YAPILAN DERS SAYISI */}
                            <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{totalDoneCount}</span>
                            <span className="text-xs font-bold text-indigo-200 uppercase tracking-wide mb-1.5">Ders</span>
                         </div>
-                        <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Bu dönem tamamlanan</p>
+                        <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Bu ay tamamlanan</p>
                      </div>
 
                      <button 
@@ -645,13 +663,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           <div>
                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <CalendarDays size={14} /> {currentMonthName} Ayı Ders Tarihleri
+                    <CalendarDays size={14} /> {currentMonthName} Ayı Hareketleri
                   </h3>
                </div>
                <div className="relative space-y-4 before:absolute before:left-[21px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100 before:-z-10 pb-6">
                   {currentHistory.length === 0 ? (
                       <div className="bg-white rounded-[1.5rem] border border-slate-100 border-dashed p-6 text-center shadow-sm">
-                          <p className="text-slate-900 font-bold text-xs">Hareket Yok</p>
+                          <p className="text-slate-900 font-bold text-xs">Bu Ay Hareket Yok</p>
                       </div>
                   ) : (
                       currentHistory.map((tx) => renderTransactionItem(tx))
@@ -660,7 +678,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                {archivedHistory.length > 0 && (
                   <button onClick={() => setIsArchiveModalOpen(true)} className="w-full py-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors">
                       <Archive size={14} />
-                      Geçmiş Dönem Kayıtları ({archivedHistory.length})
+                      Geçmiş Aylar ({archivedHistory.length})
                   </button>
                )}
           </div>

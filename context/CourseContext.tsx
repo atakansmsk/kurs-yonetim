@@ -69,6 +69,36 @@ const getTodayName = (): WeekDay => {
   return map[new Date().getDay()];
 };
 
+// HELPER: Calculate current debt count dynamically based on history
+// This fixes the issue where count doesn't reset after payment
+const calculateNextLessonNumber = (history: Transaction[]): number => {
+    // Sort history by date descending (newest first)
+    const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    // Find the most recent payment
+    const lastPaymentIndex = sorted.findIndex(tx => !tx.isDebt);
+    
+    // If no payment ever, count all lessons
+    let relevantTransactions = sorted;
+    if (lastPaymentIndex !== -1) {
+        // Take only transactions AFTER the last payment (which are at the start of the array)
+        relevantTransactions = sorted.slice(0, lastPaymentIndex);
+    }
+
+    // Count how many "REGULAR" lessons are in this period
+    // Exclude 'Telafi', 'Deneme', 'Gelmedi', 'İptal' from causing the number to jump, 
+    // unless you want them numbered. Typically only "Ders İşlendi" increments the main counter.
+    const lessonCount = relevantTransactions.filter(tx => 
+        tx.isDebt && 
+        !tx.note.includes('Telafi') && 
+        !tx.note.includes('Deneme') &&
+        !tx.note.includes('Gelmedi') &&
+        !tx.note.includes('İptal')
+    ).length;
+
+    return lessonCount + 1;
+};
+
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -112,16 +142,17 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   if (!hasTx) {
                        changesFound = true;
                        
-                       let newDebtCount = student.debtLessonCount;
                        let note = "";
+                       // Dinamik Hesaplama: Ödeme sonrası kaçıncı ders?
+                       const nextNum = calculateNextLessonNumber(history);
 
                        if (slot.label === 'MAKEUP') {
                            note = `Telafi Dersi (Tamamlandı)`;
                        } else if (slot.label === 'TRIAL') {
                            note = `Deneme Dersi (Tamamlandı)`;
                        } else {
-                           newDebtCount += 1;
-                           note = `Ders İşlendi`;
+                           // EKLENDİ: X. Ders İşlendi formatı geri geldi (İstek üzerine)
+                           note = `${nextNum}. Ders İşlendi`;
                        }
 
                        const newTx: Transaction = {
@@ -138,9 +169,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                                ...newState.students,
                                [student.id]: {
                                    ...student,
-                                   debtLessonCount: newDebtCount,
+                                   debtLessonCount: nextNum,
                                    history: [newTx, ...history],
-                                   nextLessonNote: "" // AUTO-CLEAR NOTE ON LESSON COMPLETION
+                                   nextLessonNote: "" 
                                }
                            }
                        };
@@ -264,6 +295,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updateStudent: (id, name, phone, fee, color, nextLessonNote) => updateState(s => {
           const student = s.students[id];
           if (!student) return s;
+          
+          // DÜZELTME: Renk ataması burada garanti altına alındı.
+          // Eğer 'color' undefined gelirse mevcut rengi koru, o da yoksa 'indigo' yap.
+          const finalColor = color !== undefined ? color : (student.color || 'indigo');
+
           return { 
               ...s, 
               students: { 
@@ -273,7 +309,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       name: name.trim(), 
                       phone: phone.trim(), 
                       fee: parseCurrency(fee),
-                      color: color || student.color || 'indigo',
+                      color: finalColor,
                       nextLessonNote: nextLessonNote !== undefined ? nextLessonNote : student.nextLessonNote
                   } 
               } 
@@ -355,11 +391,16 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const history = student.history || [];
           
           let newDebtCount = student.debtLessonCount;
+          let note = "";
 
           if (isDebt) {
-              newDebtCount += 1;
+              // DÜZELTME: Dinamik hesaplama ile 1. Ders sorununu çözüyoruz.
+              const nextNum = calculateNextLessonNumber(history);
+              newDebtCount = nextNum;
+              note = `${nextNum}. Ders İşlendi`;
           } else {
-              newDebtCount = 0;
+              newDebtCount = 0; // Ödeme yapıldı, borç sayacı sıfırlandı.
+              note = 'Ödeme Alındı';
           }
 
           const parsedAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 
@@ -368,7 +409,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           const newTx: Transaction = {
               id: Math.random().toString(36).substr(2, 9),
-              note: isDebt ? `Ders İşlendi` : 'Ödeme Alındı',
+              note,
               date,
               isDebt,
               amount: parsedAmount
@@ -382,7 +423,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       ...student,
                       debtLessonCount: newDebtCount,
                       history: [newTx, ...history],
-                      nextLessonNote: isDebt ? "" : student.nextLessonNote // ALSO CLEAR IF MANUALLY MARKED AS LESSON DONE
+                      nextLessonNote: isDebt ? "" : student.nextLessonNote // Clear note only on lesson done
                   }
               }
           };
@@ -430,6 +471,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const tx = history.find(t => t.id === transactionId);
           let newDebtCount = student.debtLessonCount;
           
+          // Eğer silinen son ders ise sayacı düşür (Basit mantık)
           if (tx && tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme")) {
               newDebtCount = Math.max(0, newDebtCount - 1);
           }
