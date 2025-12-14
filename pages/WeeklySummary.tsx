@@ -9,7 +9,7 @@ interface WeeklySummaryProps {
 }
 
 const SHORT_DAYS: Record<WeekDay, string> = {
-  "Pazartesi": "PZT", "Salı": "SAL", "Çarşamba": "ÇAR", "Perşembe": "PER", "Cuma": "CUM", "Cmt": "CMT", "Pazar": "PAZ"
+  "Pazartesi": "Pzt", "Salı": "Sal", "Çarşamba": "Çar", "Perşembe": "Per", "Cuma": "Cum", "Cmt": "Cmt", "Pazar": "Paz"
 };
 
 const timeToMinutes = (time: string) => {
@@ -107,60 +107,59 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
         {/* Header Stats */}
-        <div className="bg-white px-4 py-4 border-b border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sticky top-0 z-30 flex gap-3 overflow-x-auto no-scrollbar shrink-0">
-            <div className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[140px] border border-emerald-100 relative overflow-hidden">
-                <div className="flex items-center gap-2 mb-1 z-10 w-full justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Aylık Ciro</span>
-                    <button onClick={() => setShowEarnings(!showEarnings)} className="hover:bg-emerald-100 p-1 rounded-full transition-colors">
-                        {showEarnings ? <Eye size={12} /> : <EyeOff size={12} />}
+        <div className="bg-white px-4 py-3 border-b border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sticky top-0 z-30 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
+            <div className="bg-emerald-50 text-emerald-700 px-3 py-2 rounded-xl flex flex-col items-start min-w-[120px] border border-emerald-100 relative overflow-hidden flex-1">
+                <div className="flex items-center gap-1 mb-0.5 z-10 w-full justify-between">
+                    <span className="text-[9px] font-black uppercase tracking-widest opacity-70">Aylık Ciro</span>
+                    <button onClick={() => setShowEarnings(!showEarnings)} className="hover:bg-emerald-100 p-1 rounded-full transition-colors -mr-1">
+                        {showEarnings ? <Eye size={10} /> : <EyeOff size={10} />}
                     </button>
                 </div>
-                <span className="text-2xl font-black tracking-tight z-10">
+                <span className="text-lg font-black tracking-tight z-10 truncate w-full">
                     {showEarnings ? `${monthlyEarnings.toLocaleString('tr-TR')}₺` : '*** ₺'}
                 </span>
-                <Banknote className="absolute right-[-10px] bottom-[-10px] opacity-10" size={60} />
+                <Banknote className="absolute right-[-10px] bottom-[-10px] opacity-10" size={50} />
             </div>
             
-            <div className="bg-indigo-50 text-indigo-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[120px] border border-indigo-100 relative overflow-hidden">
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Ders Yükü</span>
-                <span className="text-2xl font-black tracking-tight">{weeklyLessonCount}</span>
-                <Clock className="absolute right-[-10px] bottom-[-10px] opacity-10" size={60} />
+            <div className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-xl flex flex-col items-start min-w-[90px] border border-indigo-100 relative overflow-hidden flex-1">
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-0.5">Ders</span>
+                <span className="text-lg font-black tracking-tight">{weeklyLessonCount}</span>
+                <Clock className="absolute right-[-10px] bottom-[-10px] opacity-10" size={50} />
             </div>
 
-            <div className="bg-purple-50 text-purple-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[120px] border border-purple-100 relative overflow-hidden">
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Öğrenci</span>
-                <span className="text-2xl font-black tracking-tight">{totalStudents}</span>
-                <User className="absolute right-[-10px] bottom-[-10px] opacity-10" size={60} />
+            <div className="bg-purple-50 text-purple-700 px-3 py-2 rounded-xl flex flex-col items-start min-w-[90px] border border-purple-100 relative overflow-hidden flex-1">
+                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-0.5">Öğrenci</span>
+                <span className="text-lg font-black tracking-tight">{totalStudents}</span>
+                <User className="absolute right-[-10px] bottom-[-10px] opacity-10" size={50} />
             </div>
         </div>
 
         {/* Weekly Grid */}
-        <div className="flex-1 overflow-auto p-2 pb-24">
-            {/* min-w-[900px] ekleyerek mobilde de 7 sütunun yan yana durmasını zorluyoruz (yatay scroll ile) */}
-            <div className="grid grid-cols-7 gap-2 content-start h-full min-w-[900px]">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 pb-24">
+            {/* Grid yapısı: min-w kısıtlaması kaldırıldı, gap-0.5 ile sıkıştırıldı */}
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-2 content-start h-full w-full">
                 {DAYS.map((day) => {
                     const isToday = day === currentDayName;
                     const slots = getDaySlots(day);
                     
                     return (
-                        <div key={day} className={`flex flex-col min-w-0 rounded-2xl border transition-all duration-300 ${isToday ? 'bg-white border-indigo-200 shadow-lg ring-1 ring-indigo-50 z-10' : 'bg-white border-slate-100 shadow-sm'}`}>
+                        <div key={day} className={`flex flex-col min-w-0 rounded-lg sm:rounded-2xl border transition-all duration-300 ${isToday ? 'bg-white border-indigo-300 shadow-md ring-1 ring-indigo-100 z-10' : 'bg-white border-slate-100 shadow-sm'}`}>
                             
                             {/* Day Header */}
                             <button 
                                 onClick={() => handleDayClick(day)}
-                                className={`text-center py-3 border-b rounded-t-2xl transition-colors hover:bg-slate-50 ${isToday ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-slate-50'}`}
+                                className={`text-center py-1.5 sm:py-3 border-b rounded-t-lg sm:rounded-t-2xl transition-colors hover:bg-slate-50 ${isToday ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-slate-50'}`}
                             >
-                                <span className={`block font-black uppercase tracking-wider text-xs ${isToday ? 'text-indigo-700' : 'text-slate-500'}`}>
+                                <span className={`block font-black uppercase tracking-tighter text-[9px] sm:text-xs truncate px-0.5 ${isToday ? 'text-indigo-700' : 'text-slate-400'}`}>
                                     {SHORT_DAYS[day]}
                                 </span>
                             </button>
 
                             {/* Slots */}
-                            <div className="flex flex-col p-2 gap-2 min-h-[80px]">
+                            <div className="flex flex-col p-0.5 sm:p-2 gap-0.5 sm:gap-2 min-h-[60px]">
                                 {slots.length === 0 ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center opacity-30 gap-1 py-4">
-                                        <CalendarCheck size={20} className="text-slate-300" />
-                                        <span className="text-[10px] font-bold text-slate-300">Boş</span>
+                                    <div className="flex-1 flex flex-col items-center justify-center opacity-20 gap-1 py-2">
+                                        <span className="text-[8px] font-bold text-slate-300">-</span>
                                     </div>
                                 ) : (
                                     slots.map((slot) => {
@@ -183,18 +182,18 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                 cardClass = "bg-orange-50 border-orange-200";
                                                 textClass = "text-orange-900";
                                                 timeClass = "bg-white/60 text-orange-700";
-                                                badge = <span className="text-[8px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded ml-auto">TELAFİ</span>;
+                                                badge = <div className="w-1.5 h-1.5 rounded-full bg-orange-500 sm:hidden"></div>;
                                             } else if (isTrial) {
                                                 cardClass = "bg-purple-50 border-purple-200";
                                                 textClass = "text-purple-900";
                                                 timeClass = "bg-white/60 text-purple-700";
-                                                badge = <span className="text-[8px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-auto">DENEME</span>;
+                                                badge = <div className="w-1.5 h-1.5 rounded-full bg-purple-500 sm:hidden"></div>;
                                             } else if (isShort) {
                                                 // KISA DERS RENGİ (Rose/Pembe)
                                                 cardClass = "bg-rose-50 border-rose-200";
                                                 textClass = "text-rose-900";
                                                 timeClass = "bg-white/60 text-rose-700";
-                                                badge = <span className="flex items-center gap-0.5 text-[8px] font-black text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded ml-auto"><Timer size={8} /> {duration}dk</span>;
+                                                badge = <div className="w-1.5 h-1.5 rounded-full bg-rose-500 sm:hidden"></div>;
                                             } else {
                                                 // Standart Ders
                                                 cardClass = "bg-indigo-50 border-indigo-200";
@@ -204,8 +203,8 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                         }
 
                                         if (!isOccupied) return (
-                                            <div key={slot.id} className="p-2.5 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-between opacity-60">
-                                                 <span className="text-[10px] font-bold text-slate-400">{slot.start}</span>
+                                            <div key={slot.id} className="p-1 sm:p-2.5 rounded sm:rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-center sm:justify-between opacity-60">
+                                                 <span className="text-[8px] sm:text-[10px] font-bold text-slate-400">{slot.start}</span>
                                             </div>
                                         );
 
@@ -213,17 +212,24 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                             <div 
                                                 key={slot.id}
                                                 onClick={() => onOpenStudentProfile(slot.studentId!)}
-                                                className={`relative flex flex-col gap-1.5 p-2.5 rounded-xl border shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer ${cardClass}`}
+                                                className={`relative flex flex-col items-center sm:items-stretch gap-0.5 sm:gap-1.5 p-1 sm:p-2.5 rounded sm:rounded-xl border shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer ${cardClass}`}
                                             >
-                                                <div className="flex items-center justify-between">
-                                                    <div className={`px-1.5 py-0.5 rounded text-[10px] font-black ${timeClass}`}>
+                                                {/* Desktop Header / Mobile Indicator */}
+                                                <div className="flex items-center justify-center sm:justify-between w-full">
+                                                    <div className={`px-1 py-0.5 rounded text-[7px] sm:text-[10px] font-black leading-none ${timeClass}`}>
                                                         {slot.start}
                                                     </div>
+                                                    {/* Desktop Badges */}
+                                                    {isMakeup && <span className="hidden sm:block text-[8px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded ml-auto">T</span>}
+                                                    {isTrial && <span className="hidden sm:block text-[8px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-auto">D</span>}
+                                                    {isShort && <span className="hidden sm:flex items-center gap-0.5 text-[8px] font-black text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded ml-auto"><Timer size={8} /></span>}
+                                                    
+                                                    {/* Mobile Dots */}
                                                     {badge}
                                                 </div>
 
-                                                <div className={`font-bold text-xs truncate leading-tight ${textClass}`}>
-                                                    {student?.name || "İsimsiz"}
+                                                <div className={`font-bold text-[9px] sm:text-xs truncate w-full text-center sm:text-left leading-tight ${textClass}`}>
+                                                    {student?.name.split(' ')[0] || "İsimsiz"}
                                                 </div>
                                             </div>
                                         );
