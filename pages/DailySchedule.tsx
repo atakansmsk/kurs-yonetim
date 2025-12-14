@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
-import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, CheckCircle2, Sparkles, Layers, Sun, Search } from 'lucide-react';
+import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, CheckCircle2, Sparkles, Layers, Sun, Search, Timer } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface DailyScheduleProps {
@@ -218,8 +217,47 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
             {slots.map((slot, idx) => {
               const isOccupied = !!slot.studentId;
               const student = slot.studentId ? state.students[slot.studentId] : null;
+              
+              // Durum ve Süre Analizi
               const isMakeup = slot.label === 'MAKEUP';
               const isTrial = slot.label === 'TRIAL';
+              const slotDuration = timeToMinutes(slot.end) - timeToMinutes(slot.start);
+              const isShortLesson = slotDuration <= 25; // 20-25 dk dersler
+              
+              // Renk Paleti Belirleme
+              // Kısa dersler için "Rose" (Pembe/Kırmızımsı), Normal dersler için "Indigo" (Mavi/Mor)
+              // Telafi (Orange) ve Deneme (Purple) her zaman önceliklidir.
+              let containerClass = "bg-white border-slate-200 cursor-pointer active:scale-[0.99]";
+              let textClass = "text-indigo-900";
+              let iconClass = "text-indigo-200";
+              let badgeText = "";
+              let badgeClass = "";
+              
+              if (isOccupied) {
+                 if (isMakeup) {
+                     containerClass = "bg-orange-50 border-orange-400 active:scale-[0.99]";
+                     textClass = "text-orange-900";
+                     iconClass = "text-orange-200";
+                     badgeText = "TELAFİ";
+                     badgeClass = "text-orange-600 opacity-80";
+                 } else if (isTrial) {
+                     containerClass = "bg-purple-50 border-purple-400 active:scale-[0.99]";
+                     textClass = "text-purple-900";
+                     iconClass = "text-purple-200";
+                     badgeText = "DENEME";
+                     badgeClass = "text-purple-600 opacity-80";
+                 } else if (isShortLesson) {
+                     // 20 dk vb. kısa dersler için farklı renk
+                     containerClass = "bg-rose-50 border-rose-400 active:scale-[0.99]";
+                     textClass = "text-rose-900";
+                     iconClass = "text-rose-200";
+                 } else {
+                     // Standart (40 dk) ders
+                     containerClass = "bg-indigo-50 border-indigo-500 active:scale-[0.99]";
+                     textClass = "text-indigo-900";
+                     iconClass = "text-indigo-200";
+                 }
+              }
               
               let gapElement = null;
               if (idx < slots.length - 1) {
@@ -254,42 +292,34 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
 
                         <div 
                             onClick={() => isOccupied ? onOpenStudentProfile(slot.studentId!) : ((setActiveSlot(slot), resetBookForm(), setIsBookModalOpen(true)))}
-                            className={`flex-1 relative overflow-hidden rounded-xl transition-all duration-200 min-h-[46px] border-l-[3px] shadow-sm ${
-                                isOccupied 
-                                ? (isMakeup ? 'bg-orange-50 border-orange-400 active:scale-[0.99]' 
-                                    : isTrial ? 'bg-purple-50 border-purple-400 active:scale-[0.99]'
-                                    : 'bg-indigo-50 border-indigo-500 active:scale-[0.99]')
-                                : 'bg-white border-slate-200 cursor-pointer active:scale-[0.99]'
-                            }`}
+                            className={`flex-1 relative overflow-hidden rounded-xl transition-all duration-200 min-h-[46px] border-l-[3px] shadow-sm ${containerClass}`}
                         >
                             <div className="px-3 py-1.5 flex items-center justify-between gap-2 h-full">
                                 {isOccupied ? (
                                     <>
                                         <div className="flex items-center gap-2.5 overflow-hidden">
                                             <div className="min-w-0">
-                                                <h4 className={`font-bold truncate text-[13px] leading-tight ${
-                                                    isMakeup ? 'text-orange-900' 
-                                                    : isTrial ? 'text-purple-900'
-                                                    : 'text-indigo-900'
-                                                }`}>{student?.name}</h4>
+                                                <h4 className={`font-bold truncate text-[13px] leading-tight ${textClass}`}>{student?.name}</h4>
                                                 
                                                 <div className="flex gap-1">
-                                                    {isMakeup && <span className="text-[8px] font-bold text-orange-600 opacity-80">TELAFİ</span>}
-                                                    {isTrial && <span className="text-[8px] font-bold text-purple-600 opacity-80">DENEME</span>}
+                                                    {badgeText && <span className={`text-[8px] font-bold ${badgeClass}`}>{badgeText}</span>}
+                                                    {/* Süre göstergesi (Opsiyonel, sadece 20 dk ise yazabiliriz veya her zaman) */}
+                                                    {isShortLesson && !isMakeup && !isTrial && (
+                                                        <span className="text-[8px] font-bold text-rose-500 opacity-80 flex items-center gap-0.5">
+                                                            <Timer size={8} /> {slotDuration} dk
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
-                                        <ChevronRight size={14} className={
-                                             isMakeup ? 'text-orange-200' 
-                                            : isTrial ? 'text-purple-200'
-                                            : 'text-indigo-200'
-                                        } />
+                                        <ChevronRight size={14} className={iconClass} />
                                     </>
                                 ) : (
                                     <div className="flex items-center justify-between w-full">
                                         <div className="flex items-center gap-2">
                                             <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
                                             <h4 className="font-bold text-slate-400 text-[10px] tracking-wide">MÜSAİT</h4>
+                                            <span className="text-[8px] font-bold text-slate-300 ml-1">({slotDuration} dk)</span>
                                         </div>
                                         <Plus size={14} className="text-slate-300" />
                                     </div>
@@ -321,7 +351,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                  <ArrowRight size={20} className="text-slate-300 mt-5" />
                  <div className="flex-1"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 text-center">BİTİŞ</label><input type="time" value={newTimeEnd} onChange={(e) => { setNewTimeEnd(e.target.value); setDuration(0); }} className="w-full text-2xl font-bold text-slate-800 bg-slate-50 rounded-xl p-2 text-center outline-none" /></div>
             </div>
-            <div className="flex justify-center gap-2">{[20, 40, 50].map(mins => (<button key={mins} onClick={() => handleDurationChange(mins)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${duration === mins ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'}`}>{mins} dk</button>))}</div>
+            <div className="flex justify-center gap-2">{[20, 30, 40, 50].map(mins => (<button key={mins} onClick={() => handleDurationChange(mins)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${duration === mins ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'}`}>{mins} dk</button>))}</div>
         </div>
       </Dialog>
 

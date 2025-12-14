@@ -1,8 +1,7 @@
-
 import React, { useMemo, useState } from 'react';
 import { useCourse } from '../context/CourseContext';
-import { DAYS, WeekDay } from '../types';
-import { CalendarCheck, Banknote, Clock, Star, RefreshCcw } from 'lucide-react';
+import { DAYS, WeekDay, LessonSlot } from '../types';
+import { CalendarCheck, Banknote, Clock, Star, RefreshCcw, Sparkles, User, Timer } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface WeeklySummaryProps {
@@ -25,21 +24,24 @@ const minutesToTime = (minutes: number) => {
 };
 
 export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfile }) => {
-  const { state, actions } = useCourse();
+  const { state } = useCourse();
   
   // UI States
   const [gapModalData, setGapModalData] = useState<{day: WeekDay, gaps: string[]} | null>(null);
 
   // --- STATS & EARNINGS ---
-  const { monthlyEarnings } = useMemo(() => {
+  const { monthlyEarnings, totalStudents, weeklyLessonCount } = useMemo(() => {
     const uniqueStudentIds = new Set<string>();
+    let lessonCount = 0;
+    
     DAYS.forEach(day => {
         const key = `${state.currentTeacher}|${day}`;
         (state.schedule[key] || []).forEach(s => {
-            // Telafi (MAKEUP) veya Deneme (TRIAL) derslerini kazanç hesabına katma
-            // Sadece normal ders programı olan öğrencilerin ücretini topla
-            if (s.studentId && s.label !== 'MAKEUP' && s.label !== 'TRIAL') {
-                uniqueStudentIds.add(s.studentId);
+            if (s.studentId) {
+                if (s.label !== 'MAKEUP' && s.label !== 'TRIAL') {
+                    uniqueStudentIds.add(s.studentId);
+                }
+                lessonCount++;
             }
         });
     });
@@ -50,7 +52,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
         if (student) earnings += student.fee || 0;
     });
 
-    return { monthlyEarnings: earnings };
+    return { monthlyEarnings: earnings, totalStudents: uniqueStudentIds.size, weeklyLessonCount: lessonCount };
   }, [state.schedule, state.currentTeacher, state.students]);
 
   const todayIndex = new Date().getDay(); 
@@ -67,7 +69,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
       const slots = getDaySlots(day);
       const foundGaps: string[] = [];
       
-      let currentPointer = 15 * 60; 
+      let currentPointer = 15 * 60; // 15:00 Start scan
       const END_OF_DAY = 21 * 60;
       const SLOT_DURATION = 40;
 
@@ -77,106 +79,142 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
           const s = timeToMinutes(slot.start);
           const e = timeToMinutes(slot.end);
           
-          if (e > currentPointer) {
-               while (currentPointer + SLOT_DURATION <= s) {
-                   foundGaps.push(minutesToTime(currentPointer));
-                   currentPointer += SLOT_DURATION;
-               }
-               currentPointer = Math.max(currentPointer, e);
+          // Check gap before this slot
+          if (s > currentPointer) {
+              // how many chunks
+              while (currentPointer + SLOT_DURATION <= s) {
+                  foundGaps.push(minutesToTime(currentPointer));
+                  currentPointer += SLOT_DURATION;
+              }
           }
+          currentPointer = Math.max(currentPointer, e);
       });
 
+      // After last slot
       while (currentPointer + SLOT_DURATION <= END_OF_DAY) {
           foundGaps.push(minutesToTime(currentPointer));
           currentPointer += SLOT_DURATION;
       }
 
-      setGapModalData({ day, gaps: foundGaps });
-  };
-
-  const handleAddGap = (startTime: string) => {
-      if (gapModalData) {
-          const startMins = timeToMinutes(startTime);
-          const endMins = startMins + 40;
-          const endTime = minutesToTime(endMins);
-          actions.addSlot(gapModalData.day, startTime, endTime);
-          setGapModalData(null);
+      if (foundGaps.length > 0) {
+          setGapModalData({ day, gaps: foundGaps });
+      } else {
+          alert(`${day} günü için uygun boşluk bulunamadı (15:00 sonrası).`);
       }
   };
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
-        {/* Header */}
-        <div className="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 z-30 shadow-sm animate-slide-up">
-            <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--c-600)] text-white flex items-center justify-center shadow-lg shadow-[var(--c-200)]">
-                    <CalendarCheck size={20} />
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight leading-none">{state.currentTeacher}</h2>
-                        <div className="flex items-center gap-1 mt-1 text-emerald-600">
-                            <Banknote size={10} />
-                            <span className="text-[10px] font-bold">{monthlyEarnings.toLocaleString('tr-TR')} ₺ / Ay</span>
-                        </div>
-                    </div>
+        {/* Header Stats */}
+        <div className="bg-white px-4 py-4 border-b border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sticky top-0 z-30 flex gap-3 overflow-x-auto no-scrollbar">
+            <div className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[120px] border border-emerald-100 relative overflow-hidden">
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Aylık Ciro</span>
+                <span className="text-2xl font-black tracking-tight">{monthlyEarnings.toLocaleString('tr-TR')}₺</span>
+                <Banknote className="absolute right-[-10px] bottom-[-10px] opacity-10" size={60} />
+            </div>
+            
+            <div className="bg-indigo-50 text-indigo-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[120px] border border-indigo-100 relative overflow-hidden">
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Ders Yükü</span>
+                <span className="text-2xl font-black tracking-tight">{weeklyLessonCount}</span>
+                <Clock className="absolute right-[-10px] bottom-[-10px] opacity-10" size={60} />
+            </div>
+
+            <div className="bg-purple-50 text-purple-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[120px] border border-purple-100 relative overflow-hidden">
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Öğrenci</span>
+                <span className="text-2xl font-black tracking-tight">{totalStudents}</span>
+                <User className="absolute right-[-10px] bottom-[-10px] opacity-10" size={60} />
             </div>
         </div>
 
-        {/* Grid Content */}
-        <div className="flex-1 overflow-y-auto p-2">
-            <div className="grid gap-1 content-start h-full grid-cols-7 gap-1">
+        {/* Weekly Grid */}
+        <div className="flex-1 overflow-y-auto p-2 pb-24">
+            <div className="grid gap-2 content-start h-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-7">
                 {DAYS.map((day) => {
                     const isToday = day === currentDayName;
                     const slots = getDaySlots(day);
                     
                     return (
-                        <div key={day} className={`flex flex-col min-w-0 transition-colors duration-300 rounded-xl ${isToday ? 'bg-[var(--c-50)]/50 ring-1 ring-[var(--c-200)]' : 'bg-transparent'}`}>
+                        <div key={day} className={`flex flex-col min-w-0 rounded-2xl border transition-all duration-300 ${isToday ? 'bg-white border-indigo-200 shadow-lg ring-1 ring-indigo-50 z-10' : 'bg-white border-slate-100 shadow-sm'}`}>
                             
                             {/* Day Header */}
-                            <div 
+                            <button 
                                 onClick={() => handleDayClick(day)}
-                                className={`text-center py-2 mb-1 group cursor-pointer transition-colors ${isToday ? 'bg-[var(--c-100)] rounded-t-xl' : 'hover:bg-slate-50 rounded-xl'}`}
+                                className={`text-center py-3 border-b rounded-t-2xl transition-colors hover:bg-slate-50 ${isToday ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-slate-50'}`}
                             >
-                                <span className={`block font-black uppercase tracking-wider text-[9px] ${isToday ? 'text-[var(--c-700)]' : 'text-slate-600'}`}>
-                                    {SHORT_DAYS[day]}
+                                <span className={`block font-black uppercase tracking-wider text-xs ${isToday ? 'text-indigo-700' : 'text-slate-500'}`}>
+                                    {day}
                                 </span>
-                                <div className="h-0.5 w-0 bg-indigo-500 mx-auto transition-all group-hover:w-4 rounded-full mt-0.5"></div>
-                            </div>
+                            </button>
 
-                            {/* Stacked Lessons */}
-                            <div className="flex flex-col h-full gap-1 px-0.5 pb-2">
+                            {/* Slots */}
+                            <div className="flex flex-col p-2 gap-2 min-h-[100px]">
                                 {slots.length === 0 ? (
-                                    <div className="h-full mx-auto w-px min-h-[50px] border-l border-dashed border-slate-200 opacity-30"></div>
+                                    <div className="flex-1 flex flex-col items-center justify-center opacity-30 gap-1 py-4">
+                                        <CalendarCheck size={20} className="text-slate-300" />
+                                        <span className="text-[10px] font-bold text-slate-300">Boş</span>
+                                    </div>
                                 ) : (
                                     slots.map((slot) => {
                                         const isOccupied = !!slot.studentId;
                                         const student = isOccupied ? state.students[slot.studentId!] : null;
+                                        
+                                        // Visual Logic
                                         const isMakeup = slot.label === 'MAKEUP';
                                         const isTrial = slot.label === 'TRIAL';
-                                        
-                                        if (!isOccupied) return null;
+                                        const duration = timeToMinutes(slot.end) - timeToMinutes(slot.start);
+                                        const isShort = duration <= 25;
 
-                                        const firstName = student?.name.trim().split(' ')[0] || "Öğrenci";
+                                        let cardClass = "bg-white border-slate-100";
+                                        let textClass = "text-slate-800";
+                                        let timeClass = "bg-slate-50 text-slate-500";
+                                        let badge = null;
+
+                                        if (isOccupied) {
+                                            if (isMakeup) {
+                                                cardClass = "bg-orange-50 border-orange-200";
+                                                textClass = "text-orange-900";
+                                                timeClass = "bg-white/60 text-orange-700";
+                                                badge = <span className="text-[8px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded ml-auto">TELAFİ</span>;
+                                            } else if (isTrial) {
+                                                cardClass = "bg-purple-50 border-purple-200";
+                                                textClass = "text-purple-900";
+                                                timeClass = "bg-white/60 text-purple-700";
+                                                badge = <span className="text-[8px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-auto">DENEME</span>;
+                                            } else if (isShort) {
+                                                // Short Lesson Logic
+                                                cardClass = "bg-rose-50 border-rose-200";
+                                                textClass = "text-rose-900";
+                                                timeClass = "bg-white/60 text-rose-700";
+                                                badge = <span className="flex items-center gap-0.5 text-[8px] font-black text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded ml-auto"><Timer size={8} /> {duration}dk</span>;
+                                            } else {
+                                                // Standard Lesson
+                                                cardClass = "bg-indigo-50 border-indigo-200";
+                                                textClass = "text-indigo-900";
+                                                timeClass = "bg-white/60 text-indigo-700";
+                                            }
+                                        }
+
+                                        if (!isOccupied) return (
+                                            <div key={slot.id} className="p-2.5 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-between opacity-60">
+                                                 <span className="text-[10px] font-bold text-slate-400">{slot.start}</span>
+                                            </div>
+                                        );
 
                                         return (
                                             <div 
                                                 key={slot.id}
-                                                onClick={() => slot.studentId && onOpenStudentProfile(slot.studentId)}
-                                                className={`
-                                                    relative flex flex-col justify-center rounded-md p-1.5 shadow-sm cursor-pointer active:scale-95 transition-all duration-200 
-                                                    ${isMakeup ? 'bg-orange-100 text-orange-900' : isTrial ? 'bg-purple-100 text-purple-900' : 'bg-[var(--c-100)] text-[var(--c-900)]'}
-                                                `}
+                                                onClick={() => onOpenStudentProfile(slot.studentId!)}
+                                                className={`relative flex flex-col gap-1.5 p-2.5 rounded-xl border shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer ${cardClass}`}
                                             >
-                                                {/* TIME */}
-                                                <div className="text-[6px] font-bold leading-none mb-1 flex justify-center items-center opacity-60">
-                                                    <span>{slot.start}</span>
-                                                    {isTrial && <Star size={6} fill="currentColor" className="ml-1"/>}
-                                                    {isMakeup && <RefreshCcw size={6} className="ml-1"/>}
+                                                <div className="flex items-center justify-between">
+                                                    <div className={`px-1.5 py-0.5 rounded text-[10px] font-black ${timeClass}`}>
+                                                        {slot.start}
+                                                    </div>
+                                                    {badge}
                                                 </div>
 
-                                                {/* NAME */}
-                                                <div className="text-[7px] font-black leading-tight break-words text-center">
-                                                    {firstName}
+                                                <div className={`font-bold text-xs truncate leading-tight ${textClass}`}>
+                                                    {student?.name || "İsimsiz"}
                                                 </div>
                                             </div>
                                         );
@@ -189,36 +227,19 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
             </div>
         </div>
 
-        {/* Gap Finder Modal */}
+        {/* Gap Modal */}
         <Dialog 
             isOpen={!!gapModalData} 
             onClose={() => setGapModalData(null)} 
-            title={gapModalData ? `${gapModalData.day} - Boşluklar` : "Boşluklar"}
+            title={`${gapModalData?.day || ''} Boşluklar`}
+            actions={<button onClick={() => setGapModalData(null)} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Tamam</button>}
         >
-            <div className="py-2">
-                {gapModalData?.gaps.length === 0 ? (
-                    <div className="text-center py-4">
-                        <Clock className="mx-auto text-slate-300 mb-2" size={32} />
-                        <p className="text-slate-400 text-sm font-medium">15:00 - 21:00 arası uygun boşluk yok.</p>
+            <div className="py-2 grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto">
+                {gapModalData?.gaps.map(g => (
+                    <div key={g} className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                        <span className="text-lg font-bold text-slate-700">{g}</span>
                     </div>
-                ) : (
-                    <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto">
-                        {gapModalData?.gaps.map(startTime => {
-                            const endMins = timeToMinutes(startTime) + 40;
-                            const endTime = minutesToTime(endMins);
-                            return (
-                                <button 
-                                    key={startTime} 
-                                    onClick={() => handleAddGap(startTime)} 
-                                    className="p-3 border border-slate-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-colors text-center group"
-                                >
-                                    <span className="text-lg font-bold text-slate-700 block group-hover:text-indigo-700">{startTime}</span>
-                                    <span className="text-xs text-slate-400 group-hover:text-indigo-400">{endTime}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
+                ))}
             </div>
         </Dialog>
     </div>

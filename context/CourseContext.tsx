@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource, WeekDay, DAYS } from '../types';
 import { useAuth } from './AuthContext';
@@ -123,14 +122,19 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                        
                        let newDebtCount = student.debtLessonCount;
                        let note = "";
+
+                       // Calculate Duration
+                       const [sh, sm] = slot.start.split(':').map(Number);
+                       const [eh, em] = slot.end.split(':').map(Number);
+                       const dur = (eh * 60 + em) - (sh * 60 + sm);
                        
                        if (slot.label === 'MAKEUP') {
-                           note = "Telafi Dersi (Tamamlandı)";
+                           note = `Telafi Dersi (Tamamlandı - ${dur} dk)`;
                        } else if (slot.label === 'TRIAL') {
-                           note = "Deneme Dersi (Tamamlandı)";
+                           note = `Deneme Dersi (Tamamlandı - ${dur} dk)`;
                        } else {
                            newDebtCount += 1;
-                           note = `${newDebtCount}. Ders İşlendi (Otomatik)`;
+                           note = `${newDebtCount}. Ders İşlendi (Otomatik - ${dur} dk)`;
                        }
 
                        const newTx: Transaction = {
