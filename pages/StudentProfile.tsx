@@ -63,8 +63,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   // Resource Form
   const [resTitle, setResTitle] = useState("");
-  const [resUrl, setResUrl] = useState(""); // This holds the PREVIEW URL (local) or Final URL
-  const [resFile, setResFile] = useState<Blob | File | null>(null); // Actual file to upload
+  const [resUrl, setResUrl] = useState(""); 
+  const [resFile, setResFile] = useState<Blob | File | null>(null);
   const [resType, setResType] = useState<'VIDEO' | 'PDF' | 'LINK' | 'IMAGE'>('LINK');
   const [resTab, setResTab] = useState<'LINK' | 'UPLOAD'>('LINK');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,14 +75,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusText, setUploadStatusText] = useState("");
 
-  // Auto-fill payment amount when modal opens
   useEffect(() => {
       if (isPastPaymentModalOpen && student) {
           setPastPaymentAmount(student.fee.toString());
       }
   }, [isPastPaymentModalOpen, student]);
 
-  // Clean up object URLs to prevent memory leaks
   useEffect(() => {
     return () => {
         if (resUrl && resUrl.startsWith('blob:')) {
@@ -91,37 +89,59 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
     };
   }, [resUrl]);
 
-  // --- SORTER ---
-  const sortedHistory = useMemo(() => {
-      if (!student) return [];
-      return [...(student.history || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [student]);
-
-  // --- HISTORY SPLITTER & COUNTERS ---
-  // YENİ MANTIK: Geçmişi "Ödeme Sonrası" değil "AY BAZLI" böl.
-  // Bu ay içinde yapılan her şeyi (ödeme dahil) göster.
-  const { currentHistory, archivedHistory, totalDoneCount } = useMemo(() => {
-      if (!student) return { currentHistory: [], archivedHistory: [], totalDoneCount: 0 };
+  // --- 1. DİNAMİK DERS SAYACI VE LİSTE AYRIŞTIRMA ---
+  const { currentHistory, archivedHistory, totalDoneCount, lessonNumberMap } = useMemo(() => {
+      if (!student) return { currentHistory: [], archivedHistory: [], totalDoneCount: 0, lessonNumberMap: {} };
       
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
 
+      // Tüm geçmişi ESKİDEN -> YENİYE sırala (Hesaplama için)
+      const allHistoryAsc = [...(student.history || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      // Ders Numaralarını Hesapla
+      const map: Record<string, number> = {};
+      let counter = 0;
+
+      allHistoryAsc.forEach(tx => {
+          // Ödeme görürsem sayacı sıfırla
+          if (!tx.isDebt) {
+              counter = 0;
+          } 
+          // Ders görürsem (İptal/Gelmedi/Telafi Bekliyor HARİÇ) sayacı artır
+          else {
+              const lowerNote = (tx.note || "").toLowerCase();
+              const isValidLesson = !lowerNote.includes("gelmedi") && 
+                                    !lowerNote.includes("katılım yok") && 
+                                    !lowerNote.includes("iptal") &&
+                                    !lowerNote.includes("telafi bekliyor"); // Telafi Yapıldı ise sayılır
+              
+              if (isValidLesson) {
+                  counter++;
+                  map[tx.id] = counter;
+              }
+          }
+      });
+
+      // Listeyi Görüntüleme için YENİDEN -> ESKİYE çevir
+      const allHistoryDesc = [...allHistoryAsc].reverse();
+
       const current = [];
       const archived = [];
 
-      sortedHistory.forEach(tx => {
+      allHistoryDesc.forEach(tx => {
           const txDate = new Date(tx.date);
-          // EĞER İŞLEM BU AY İÇİNDEYSE -> LİSTEDE GÖSTER
+          // EĞER İŞLEM BU AY İÇİNDEYSE -> GÜNCEL LİSTEYE
           if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
               current.push(tx);
           } else {
-              // DEĞİLSE ARŞİVE AT
+              // DEĞİLSE ARŞİVE
               archived.push(tx);
           }
       });
 
-      // TOTAL DONE COUNT (Normal Ders + Telafi) - Bu ay yapılanlar
+      // İstatistik Kutusu için: Bu ayki geçerli ders sayısı
       const thisMonthDoneCount = current.filter(tx => {
           if (!tx.isDebt) return false;
           const lowerNote = (tx.note || "").toLowerCase();
@@ -134,9 +154,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return { 
           currentHistory: current, 
           archivedHistory: archived, 
-          totalDoneCount: thisMonthDoneCount // Bu ayki ders sayısı
+          totalDoneCount: thisMonthDoneCount,
+          lessonNumberMap: map
       };
-  }, [sortedHistory, student]);
+  }, [student]);
   
   const currentMonthName = useMemo(() => {
       return new Date().toLocaleDateString('tr-TR', { month: 'long' });
@@ -407,13 +428,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const day = dateObj.toLocaleDateString('tr-TR', { day: 'numeric' });
       const month = dateObj.toLocaleDateString('tr-TR', { month: 'short' });
       
-      let title = tx.note || "";
+      let title = "";
       let sub = isPayment ? "Ödeme" : "Tamamlandı";
       let icon = <Check size={16} />;
       let iconClass = "bg-indigo-50 text-indigo-600";
       let showAmount = isPayment;
       
-      const lowerNote = title.toLowerCase();
+      const lowerNote = (tx.note || "").toLowerCase();
 
       if (isPayment) {
           title = "Ödeme Alındı";
@@ -427,8 +448,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               sub = "Planlanacaktır";
               icon = <Layers size={16} />;
           } else {
-              if (title.includes("(Asıl:")) {
-                  const parts = title.split("(Asıl:");
+              if (tx.note.includes("(Asıl:")) {
+                  const parts = tx.note.split("(Asıl:");
                   title = parts[0].trim();
                   sub = "Asıl Ders:" + parts[1].replace(")", "");
               } else {
@@ -447,10 +468,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            icon = <XCircle size={16} />;
            iconClass = "bg-red-50 text-red-600";
       } else {
-          // Normal Ders
-          // Ders numarası zaten Note içinde kayıtlı (1. Ders İşlendi)
-          // Sadece 'Ders İşlendi' yazıyorsa (Eski kayıt) onu olduğu gibi göster
-          if (!lowerNote.includes('ders')) {
+          // --- DİNAMİK NUMARALANDIRMA (BURASI DÜZELTİLDİ) ---
+          // Veritabanında "11. Ders" yazsa bile, dinamik hesaplanan numarayı kullan.
+          const calculatedNum = lessonNumberMap[tx.id];
+          if (calculatedNum) {
+              title = `${calculatedNum}. Ders İşlendi`;
+          } else {
+              // Yedek olarak notu kullan
               title = tx.note;
           }
       }
@@ -598,7 +622,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
           </div>
 
-          {/* RESOURCES SECTION ... (Aynı kalacak, sadece üst kısım değişti) */}
+          {/* RESOURCES SECTION */}
           <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
               <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
