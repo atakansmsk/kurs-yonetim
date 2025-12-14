@@ -69,34 +69,31 @@ const getTodayName = (): WeekDay => {
   return map[new Date().getDay()];
 };
 
-// HELPER: Calculate current debt count dynamically based on history
-// This fixes the issue where count doesn't reset after payment
+// YARDIMCI: Bir sonraki ders numarasını hesapla.
+// Mantık: Geçmişi YENİDEN ESKİYE tara. İlk ÖDEME ('isDebt: false') görene kadar olan dersleri say.
 const calculateNextLessonNumber = (history: Transaction[]): number => {
-    // Sort history by date descending (newest first)
+    // 1. Tarihe göre yeniden eskiye sırala (Garanti olsun)
     const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
-    // Find the most recent payment
-    const lastPaymentIndex = sorted.findIndex(tx => !tx.isDebt);
-    
-    // If no payment ever, count all lessons
-    let relevantTransactions = sorted;
-    if (lastPaymentIndex !== -1) {
-        // Take only transactions AFTER the last payment (which are at the start of the array)
-        relevantTransactions = sorted.slice(0, lastPaymentIndex);
+    let count = 0;
+
+    for (const tx of sorted) {
+        // Eğer ödeme gördüysek saymayı durdur. Çünkü ödeme borcu sıfırlar.
+        // Yeni ders 1. ders olacaktır.
+        if (!tx.isDebt) {
+            break;
+        }
+
+        // Eğer bu bir ders ise (ve iptal/gelmedi değilse) sayaca ekle
+        if (tx.isDebt) {
+            const lowerNote = tx.note.toLowerCase();
+            if (!lowerNote.includes('iptal') && !lowerNote.includes('gelmedi') && !lowerNote.includes('telafi')) {
+                 count++;
+            }
+        }
     }
 
-    // Count how many "REGULAR" lessons are in this period
-    // Exclude 'Telafi', 'Deneme', 'Gelmedi', 'İptal' from causing the number to jump, 
-    // unless you want them numbered. Typically only "Ders İşlendi" increments the main counter.
-    const lessonCount = relevantTransactions.filter(tx => 
-        tx.isDebt && 
-        !tx.note.includes('Telafi') && 
-        !tx.note.includes('Deneme') &&
-        !tx.note.includes('Gelmedi') &&
-        !tx.note.includes('İptal')
-    ).length;
-
-    return lessonCount + 1;
+    return count + 1;
 };
 
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -151,7 +148,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                        } else if (slot.label === 'TRIAL') {
                            note = `Deneme Dersi (Tamamlandı)`;
                        } else {
-                           // EKLENDİ: X. Ders İşlendi formatı geri geldi (İstek üzerine)
                            note = `${nextNum}. Ders İşlendi`;
                        }
 
@@ -296,8 +292,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const student = s.students[id];
           if (!student) return s;
           
-          // DÜZELTME: Renk ataması burada garanti altına alındı.
-          // Eğer 'color' undefined gelirse mevcut rengi koru, o da yoksa 'indigo' yap.
+          // DÜZELTME: Renk parametresi gelmezse, mevcut rengi koru. O da yoksa varsayılan yap.
           const finalColor = color !== undefined ? color : (student.color || 'indigo');
 
           return { 
@@ -394,7 +389,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           let note = "";
 
           if (isDebt) {
-              // DÜZELTME: Dinamik hesaplama ile 1. Ders sorununu çözüyoruz.
+              // DÜZELTME: Dinamik hesaplama ile sayacı sıfırlama garantisi.
+              // Son ödemeden sonraki ders sayısını hesaplar.
               const nextNum = calculateNextLessonNumber(history);
               newDebtCount = nextNum;
               note = `${nextNum}. Ders İşlendi`;
@@ -471,7 +467,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const tx = history.find(t => t.id === transactionId);
           let newDebtCount = student.debtLessonCount;
           
-          // Eğer silinen son ders ise sayacı düşür (Basit mantık)
           if (tx && tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme")) {
               newDebtCount = Math.max(0, newDebtCount - 1);
           }

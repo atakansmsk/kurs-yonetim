@@ -107,32 +107,21 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
 
-      // CURRENT: Bu ayın işlemleri
-      const current = sortedHistory.filter(tx => {
-          const txDate = new Date(tx.date);
-          return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-      });
+      const current = [];
+      const archived = [];
 
-      // ARCHIVE: Eski aylar
-      const archived = sortedHistory.filter(tx => {
+      sortedHistory.forEach(tx => {
           const txDate = new Date(tx.date);
-          return txDate.getMonth() !== currentMonth || txDate.getFullYear() !== currentYear;
-      });
-
-      // TOTAL DONE COUNT (Normal Ders + Telafi)
-      const doneLessons = sortedHistory.filter(tx => {
-          if (!tx.isDebt) return false; 
-          const lowerNote = (tx.note || "").toLowerCase();
-          if (lowerNote.includes("gelmedi") || 
-              lowerNote.includes("katılım yok") || 
-              lowerNote.includes("iptal") ||
-              lowerNote.includes("telafi bekliyor")) {
-              return false;
+          // EĞER İŞLEM BU AY İÇİNDEYSE -> LİSTEDE GÖSTER
+          if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
+              current.push(tx);
+          } else {
+              // DEĞİLSE ARŞİVE AT
+              archived.push(tx);
           }
-          return true;
       });
 
-      // SADECE BU AY YAPILAN DERS SAYISI (Kutucukta göstermek için)
+      // TOTAL DONE COUNT (Normal Ders + Telafi) - Bu ay yapılanlar
       const thisMonthDoneCount = current.filter(tx => {
           if (!tx.isDebt) return false;
           const lowerNote = (tx.note || "").toLowerCase();
@@ -684,7 +673,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
       </div>
 
-      {/* --- MODALS (Diğerleri aynı, sadece eklediğimiz yeni mantıklar devrede) --- */}
+      {/* --- MODALS --- */}
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" 
           actions={<><button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddPastLesson} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Ekle</button></>}
       >
