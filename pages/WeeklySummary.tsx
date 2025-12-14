@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot } from '../types';
-import { CalendarCheck, Banknote, Clock, Star, RefreshCcw, Sparkles, User, Timer } from 'lucide-react';
+import { CalendarCheck, Banknote, Clock, Star, RefreshCcw, Sparkles, User, Timer, Eye, EyeOff } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface WeeklySummaryProps {
@@ -28,6 +28,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
   
   // UI States
   const [gapModalData, setGapModalData] = useState<{day: WeekDay, gaps: string[]} | null>(null);
+  const [showEarnings, setShowEarnings] = useState(true);
 
   // --- STATS & EARNINGS ---
   const { monthlyEarnings, totalStudents, weeklyLessonCount } = useMemo(() => {
@@ -107,9 +108,16 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
     <div className="flex flex-col h-full bg-[#F8FAFC]">
         {/* Header Stats */}
         <div className="bg-white px-4 py-4 border-b border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sticky top-0 z-30 flex gap-3 overflow-x-auto no-scrollbar shrink-0">
-            <div className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[120px] border border-emerald-100 relative overflow-hidden">
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Aylık Ciro</span>
-                <span className="text-2xl font-black tracking-tight">{monthlyEarnings.toLocaleString('tr-TR')}₺</span>
+            <div className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[140px] border border-emerald-100 relative overflow-hidden">
+                <div className="flex items-center gap-2 mb-1 z-10 w-full justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Aylık Ciro</span>
+                    <button onClick={() => setShowEarnings(!showEarnings)} className="hover:bg-emerald-100 p-1 rounded-full transition-colors">
+                        {showEarnings ? <Eye size={12} /> : <EyeOff size={12} />}
+                    </button>
+                </div>
+                <span className="text-2xl font-black tracking-tight z-10">
+                    {showEarnings ? `${monthlyEarnings.toLocaleString('tr-TR')}₺` : '*** ₺'}
+                </span>
                 <Banknote className="absolute right-[-10px] bottom-[-10px] opacity-10" size={60} />
             </div>
             
@@ -127,9 +135,9 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
         </div>
 
         {/* Weekly Grid */}
-        <div className="flex-1 overflow-y-auto p-2 pb-24">
-            {/* Grid yapısını 2 yerine 3 sütun yaparak daha fazla günün tek ekranda görünmesini sağladım */}
-            <div className="grid gap-2 content-start h-full grid-cols-1 sm:grid-cols-3 lg:grid-cols-7">
+        <div className="flex-1 overflow-auto p-2 pb-24">
+            {/* min-w-[900px] ekleyerek mobilde de 7 sütunun yan yana durmasını zorluyoruz (yatay scroll ile) */}
+            <div className="grid grid-cols-7 gap-2 content-start h-full min-w-[900px]">
                 {DAYS.map((day) => {
                     const isToday = day === currentDayName;
                     const slots = getDaySlots(day);
@@ -143,7 +151,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                 className={`text-center py-3 border-b rounded-t-2xl transition-colors hover:bg-slate-50 ${isToday ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-slate-50'}`}
                             >
                                 <span className={`block font-black uppercase tracking-wider text-xs ${isToday ? 'text-indigo-700' : 'text-slate-500'}`}>
-                                    {day}
+                                    {SHORT_DAYS[day]}
                                 </span>
                             </button>
 
@@ -182,7 +190,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                 timeClass = "bg-white/60 text-purple-700";
                                                 badge = <span className="text-[8px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-auto">DENEME</span>;
                                             } else if (isShort) {
-                                                // KISA DERS RENGİ (Rose/Pembe) - Geri Getirildi
+                                                // KISA DERS RENGİ (Rose/Pembe)
                                                 cardClass = "bg-rose-50 border-rose-200";
                                                 textClass = "text-rose-900";
                                                 timeClass = "bg-white/60 text-rose-700";
