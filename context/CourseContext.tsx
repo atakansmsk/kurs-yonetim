@@ -121,7 +121,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                            note = `Deneme Dersi (Tamamlandı)`;
                        } else {
                            newDebtCount += 1;
-                           // SADELEŞTİRİLDİ: Sadece "Ders İşlendi" yazacak.
                            note = `Ders İşlendi`;
                        }
 
@@ -140,7 +139,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                                [student.id]: {
                                    ...student,
                                    debtLessonCount: newDebtCount,
-                                   history: [newTx, ...history]
+                                   history: [newTx, ...history],
+                                   nextLessonNote: "" // AUTO-CLEAR NOTE ON LESSON COMPLETION
                                }
                            }
                        };
@@ -381,7 +381,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   [studentId]: {
                       ...student,
                       debtLessonCount: newDebtCount,
-                      history: [newTx, ...history]
+                      history: [newTx, ...history],
+                      nextLessonNote: isDebt ? "" : student.nextLessonNote // ALSO CLEAR IF MANUALLY MARKED AS LESSON DONE
                   }
               }
           };
