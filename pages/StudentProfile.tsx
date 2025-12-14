@@ -11,6 +11,15 @@ interface StudentProfileProps {
   onBack: () => void;
 }
 
+const STUDENT_COLORS = [
+    { key: 'indigo', label: 'Mavi', hex: '#6366f1' },
+    { key: 'rose', label: 'Kırmızı', hex: '#f43f5e' },
+    { key: 'emerald', label: 'Yeşil', hex: '#10b981' },
+    { key: 'amber', label: 'Turuncu', hex: '#f59e0b' },
+    { key: 'cyan', label: 'Turkuaz', hex: '#06b6d4' },
+    { key: 'purple', label: 'Mor', hex: '#8b5cf6' },
+];
+
 export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBack }) => {
   const { state, actions } = useCourse();
   const { user } = useAuth();
@@ -46,6 +55,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editFee, setEditFee] = useState("");
+  const [editColor, setEditColor] = useState("");
+
+  // NEXT LESSON NOTE
+  const [isNoteEditing, setIsNoteEditing] = useState(false);
+  const [tempNote, setTempNote] = useState("");
 
   // Resource Form
   const [resTitle, setResTitle] = useState("");
@@ -99,25 +113,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           current = sortedHistory;
       }
 
-      // TOPLAM YAPILAN DERS SAYISI (Total Lesson Count)
-      // Normal Dersler + Yapılan Telafiler
       const doneLessons = current.filter(tx => {
-          if (!tx.isDebt) return false; // Sadece borçlandırma işlemleri (dersler)
-          
+          if (!tx.isDebt) return false; 
           const lowerNote = (tx.note || "").toLowerCase();
-          
-          // Sayılmayacaklar:
-          // 1. "Gelmedi" veya "Katılım Yok" (Yapılmadı)
-          // 2. "İptal"
-          // 3. "Telafi Bekliyor" (Henüz yapılmadı)
           if (lowerNote.includes("gelmedi") || 
               lowerNote.includes("katılım yok") || 
               lowerNote.includes("iptal") ||
               lowerNote.includes("telafi bekliyor")) {
               return false;
           }
-
-          // Geri kalan her şey (Normal Ders, Telafi Dersi, Deneme Dersi) "Yapıldı" sayılır.
           return true;
       });
 
@@ -128,9 +132,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       };
   }, [sortedHistory, student]);
   
-  // --- LESSON NUMBERING LOGIC (DEPRECATED BUT KEPT FOR REFERENCE IF NEEDED) ---
-  // Kullanıcı ders numarası yazılmasını istemediği için bu mantığı UI'da kullanmayacağız.
-
   const currentMonthName = useMemo(() => {
       return new Date().toLocaleDateString('tr-TR', { month: 'long' });
   }, []);
@@ -191,9 +192,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleUpdateStudent = () => {
       if (editName) {
-          actions.updateStudent(studentId, editName, editPhone, parseFloat(editFee) || 0);
+          actions.updateStudent(studentId, editName, editPhone, parseFloat(editFee) || 0, editColor);
           setIsEditModalOpen(false);
       }
+  };
+
+  const handleSaveNote = () => {
+      actions.updateStudent(studentId, student.name, student.phone, student.fee, student.color, tempNote);
+      setIsNoteEditing(false);
   };
 
   const handleLessonAction = (action: 'ABSENT' | 'MAKEUP' | 'DELETE' | 'MAKEUP_DONE') => {
@@ -221,10 +227,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const originalDateObj = new Date(selectedTx.date);
       const originalDateStr = originalDateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
       
-      // Yeni not: Telafi Dersi (Asıl: 12 Ekim)
       const newNote = `Telafi Dersi (Asıl: ${originalDateStr})`;
-      
-      // İşlemi güncelle: Notu değiştir VE Tarihi telafinin yapıldığı tarihe çek.
       actions.updateTransaction(studentId, selectedTx.id, newNote, makeupCompleteDate);
       
       setIsMakeupCompleteModalOpen(false);
@@ -419,8 +422,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               sub = "Planlanacaktır";
               icon = <Layers size={16} />;
           } else {
-              // Telafi Tamamlandı
-              // Eğer "Asıl:" içeriyorsa ayrıştır
               if (title.includes("(Asıl:")) {
                   const parts = title.split("(Asıl:");
                   title = parts[0].trim();
@@ -442,7 +443,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            iconClass = "bg-red-50 text-red-600";
       } else {
           // Normal Ders
-          // Ders numarası yazılmıyor (Kullanıcı isteği)
           if (!lowerNote.includes('ders')) {
               title = tx.note;
           }
@@ -494,7 +494,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     <MessageCircle size={18} />
                 </button>
                 <button 
-                    onClick={() => { setEditName(student.name); setEditPhone(student.phone); setEditFee(student.fee.toString()); setIsEditModalOpen(true); }}
+                    onClick={() => { setEditName(student.name); setEditPhone(student.phone); setEditFee(student.fee.toString()); setEditColor(student.color || 'indigo'); setIsEditModalOpen(true); }}
                     className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
                     title="Düzenle"
                 >
@@ -521,6 +521,19 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       {/* 2. Content */}
       <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-6">
           
+          {/* NEXT LESSON NOTE */}
+          <div className={`p-4 rounded-2xl border transition-colors cursor-pointer ${student.nextLessonNote ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`} onClick={() => { setTempNote(student.nextLessonNote || ""); setIsNoteEditing(true); }}>
+              <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle size={16} className={student.nextLessonNote ? "text-red-500" : "text-slate-400"} />
+                  <span className={`text-xs font-bold uppercase tracking-widest ${student.nextLessonNote ? "text-red-600" : "text-slate-400"}`}>Gelecek Ders Notu</span>
+              </div>
+              {student.nextLessonNote ? (
+                  <p className="text-sm font-bold text-red-700">{student.nextLessonNote}</p>
+              ) : (
+                  <p className="text-sm text-slate-400">Not eklemek için dokunun (Örn: Haftaya gelmeyecek)</p>
+              )}
+          </div>
+
           {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-4">
               <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-5 text-white shadow-xl shadow-indigo-200 flex flex-col justify-between h-48 group">
@@ -676,6 +689,32 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="İsim" />
               <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Telefon" />
               <input type="number" value={editFee} onChange={(e) => setEditFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Ücret" />
+              
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 ml-1">Öğrenci Rengi</label>
+                <div className="flex gap-2 justify-between">
+                    {STUDENT_COLORS.map(c => (
+                        <button 
+                            key={c.key} 
+                            onClick={() => setEditColor(c.key)}
+                            className={`w-8 h-8 rounded-full border-2 transition-all ${editColor === c.key ? 'border-slate-800 scale-110' : 'border-transparent'}`}
+                            style={{ backgroundColor: c.hex }}
+                            title={c.label}
+                        />
+                    ))}
+                </div>
+             </div>
+          </div>
+      </Dialog>
+      
+      {/* NOTE EDIT MODAL */}
+      <Dialog isOpen={isNoteEditing} onClose={() => setIsNoteEditing(false)} title="Gelecek Ders Notu" actions={<><button onClick={() => setIsNoteEditing(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleSaveNote} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Kaydet</button></>}>
+          <div className="py-2">
+              <p className="text-xs text-slate-400 mb-2">Bu not, ders programında ismin yanında görünecektir.</p>
+              <input type="text" value={tempNote} onChange={e => setTempNote(e.target.value)} placeholder="Örn: Haftaya 15 dk geç gelecek" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" autoFocus />
+              {tempNote && (
+                  <button onClick={() => setTempNote("")} className="mt-2 text-xs text-red-500 font-bold">Notu Temizle</button>
+              )}
           </div>
       </Dialog>
       

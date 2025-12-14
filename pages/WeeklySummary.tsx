@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot } from '../types';
-import { CalendarCheck, Banknote, Clock, Star, RefreshCcw, Sparkles, User, Timer, Eye, EyeOff } from 'lucide-react';
+import { CalendarCheck, Banknote, Clock, Star, RefreshCcw, Sparkles, User, Timer, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface WeeklySummaryProps {
@@ -21,6 +21,25 @@ const minutesToTime = (minutes: number) => {
   const h = Math.floor(minutes / 60) % 24;
   const m = minutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+// Renk Haritası
+const COLOR_MAP: Record<string, string> = {
+  indigo: 'bg-indigo-50 border-indigo-200 text-indigo-900',
+  rose: 'bg-rose-50 border-rose-200 text-rose-900',
+  emerald: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+  amber: 'bg-amber-50 border-amber-200 text-amber-900',
+  cyan: 'bg-cyan-50 border-cyan-200 text-cyan-900',
+  purple: 'bg-purple-50 border-purple-200 text-purple-900',
+};
+
+const TIME_COLOR_MAP: Record<string, string> = {
+  indigo: 'bg-white/60 text-indigo-700',
+  rose: 'bg-white/60 text-rose-700',
+  emerald: 'bg-white/60 text-emerald-700',
+  amber: 'bg-white/60 text-amber-700',
+  cyan: 'bg-white/60 text-cyan-700',
+  purple: 'bg-white/60 text-purple-700',
 };
 
 export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfile }) => {
@@ -121,12 +140,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                 <Banknote className="absolute right-[-10px] bottom-[-10px] opacity-10" size={50} />
             </div>
             
-            <div className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-xl flex flex-col items-start min-w-[90px] border border-indigo-100 relative overflow-hidden flex-1">
-                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-0.5">Ders</span>
-                <span className="text-lg font-black tracking-tight">{weeklyLessonCount}</span>
-                <Clock className="absolute right-[-10px] bottom-[-10px] opacity-10" size={50} />
-            </div>
-
             <div className="bg-purple-50 text-purple-700 px-3 py-2 rounded-xl flex flex-col items-start min-w-[90px] border border-purple-100 relative overflow-hidden flex-1">
                 <span className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-0.5">Öğrenci</span>
                 <span className="text-lg font-black tracking-tight">{totalStudents}</span>
@@ -136,7 +149,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
 
         {/* Weekly Grid */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 pb-24">
-            {/* Grid yapısı: min-w kısıtlaması kaldırıldı, gap-0.5 ile sıkıştırıldı */}
             <div className="grid grid-cols-7 gap-0.5 sm:gap-2 content-start h-full w-full">
                 {DAYS.map((day) => {
                     const isToday = day === currentDayName;
@@ -166,47 +178,22 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                         const isOccupied = !!slot.studentId;
                                         const student = isOccupied ? state.students[slot.studentId!] : null;
                                         
-                                        // Visual Logic
-                                        const isMakeup = slot.label === 'MAKEUP';
-                                        const isTrial = slot.label === 'TRIAL';
-                                        const duration = timeToMinutes(slot.end) - timeToMinutes(slot.start);
-                                        
-                                        const isShort = duration <= 35;
-                                        const isLong = duration >= 50;
-
                                         let cardClass = "bg-white border-slate-100";
                                         let textClass = "text-slate-800";
                                         let timeClass = "bg-slate-50 text-slate-500";
                                         let badge = null;
-
-                                        if (isOccupied) {
-                                            if (isMakeup) {
-                                                cardClass = "bg-orange-50 border-orange-200";
-                                                textClass = "text-orange-900";
-                                                timeClass = "bg-white/60 text-orange-700";
-                                                badge = <div className="w-1.5 h-1.5 rounded-full bg-orange-500 sm:hidden"></div>;
-                                            } else if (isTrial) {
-                                                cardClass = "bg-purple-50 border-purple-200";
-                                                textClass = "text-purple-900";
-                                                timeClass = "bg-white/60 text-purple-700";
-                                                badge = <div className="w-1.5 h-1.5 rounded-full bg-purple-500 sm:hidden"></div>;
-                                            } else if (isShort) {
-                                                // KISA DERS RENGİ (Rose/Pembe)
-                                                cardClass = "bg-rose-50 border-rose-200";
-                                                textClass = "text-rose-900";
-                                                timeClass = "bg-white/60 text-rose-700";
-                                                badge = <div className="w-1.5 h-1.5 rounded-full bg-rose-500 sm:hidden"></div>;
-                                            } else if (isLong) {
-                                                // UZUN DERS RENGİ (Cyan/Mavi)
-                                                cardClass = "bg-cyan-50 border-cyan-200";
-                                                textClass = "text-cyan-900";
-                                                timeClass = "bg-white/60 text-cyan-700";
-                                                badge = <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 sm:hidden"></div>;
+                                        
+                                        if (isOccupied && student) {
+                                            const color = student.color || 'indigo';
+                                            cardClass = COLOR_MAP[color] || COLOR_MAP['indigo'];
+                                            timeClass = TIME_COLOR_MAP[color] || TIME_COLOR_MAP['indigo'];
+                                            
+                                            // Öncelik Notta
+                                            if (student.nextLessonNote) {
+                                                badge = <div className="text-red-500"><AlertTriangle size={8} fill="currentColor" /></div>;
                                             } else {
-                                                // Standart Ders
-                                                cardClass = "bg-indigo-50 border-indigo-200";
-                                                textClass = "text-indigo-900";
-                                                timeClass = "bg-white/60 text-indigo-700";
+                                                const dotColor = color === 'rose' ? 'bg-rose-500' : color === 'emerald' ? 'bg-emerald-500' : color === 'amber' ? 'bg-amber-500' : color === 'cyan' ? 'bg-cyan-500' : color === 'purple' ? 'bg-purple-500' : 'bg-indigo-500';
+                                                badge = <div className={`w-1.5 h-1.5 rounded-full ${dotColor} sm:hidden`}></div>;
                                             }
                                         }
 
@@ -227,10 +214,11 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                     <div className={`px-1 py-0.5 rounded text-[7px] sm:text-[10px] font-black leading-none ${timeClass}`}>
                                                         {slot.start}
                                                     </div>
-                                                    {/* Desktop Badges */}
-                                                    {isMakeup && <span className="hidden sm:block text-[8px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded ml-auto">T</span>}
-                                                    {isTrial && <span className="hidden sm:block text-[8px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-auto">D</span>}
-                                                    {isShort && <span className="hidden sm:flex items-center gap-0.5 text-[8px] font-black text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded ml-auto"><Timer size={8} /></span>}
+                                                    
+                                                    {/* Desktop/Tablet Icons */}
+                                                    {student?.nextLessonNote && (
+                                                       <span className="hidden sm:block text-[8px] text-red-600 bg-white/80 px-1 rounded font-bold">!</span>
+                                                    )}
                                                     
                                                     {/* Mobile Dots */}
                                                     {badge}

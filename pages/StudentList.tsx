@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';
@@ -10,6 +9,15 @@ interface StudentListProps {
 }
 
 type PaymentStatus = 'PAID' | 'PARTIAL' | 'UNPAID';
+
+const STUDENT_COLORS = [
+    { key: 'indigo', label: 'Mavi', hex: '#6366f1' },
+    { key: 'rose', label: 'Kırmızı', hex: '#f43f5e' },
+    { key: 'emerald', label: 'Yeşil', hex: '#10b981' },
+    { key: 'amber', label: 'Turuncu', hex: '#f59e0b' },
+    { key: 'cyan', label: 'Turkuaz', hex: '#06b6d4' },
+    { key: 'purple', label: 'Mor', hex: '#8b5cf6' },
+];
 
 export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const { state, actions } = useCourse();
@@ -23,6 +31,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const [newPhone, setNewPhone] = useState("");
   const [newFee, setNewFee] = useState("");
   const [newRegDate, setNewRegDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newColor, setNewColor] = useState("indigo");
 
   // Bulk Message
   const [bulkMessage, setBulkMessage] = useState("");
@@ -105,10 +114,11 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const handleAddStudent = () => {
       if(newName.trim()) {
           const feeValue = parseFloat(newFee.replace(',', '.')) || 0;
-          actions.addStudent(newName, newPhone, feeValue, newRegDate);
+          actions.addStudent(newName, newPhone, feeValue, newRegDate, newColor);
           setIsAddModalOpen(false);
           setNewName(""); setNewPhone(""); setNewFee("");
           setNewRegDate(new Date().toISOString().split('T')[0]);
+          setNewColor("indigo");
       }
   }
 
@@ -330,6 +340,21 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
              <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 ml-1">Kayıt Tarihi</label>
                 <input type="date" value={newRegDate} onChange={e=>setNewRegDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none" />
+             </div>
+
+             <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 ml-1">Öğrenci Rengi</label>
+                <div className="flex gap-2 justify-between">
+                    {STUDENT_COLORS.map(c => (
+                        <button 
+                            key={c.key} 
+                            onClick={() => setNewColor(c.key)}
+                            className={`w-8 h-8 rounded-full border-2 transition-all ${newColor === c.key ? 'border-slate-800 scale-110' : 'border-transparent'}`}
+                            style={{ backgroundColor: c.hex }}
+                            title={c.label}
+                        />
+                    ))}
+                </div>
              </div>
           </div>
       </Dialog>

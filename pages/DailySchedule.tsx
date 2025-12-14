@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot, Student } from '../types';
-import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, CheckCircle2, Sparkles, Layers, Sun, Search, Timer } from 'lucide-react';
+import { Plus, ChevronRight, Trash2, UserX, MoreHorizontal, CalendarDays, ArrowRight, Clock, Moon, CheckCircle2, Sparkles, Layers, Sun, Search, Timer, AlertTriangle } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface DailyScheduleProps {
@@ -26,6 +26,16 @@ const minutesToTime = (minutes: number) => {
 const WORK_END_MINUTES = 21 * 60;
 const DEFAULT_LESSON_DURATION = 40;
 const SCAN_START_MINUTES = 15 * 60; 
+
+// Renk Haritası (Detaylı)
+const COLOR_MAP: Record<string, any> = {
+  indigo: { box: 'bg-indigo-50 border-indigo-200', text: 'text-indigo-900', icon: 'text-indigo-300' },
+  rose: { box: 'bg-rose-50 border-rose-200', text: 'text-rose-900', icon: 'text-rose-300' },
+  emerald: { box: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-900', icon: 'text-emerald-300' },
+  amber: { box: 'bg-amber-50 border-amber-200', text: 'text-amber-900', icon: 'text-amber-300' },
+  cyan: { box: 'bg-cyan-50 border-cyan-200', text: 'text-cyan-900', icon: 'text-cyan-300' },
+  purple: { box: 'bg-purple-50 border-purple-200', text: 'text-purple-900', icon: 'text-purple-300' },
+};
 
 export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfile }) => {
   const { state, actions } = useCourse();
@@ -217,16 +227,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
             {slots.map((slot, idx) => {
               const isOccupied = !!slot.studentId;
               const student = slot.studentId ? state.students[slot.studentId] : null;
-              
-              // Durum ve Süre Analizi
-              const isMakeup = slot.label === 'MAKEUP';
-              const isTrial = slot.label === 'TRIAL';
               const slotDuration = timeToMinutes(slot.end) - timeToMinutes(slot.start);
-              
-              // 3 Aşamalı Renk Kontrolü
-              const isShortLesson = slotDuration <= 35; // 20, 25, 30 dk
-              const isLongLesson = slotDuration >= 50; // 50, 60 dk
-              // isStandard (35-45 arası, örn: 40dk)
               
               let containerClass = "bg-white border-slate-200 cursor-pointer active:scale-[0.99]";
               let textClass = "text-indigo-900";
@@ -234,34 +235,21 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
               let badgeText = "";
               let badgeClass = "";
               
-              if (isOccupied) {
-                 if (isMakeup) {
-                     containerClass = "bg-orange-50 border-orange-400 active:scale-[0.99]";
-                     textClass = "text-orange-900";
-                     iconClass = "text-orange-200";
+              if (isOccupied && student) {
+                  // Use Student's custom color
+                  const color = student.color || 'indigo';
+                  const theme = COLOR_MAP[color] || COLOR_MAP['indigo'];
+
+                  containerClass = `${theme.box} active:scale-[0.99]`;
+                  textClass = theme.text;
+                  iconClass = theme.icon;
+
+                 if (slot.label === 'MAKEUP') {
                      badgeText = "TELAFİ";
-                     badgeClass = "text-orange-600 opacity-80";
-                 } else if (isTrial) {
-                     containerClass = "bg-purple-50 border-purple-400 active:scale-[0.99]";
-                     textClass = "text-purple-900";
-                     iconClass = "text-purple-200";
+                     badgeClass = "text-orange-600 opacity-80 bg-orange-50 px-1 rounded";
+                 } else if (slot.label === 'TRIAL') {
                      badgeText = "DENEME";
-                     badgeClass = "text-purple-600 opacity-80";
-                 } else if (isShortLesson) {
-                     // KISA DERS: Rose/Pembe
-                     containerClass = "bg-rose-50 border-rose-400 active:scale-[0.99]";
-                     textClass = "text-rose-900";
-                     iconClass = "text-rose-200";
-                 } else if (isLongLesson) {
-                     // UZUN DERS: Cyan/Mavi
-                     containerClass = "bg-cyan-50 border-cyan-400 active:scale-[0.99]";
-                     textClass = "text-cyan-900";
-                     iconClass = "text-cyan-200";
-                 } else {
-                     // STANDART (40dk): Indigo/Mor (Varsayılan)
-                     containerClass = "bg-indigo-50 border-indigo-500 active:scale-[0.99]";
-                     textClass = "text-indigo-900";
-                     iconClass = "text-indigo-200";
+                     badgeClass = "text-purple-600 opacity-80 bg-purple-50 px-1 rounded";
                  }
               }
               
@@ -305,15 +293,21 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                                     <>
                                         <div className="flex items-center gap-2.5 overflow-hidden">
                                             <div className="min-w-0">
-                                                <h4 className={`font-bold truncate text-[13px] leading-tight ${textClass}`}>{student?.name}</h4>
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className={`font-bold truncate text-[13px] leading-tight ${textClass}`}>{student?.name}</h4>
+                                                    {/* NOTE WARNING ICON */}
+                                                    {student?.nextLessonNote && (
+                                                        <div className="text-red-500 animate-pulse" title={student.nextLessonNote}>
+                                                            <AlertTriangle size={14} fill="currentColor" />
+                                                        </div>
+                                                    )}
+                                                </div>
                                                 
-                                                <div className="flex gap-1">
+                                                <div className="flex gap-1 items-center mt-0.5">
                                                     {badgeText && <span className={`text-[8px] font-bold ${badgeClass}`}>{badgeText}</span>}
-                                                    {/* Süre göstergesi (Normal ve Uzun için de gösterelim mi? Kullanıcı istemediği için sadece Short ve Uzun ayrımında renk var) */}
-                                                    {isShortLesson && !isMakeup && !isTrial && (
-                                                        <span className="text-[8px] font-bold text-rose-500 opacity-80 flex items-center gap-0.5">
-                                                            <Timer size={8} /> {slotDuration} dk
-                                                        </span>
+                                                    {/* If note exists, show it */}
+                                                    {student?.nextLessonNote && (
+                                                        <span className="text-[9px] font-bold text-red-500 truncate max-w-[150px]">{student.nextLessonNote}</span>
                                                     )}
                                                 </div>
                                             </div>

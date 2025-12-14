@@ -55,11 +55,9 @@ const THEMES: Record<string, Record<string, string>> = {
   }
 };
 
-// Helper for parsing currency inputs (handles comma vs dot)
 const parseCurrency = (val: string | number): number => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
-    // Replace comma with dot for JS parsing
     const normalized = val.replace(',', '.');
     return parseFloat(normalized) || 0;
 };
@@ -87,7 +85,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       let newState = { ...currentState };
       let changesFound = false;
 
-      // Filter schedule for TODAY only (Safe approach)
       const relevantKeys = Object.keys(newState.schedule).filter(k => k.endsWith(`|${todayName}`));
 
       relevantKeys.forEach(key => {
@@ -95,22 +92,17 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           slots.forEach(slot => {
               if (!slot.studentId) return;
 
-              // Parse Slot Time
               const [h, m] = slot.end.split(':').map(Number);
               const lessonEnd = new Date();
               lessonEnd.setHours(h, m, 0, 0);
 
-              // If lesson end time is in the past
               if (lessonEnd < now) {
                   const student = newState.students[slot.studentId];
                   if (!student) return;
 
-                  // Check if ANY debt/lesson transaction already exists for TODAY
-                  // This prevents duplication if the teacher manually added "Absent" or "Lesson Done" earlier.
-                  // Defensive coding: student.history might be undefined in legacy data
                   const history = student.history || [];
                   const hasTx = history.some(tx => {
-                      if (!tx.isDebt) return false; // Ignore payments
+                      if (!tx.isDebt) return false;
                       const txDate = new Date(tx.date);
                       return txDate.getDate() === now.getDate() && 
                              txDate.getMonth() === now.getMonth() && 
@@ -123,19 +115,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                        let newDebtCount = student.debtLessonCount;
                        let note = "";
 
-                       // Calculate Duration
-                       const [sh, sm] = slot.start.split(':').map(Number);
-                       const [eh, em] = slot.end.split(':').map(Number);
-                       const dur = (eh * 60 + em) - (sh * 60 + sm);
-                       
                        if (slot.label === 'MAKEUP') {
-                           note = `Telafi Dersi (Tamamlandı - ${dur} dk)`;
+                           note = `Telafi Dersi (Tamamlandı)`;
                        } else if (slot.label === 'TRIAL') {
-                           note = `Deneme Dersi (Tamamlandı - ${dur} dk)`;
+                           note = `Deneme Dersi (Tamamlandı)`;
                        } else {
                            newDebtCount += 1;
-                           // TEXT REMOVED: "${newDebtCount}. Ders" -> "Ders İşlendi"
-                           note = `Ders İşlendi (Otomatik - ${dur} dk)`;
+                           // SADELEŞTİRİLDİ: Sadece "Ders İşlendi" yazacak.
+                           note = `Ders İşlendi`;
                        }
 
                        const newTx: Transaction = {
@@ -165,31 +152,23 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return changesFound ? newState : null;
   };
 
-  // Sync with Firestore
   useEffect(() => {
     if (!user) {
         setState(INITIAL_STATE);
         setIsLoaded(true);
         return;
     }
-
-    // Yavaş bağlantılar için agresif yükleme: 0.5 sn içinde yanıt gelmezse aç.
     const timer = setTimeout(() => setIsLoaded(true), 500);
 
     const unsubscribe = DataService.subscribeToUserData(
         user.id,
         (newData) => {
-            clearTimeout(timer); // Veri geldiyse zamanlayıcıyı iptal et
-            
-            // Check for auto-processing on load
+            clearTimeout(timer);
             const processedState = checkAndProcessLessons(newData);
             const finalState = processedState || newData;
-
-            // If processing happened, save back to DB asynchronously
             if (processedState) {
                 DataService.saveUserData(user.id, finalState).catch(console.error);
             }
-
             setState(finalState);
             updateCssVariables(finalState.themeColor);
             setIsLoaded(true);
@@ -199,21 +178,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setIsLoaded(true);
         }
     );
-
-    return () => {
-        unsubscribe();
-        clearTimeout(timer);
-    };
+    return () => { unsubscribe(); clearTimeout(timer); };
   }, [user]);
 
-  // Periodic Check (Every Minute)
   useEffect(() => {
       if (!isLoaded || !state.autoLessonProcessing || !user) return;
-
       const interval = setInterval(() => {
           if (processingRef.current) return;
           processingRef.current = true;
-
           const processedState = checkAndProcessLessons(state);
           if (processedState) {
               setState(processedState);
@@ -223,26 +195,16 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           } else {
               processingRef.current = false;
           }
-      }, 60000); // Check every minute
-
+      }, 60000);
       return () => clearInterval(interval);
   }, [isLoaded, state, user]);
 
-  // Helper to update state and save to Cloud
   const updateState = (updater: (prev: AppState) => AppState) => {
       setState(current => {
           const newState = updater(current);
           newState.updatedAt = new Date().toISOString();
-          
-          if (user) {
-              DataService.saveUserData(user.id, newState).catch(console.error);
-          }
-          
-          // Update theme CSS if changed
-          if (current.themeColor !== newState.themeColor) {
-              updateCssVariables(newState.themeColor);
-          }
-          
+          if (user) DataService.saveUserData(user.id, newState).catch(console.error);
+          if (current.themeColor !== newState.themeColor) updateCssVariables(newState.themeColor);
           return newState;
       });
   };
@@ -255,7 +217,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
   };
 
-  // ACTIONS IMPLEMENTATION
   const actions: CourseContextType['actions'] = {
       updateSchoolName: (name) => updateState(s => ({ ...s, schoolName: name })),
       updateSchoolIcon: (icon) => updateState(s => ({ ...s, schoolIcon: icon })),
@@ -269,30 +230,18 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       switchTeacher: (name) => updateState(s => ({ ...s, currentTeacher: name })),
 
-      addStudent: (name, phone, fee, registrationDate) => {
-          if (!name.trim()) return ""; // Prevent empty students
+      addStudent: (name, phone, fee, registrationDate, color) => {
+          if (!name.trim()) return "";
           
-          // DUPLICATE CHECK: İsim ve Telefon aynıysa mevcut ID'yi döndür
-          let existingId = null;
-          // State içinden kontrol etmemiz lazım, ancak buradaki state eski olabilir.
-          // updateState callback'i içinde kontrol etmek daha güvenli ama return değeri lazım.
-          // useCourse hook'undaki state'i kullanabiliriz (senkronize kabul edilir).
-          
-          // Basit bir temizlik fonksiyonu
           const clean = (str: string) => str.trim().toLowerCase().replace(/\s+/g, ' ');
           const cleanPhone = (str: string) => str.replace(/\D/g, '');
-
           const targetName = clean(name);
           const targetPhone = cleanPhone(phone);
-
           const existingStudent = (Object.values(state.students) as Student[]).find(s => 
               clean(s.name) === targetName && cleanPhone(s.phone) === targetPhone
           );
 
-          if (existingStudent) {
-              console.log("Mevcut öğrenci bulundu, yeni kayıt açılmadı:", existingStudent.name);
-              return existingStudent.id;
-          }
+          if (existingStudent) return existingStudent.id;
 
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
@@ -300,26 +249,39 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               name: name.trim(), 
               phone: phone.trim(), 
               fee: parseCurrency(fee), 
-              // Use provided date or default to now
               registrationDate: registrationDate ? new Date(registrationDate).toISOString() : new Date().toISOString(),
               debtLessonCount: 0,
               makeupCredit: 0,
               history: [],
-              resources: []
+              resources: [],
+              color: color || 'indigo',
+              nextLessonNote: ""
           };
           updateState(s => ({ ...s, students: { ...s.students, [id]: newStudent } }));
           return id;
       },
 
-      updateStudent: (id, name, phone, fee) => updateState(s => {
+      updateStudent: (id, name, phone, fee, color, nextLessonNote) => updateState(s => {
           const student = s.students[id];
           if (!student) return s;
-          return { ...s, students: { ...s.students, [id]: { ...student, name: name.trim(), phone: phone.trim(), fee: parseCurrency(fee) } } };
+          return { 
+              ...s, 
+              students: { 
+                  ...s.students, 
+                  [id]: { 
+                      ...student, 
+                      name: name.trim(), 
+                      phone: phone.trim(), 
+                      fee: parseCurrency(fee),
+                      color: color || student.color || 'indigo',
+                      nextLessonNote: nextLessonNote !== undefined ? nextLessonNote : student.nextLessonNote
+                  } 
+              } 
+          };
       }),
 
       deleteStudent: (id) => updateState(s => {
           const { [id]: deleted, ...rest } = s.students;
-          // Clean up schedule
           const newSchedule = { ...s.schedule };
           Object.keys(newSchedule).forEach(key => {
               newSchedule[key] = newSchedule[key].map(slot => 
@@ -352,7 +314,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const currentSlots = s.schedule[key] || [];
           
           let studentsUpdate = s.students;
-          // If using makeup credit
           if (label === 'MAKEUP') {
               const student = s.students[studentId];
               if (student && student.makeupCredit > 0) {
@@ -398,9 +359,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (isDebt) {
               newDebtCount += 1;
           } else {
-              // ÖDEME İŞLEMİ:
-              // Ödeme alındığında (tarih eski bile olsa), birikmiş ders borç sayacını SIFIRLA.
-              // Bu, yeni dönemin başlangıcı olarak kabul edilir.
               newDebtCount = 0;
           }
 
@@ -408,7 +366,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               ? parseCurrency(amount)
               : (isDebt ? 0 : student.fee);
 
-          // TEXT REMOVED: "${newDebtCount}. Ders" -> "Ders İşlendi"
           const newTx: Transaction = {
               id: Math.random().toString(36).substr(2, 9),
               note: isDebt ? `Ders İşlendi` : 'Ödeme Alındı',
@@ -438,8 +395,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           
           if (note.includes("Telafi Bekliyor")) {
              newMakeupCredit += 1;
-          } else if (note.includes("Telafi Edildi")) {
-              // Usually handled at booking, but if manually marking
           }
 
           const updatedHistory = (student.history || []).map(tx => {
@@ -474,8 +429,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const tx = history.find(t => t.id === transactionId);
           let newDebtCount = student.debtLessonCount;
           
-          // Eğer silinen şey NORMAL bir ders ise sayacı düşür.
-          // Telafi ise sayacı düşürme çünkü telafi sayacı artırmamıştı.
           if (tx && tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme")) {
               newDebtCount = Math.max(0, newDebtCount - 1);
           }

@@ -25,6 +25,8 @@ export interface Student {
   makeupCredit: number; // Telafi hakkı bakiyesi
   history: Transaction[];
   resources: Resource[]; // Ödevler ve Materyaller
+  color?: string; // 'indigo' | 'rose' | 'emerald' | 'amber' | 'cyan' | 'purple'
+  nextLessonNote?: string; // "Haftaya yok" gibi geçici notlar
 }
 
 export interface LessonSlot {
@@ -65,8 +67,8 @@ export interface CourseContextType {
     updateThemeColor: (color: string) => void;
     addTeacher: (name: string) => void;
     switchTeacher: (name: string) => void;
-    addStudent: (name: string, phone: string, fee: number, registrationDate?: string) => string;
-    updateStudent: (id: string, name: string, phone: string, fee: number) => void;
+    addStudent: (name: string, phone: string, fee: number, registrationDate?: string, color?: string) => string;
+    updateStudent: (id: string, name: string, phone: string, fee: number, color?: string, nextLessonNote?: string) => void;
     deleteStudent: (id: string) => void;
     getStudent: (id: string) => Student | undefined;
     addSlot: (day: WeekDay, start: string, end: string) => void;
