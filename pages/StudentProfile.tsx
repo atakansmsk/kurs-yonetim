@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
@@ -129,39 +128,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       };
   }, [sortedHistory, student]);
   
-  // --- LESSON NUMBERING LOGIC ---
-  const lessonNumberMap = useMemo(() => {
-      if (!student) return new Map();
-      const map = new Map<string, number>();
-      
-      // Tarihçeyi eskiden yeniye sırala
-      const ascHistory = [...(student.history || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-      let currentCounter = 0;
-
-      ascHistory.forEach(tx => {
-          if (!tx.isDebt) {
-              // Ödeme yapıldığında sayaç sıfırlanıyor (Mevcut mantık)
-              currentCounter = 0;
-          } else {
-              const lowerNote = (tx.note || "").toLowerCase();
-              
-              // Sayılmayacak durumlar
-              const isMissed = lowerNote.includes("gelmedi") || 
-                               lowerNote.includes("katılım yok") || 
-                               lowerNote.includes("iptal") ||
-                               lowerNote.includes("telafi bekliyor");
-              
-              if (!isMissed) {
-                  // Normal ders VEYA Telafi dersi ise sayacı artır
-                  currentCounter++;
-                  map.set(tx.id, currentCounter);
-              }
-          }
-      });
-
-      return map;
-  }, [student]);
+  // --- LESSON NUMBERING LOGIC (DEPRECATED BUT KEPT FOR REFERENCE IF NEEDED) ---
+  // Kullanıcı ders numarası yazılmasını istemediği için bu mantığı UI'da kullanmayacağız.
 
   const currentMonthName = useMemo(() => {
       return new Date().toLocaleDateString('tr-TR', { month: 'long' });
@@ -473,13 +441,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            icon = <XCircle size={16} />;
            iconClass = "bg-red-50 text-red-600";
       } else {
-          // Normal Ders veya "Ders" içerenler
-          // Eğer ders numarası haritasında varsa onu kullan
-          const num = lessonNumberMap.get(tx.id);
-          if (num) {
-              title = `${num}. Ders`;
-          } else if (!lowerNote.includes('ders')) {
-              // Özel bir not ise ve ders ibaresi yoksa başa ekle
+          // Normal Ders
+          // Ders numarası yazılmıyor (Kullanıcı isteği)
+          if (!lowerNote.includes('ders')) {
               title = tx.note;
           }
       }

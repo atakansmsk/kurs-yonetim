@@ -222,11 +222,12 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
               const isMakeup = slot.label === 'MAKEUP';
               const isTrial = slot.label === 'TRIAL';
               const slotDuration = timeToMinutes(slot.end) - timeToMinutes(slot.start);
-              const isShortLesson = slotDuration <= 25; // 20-25 dk dersler
               
-              // Renk Paleti Belirleme
-              // Kısa dersler için "Rose" (Pembe/Kırmızımsı), Normal dersler için "Indigo" (Mavi/Mor)
-              // Telafi (Orange) ve Deneme (Purple) her zaman önceliklidir.
+              // 3 Aşamalı Renk Kontrolü
+              const isShortLesson = slotDuration <= 35; // 20, 25, 30 dk
+              const isLongLesson = slotDuration >= 50; // 50, 60 dk
+              // isStandard (35-45 arası, örn: 40dk)
+              
               let containerClass = "bg-white border-slate-200 cursor-pointer active:scale-[0.99]";
               let textClass = "text-indigo-900";
               let iconClass = "text-indigo-200";
@@ -247,12 +248,17 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                      badgeText = "DENEME";
                      badgeClass = "text-purple-600 opacity-80";
                  } else if (isShortLesson) {
-                     // 20 dk vb. kısa dersler için farklı renk
+                     // KISA DERS: Rose/Pembe
                      containerClass = "bg-rose-50 border-rose-400 active:scale-[0.99]";
                      textClass = "text-rose-900";
                      iconClass = "text-rose-200";
+                 } else if (isLongLesson) {
+                     // UZUN DERS: Cyan/Mavi
+                     containerClass = "bg-cyan-50 border-cyan-400 active:scale-[0.99]";
+                     textClass = "text-cyan-900";
+                     iconClass = "text-cyan-200";
                  } else {
-                     // Standart (40 dk) ders
+                     // STANDART (40dk): Indigo/Mor (Varsayılan)
                      containerClass = "bg-indigo-50 border-indigo-500 active:scale-[0.99]";
                      textClass = "text-indigo-900";
                      iconClass = "text-indigo-200";
@@ -303,7 +309,7 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                                                 
                                                 <div className="flex gap-1">
                                                     {badgeText && <span className={`text-[8px] font-bold ${badgeClass}`}>{badgeText}</span>}
-                                                    {/* Süre göstergesi (Opsiyonel, sadece 20 dk ise yazabiliriz veya her zaman) */}
+                                                    {/* Süre göstergesi (Normal ve Uzun için de gösterelim mi? Kullanıcı istemediği için sadece Short ve Uzun ayrımında renk var) */}
                                                     {isShortLesson && !isMakeup && !isTrial && (
                                                         <span className="text-[8px] font-bold text-rose-500 opacity-80 flex items-center gap-0.5">
                                                             <Timer size={8} /> {slotDuration} dk

@@ -170,7 +170,9 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                         const isMakeup = slot.label === 'MAKEUP';
                                         const isTrial = slot.label === 'TRIAL';
                                         const duration = timeToMinutes(slot.end) - timeToMinutes(slot.start);
-                                        const isShort = duration <= 25;
+                                        
+                                        const isShort = duration <= 35;
+                                        const isLong = duration >= 50;
 
                                         let cardClass = "bg-white border-slate-100";
                                         let textClass = "text-slate-800";
@@ -194,6 +196,12 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                 textClass = "text-rose-900";
                                                 timeClass = "bg-white/60 text-rose-700";
                                                 badge = <div className="w-1.5 h-1.5 rounded-full bg-rose-500 sm:hidden"></div>;
+                                            } else if (isLong) {
+                                                // UZUN DERS RENGİ (Cyan/Mavi)
+                                                cardClass = "bg-cyan-50 border-cyan-200";
+                                                textClass = "text-cyan-900";
+                                                timeClass = "bg-white/60 text-cyan-700";
+                                                badge = <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 sm:hidden"></div>;
                                             } else {
                                                 // Standart Ders
                                                 cardClass = "bg-indigo-50 border-indigo-200";

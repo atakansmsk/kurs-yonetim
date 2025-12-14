@@ -167,8 +167,9 @@ const AppContent: React.FC = () => {
       <div className="flex flex-col h-[100dvh] w-full max-w-md bg-[#F8FAFC] shadow-2xl overflow-hidden relative mx-auto sm:rounded-[2.5rem] sm:my-4 sm:h-[calc(100dvh-2rem)] border-0 sm:border-8 border-white ring-1 ring-black/5 animate-in fade-in duration-500">
         
         {/* Custom AppBar - Only show on inner pages */}
+        {/* Z-INDEX ARTTIRILDI: z-30 -> z-50 */}
         {!selectedStudentId && activeTab !== 'HOME' && (
-            <header className="bg-white/80 backdrop-blur-md px-6 py-4 sticky top-0 z-30 flex justify-between items-center animate-slide-up border-b border-slate-100/50">
+            <header className="bg-white/80 backdrop-blur-md px-6 py-4 sticky top-0 z-50 flex justify-between items-center animate-slide-up border-b border-slate-100/50">
               <button 
                   onClick={() => handleTabChange('HOME')} // Changed to handler
                   className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-colors active:scale-95"

@@ -134,7 +134,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                            note = `Deneme Dersi (Tamamlandı - ${dur} dk)`;
                        } else {
                            newDebtCount += 1;
-                           note = `${newDebtCount}. Ders İşlendi (Otomatik - ${dur} dk)`;
+                           // TEXT REMOVED: "${newDebtCount}. Ders" -> "Ders İşlendi"
+                           note = `Ders İşlendi (Otomatik - ${dur} dk)`;
                        }
 
                        const newTx: Transaction = {
@@ -271,6 +272,28 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       addStudent: (name, phone, fee, registrationDate) => {
           if (!name.trim()) return ""; // Prevent empty students
           
+          // DUPLICATE CHECK: İsim ve Telefon aynıysa mevcut ID'yi döndür
+          let existingId = null;
+          // State içinden kontrol etmemiz lazım, ancak buradaki state eski olabilir.
+          // updateState callback'i içinde kontrol etmek daha güvenli ama return değeri lazım.
+          // useCourse hook'undaki state'i kullanabiliriz (senkronize kabul edilir).
+          
+          // Basit bir temizlik fonksiyonu
+          const clean = (str: string) => str.trim().toLowerCase().replace(/\s+/g, ' ');
+          const cleanPhone = (str: string) => str.replace(/\D/g, '');
+
+          const targetName = clean(name);
+          const targetPhone = cleanPhone(phone);
+
+          const existingStudent = (Object.values(state.students) as Student[]).find(s => 
+              clean(s.name) === targetName && cleanPhone(s.phone) === targetPhone
+          );
+
+          if (existingStudent) {
+              console.log("Mevcut öğrenci bulundu, yeni kayıt açılmadı:", existingStudent.name);
+              return existingStudent.id;
+          }
+
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
               id, 
@@ -385,9 +408,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               ? parseCurrency(amount)
               : (isDebt ? 0 : student.fee);
 
+          // TEXT REMOVED: "${newDebtCount}. Ders" -> "Ders İşlendi"
           const newTx: Transaction = {
               id: Math.random().toString(36).substr(2, 9),
-              note: isDebt ? `${newDebtCount}. Ders İşlendi` : 'Ödeme Alındı',
+              note: isDebt ? `Ders İşlendi` : 'Ödeme Alındı',
               date,
               isDebt,
               amount: parsedAmount
