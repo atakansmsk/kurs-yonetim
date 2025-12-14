@@ -102,7 +102,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       
       // Ders Numaralarını Hesapla
       const map: Record<string, number> = {};
-      let counter = 0;
+      let counter = 0; // Bu değişken döngü sonunda "Son Ödemeden Sonraki Toplam Ders Sayısı" olacak.
 
       allHistoryAsc.forEach(tx => {
           // Ödeme görürsem sayacı sıfırla
@@ -141,20 +141,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           }
       });
 
-      // İstatistik Kutusu için: Bu ayki geçerli ders sayısı
-      const thisMonthDoneCount = current.filter(tx => {
-          if (!tx.isDebt) return false;
-          const lowerNote = (tx.note || "").toLowerCase();
-          return !lowerNote.includes("gelmedi") && 
-                 !lowerNote.includes("katılım yok") &&
-                 !lowerNote.includes("iptal") &&
-                 !lowerNote.includes("telafi bekliyor");
-      }).length;
-
+      // ARTIK KUTUCUKTA 'counter' (Son ödemeden sonraki toplam) gösteriyoruz.
       return { 
           currentHistory: current, 
           archivedHistory: archived, 
-          totalDoneCount: thisMonthDoneCount,
+          totalDoneCount: counter, // BURASI GÜNCELLENDİ: Eskiden thisMonthDoneCount idi.
           lessonNumberMap: map
       };
   }, [student]);
@@ -578,11 +569,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                            <span className="text-[10px] font-bold uppercase tracking-widest">Ders Durumu</span>
                         </div>
                         <div className="flex items-end gap-1.5 flex-wrap">
-                           {/* BU AY YAPILAN DERS SAYISI */}
+                           {/* TOPLAM BORÇ DERS SAYISI (SON ÖDEMEDEN SONRA) */}
                            <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{totalDoneCount}</span>
                            <span className="text-xs font-bold text-indigo-200 uppercase tracking-wide mb-1.5">Ders</span>
                         </div>
-                        <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Bu ay tamamlanan</p>
+                        <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Son ödemeden sonra</p>
                      </div>
 
                      <button 
