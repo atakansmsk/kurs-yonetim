@@ -106,7 +106,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
         {/* Header Stats */}
-        <div className="bg-white px-4 py-4 border-b border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sticky top-0 z-30 flex gap-3 overflow-x-auto no-scrollbar">
+        <div className="bg-white px-4 py-4 border-b border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sticky top-0 z-30 flex gap-3 overflow-x-auto no-scrollbar shrink-0">
             <div className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-2xl flex flex-col items-start min-w-[120px] border border-emerald-100 relative overflow-hidden">
                 <span className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Aylık Ciro</span>
                 <span className="text-2xl font-black tracking-tight">{monthlyEarnings.toLocaleString('tr-TR')}₺</span>
@@ -128,7 +128,8 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
 
         {/* Weekly Grid */}
         <div className="flex-1 overflow-y-auto p-2 pb-24">
-            <div className="grid gap-2 content-start h-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-7">
+            {/* Grid yapısını 2 yerine 3 sütun yaparak daha fazla günün tek ekranda görünmesini sağladım */}
+            <div className="grid gap-2 content-start h-full grid-cols-1 sm:grid-cols-3 lg:grid-cols-7">
                 {DAYS.map((day) => {
                     const isToday = day === currentDayName;
                     const slots = getDaySlots(day);
@@ -147,7 +148,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                             </button>
 
                             {/* Slots */}
-                            <div className="flex flex-col p-2 gap-2 min-h-[100px]">
+                            <div className="flex flex-col p-2 gap-2 min-h-[80px]">
                                 {slots.length === 0 ? (
                                     <div className="flex-1 flex flex-col items-center justify-center opacity-30 gap-1 py-4">
                                         <CalendarCheck size={20} className="text-slate-300" />
@@ -181,13 +182,13 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                 timeClass = "bg-white/60 text-purple-700";
                                                 badge = <span className="text-[8px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded ml-auto">DENEME</span>;
                                             } else if (isShort) {
-                                                // Short Lesson Logic
+                                                // KISA DERS RENGİ (Rose/Pembe) - Geri Getirildi
                                                 cardClass = "bg-rose-50 border-rose-200";
                                                 textClass = "text-rose-900";
                                                 timeClass = "bg-white/60 text-rose-700";
                                                 badge = <span className="flex items-center gap-0.5 text-[8px] font-black text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded ml-auto"><Timer size={8} /> {duration}dk</span>;
                                             } else {
-                                                // Standard Lesson
+                                                // Standart Ders
                                                 cardClass = "bg-indigo-50 border-indigo-200";
                                                 textClass = "text-indigo-900";
                                                 timeClass = "bg-white/60 text-indigo-700";
