@@ -1,10 +1,11 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, Eye, AlertTriangle } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, Eye, AlertTriangle, Sparkles } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { Transaction } from '../types';
 import { FileService } from '../services/api';
+import { AiAssistantDialog } from '../components/AiAssistantDialog';
 
 interface StudentProfileProps {
   studentId: string;
@@ -34,6 +35,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
   const [isResourcesModalOpen, setIsResourcesModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   
   // File Preview State
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -506,11 +508,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
             </button>
             
             <div className="flex gap-2">
+                 <button onClick={() => setIsAiAssistantOpen(true)} className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200" title="AI Asistanı">
+                    <Sparkles size={18} />
+                 </button>
                  <button onClick={handleCall} className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors" title="Ara">
                     <Phone size={18} />
-                </button>
-                <button onClick={handlePaymentReminder} className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors" title="Ödeme Hatırlat (WhatsApp)">
-                    <BellRing size={18} />
                 </button>
                 <button onClick={handleWhatsapp} className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors" title="WhatsApp Mesaj Gönder">
                     <MessageCircle size={18} />
@@ -552,7 +554,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               {student.nextLessonNote ? (
                   <p className="text-sm font-bold text-red-700">{student.nextLessonNote}</p>
               ) : (
-                  <p className="text-sm text-slate-400">Not eklemek için dokunun (Örn: Haftaya gelmeyecek)</p>
+                  <p className="text-sm text-slate-400">Not eklemek için dokunun (Örn: Haftaya 15 dk geç gelecek)</p>
               )}
           </div>
 
@@ -687,6 +689,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                )}
           </div>
       </div>
+
+      {/* --- AI Assistant Modal --- */}
+      <AiAssistantDialog 
+        isOpen={isAiAssistantOpen} 
+        onClose={() => setIsAiAssistantOpen(false)} 
+        student={student} 
+      />
 
       {/* --- MODALS --- */}
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" 
