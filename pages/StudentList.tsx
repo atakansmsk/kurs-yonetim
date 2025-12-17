@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';
-import { Trash2, Search, UserPlus, MessageSquare, Copy, Send, MessageCircle, Banknote, AlertCircle, CheckCircle2, Clock, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { Trash2, Search, UserPlus, MessageSquare, Copy, Send, MessageCircle, Banknote, AlertCircle, CheckCircle2, Clock, ChevronDown, ChevronUp, AlertTriangle, Archive, RefreshCw } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface StudentListProps {
@@ -25,6 +25,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE');
   
   // New Student Form
   const [newName, setNewName] = useState("");
@@ -47,10 +48,8 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const isCriticalPeriod = currentDay >= 1 && currentDay <= 5;
 
   const getPaymentStatus = (student: Student): PaymentStatus => {
-      // KURAL 1: Ücret <= 0 ise ödenmiş say.
       if (student.fee <= 0) return 'PAID';
 
-      // KURAL 2: Bu ay yapılan ödemeleri topla.
       const thisMonthPayments = student.history.filter(tx => {
           if (tx.isDebt) return false;
           const txDate = new Date(tx.date);
@@ -59,15 +58,12 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
       const totalPaid = thisMonthPayments.reduce((acc, curr) => acc + curr.amount, 0);
 
-      // KURAL 3: Toplam Ödeme >= Aylık Ücret ise TAMAM
       if (totalPaid >= student.fee) {
           return 'PAID';
       }
-      // KURAL 4: Hiç ödeme yoksa
       if (totalPaid === 0) {
           return 'UNPAID';
       }
-      // KURAL 5: Eksik ödeme varsa (0 < ödenen < ücret)
       return 'PARTIAL';
   };
 
@@ -77,8 +73,14 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
       // 1. İsim Araması
       if (search) {
-          list = list.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+          list = list.filter((s: Student) => s.name.toLowerCase().includes(search.toLowerCase()));
       }
+
+      // 2. Aktif/Pasif Filtresi
+      list = list.filter((s: Student) => {
+          const isActive = s.isActive !== false; // Default true (undefined treated as true)
+          return viewMode === 'ACTIVE' ? isActive : !isActive;
+      });
 
       const unpaid: Student[] = [];
       const paid: Student[] = [];
@@ -91,29 +93,31 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           }
       });
 
-      // Sıralama: 
-      // Unpaid listesinde: Önce KISMİ ödeyenler, sonra tamamen ödemeyenler, sonra isme göre.
+      // Sıralama
       unpaid.sort((a, b) => {
           const statusA = getPaymentStatus(a);
           const statusB = getPaymentStatus(b);
-          
           if (statusA === 'PARTIAL' && statusB !== 'PARTIAL') return -1;
           if (statusB === 'PARTIAL' && statusA !== 'PARTIAL') return 1;
-          
           return a.name.localeCompare(b.name, 'tr');
       });
 
       paid.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 
       return { unpaidStudents: unpaid, paidStudents: paid };
-  }, [state.students, search]);
+  }, [state.students, search, viewMode]);
 
-  // İstatistikler
-  const totalStudents = Object.keys(state.students).length;
+  // İstatistikler (Sadece Aktif)
+  const totalActiveStudents = Object.values(state.students).filter(s => s.isActive !== false).length;
 
   const handleAddStudent = () => {
       if(newName.trim()) {
-          const feeValue = parseFloat(newFee.replace(',', '.')) || 0;
+          // Robust parsing
+          let cleanFee = newFee.toString().replace(/\s/g, '');
+          if (cleanFee.includes(',')) cleanFee = cleanFee.replace(/\./g, '').replace(',', '.');
+          else cleanFee = cleanFee.replace(/\./g, '');
+          
+          const feeValue = parseFloat(cleanFee) || 0;
           actions.addStudent(newName, newPhone, feeValue, newRegDate, newColor);
           setIsAddModalOpen(false);
           setNewName(""); setNewPhone(""); setNewFee("");
@@ -123,7 +127,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   }
 
   const getCleanNumbers = () => {
-      // Hedef kitleye göre numaraları filtrele
+      // Hedef kitleye göre numaraları filtrele (sadece listedekiler)
       const targetList = bulkTarget === 'UNPAID' ? unpaidStudents : [...unpaidStudents, ...paidStudents];
       
       return targetList
@@ -149,6 +153,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const renderStudentRow = (student: Student, isPaidList: boolean) => {
     const status = getPaymentStatus(student);
     const isPartial = status === 'PARTIAL';
+    const isInactive = student.isActive === false;
     
     // Determine colors
     let borderColor = 'border-slate-100 hover:border-slate-300';
@@ -157,14 +162,19 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
     let BadgeIcon = AlertCircle;
     let badgeColorClass = 'text-slate-500';
 
-    if (isPaidList) {
+    if (isInactive) {
+        borderColor = 'border-slate-100 opacity-70';
+        avatarBg = 'bg-slate-100 text-slate-400';
+        badgeText = 'Ayrıldı';
+        BadgeIcon = Archive;
+        badgeColorClass = 'text-slate-400';
+    } else if (isPaidList) {
         borderColor = 'border-emerald-100 hover:border-emerald-300';
         avatarBg = 'bg-emerald-50 text-emerald-600';
         badgeText = 'Ödendi';
         BadgeIcon = CheckCircle2;
         badgeColorClass = 'text-emerald-500';
     } else {
-        // Unpaid or Partial
         if (isPartial) {
             borderColor = 'border-orange-100 hover:border-orange-300';
             avatarBg = 'bg-orange-50 text-orange-600';
@@ -186,13 +196,11 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
             className={`group relative bg-white rounded-lg p-2 shadow-sm border transition-all duration-200 flex items-center gap-2 cursor-pointer active:scale-[0.99] hover:shadow-md ${borderColor}`}
             onClick={() => onSelect(student.id)}
         >
-            {/* Avatar - Daha küçük (w-8 h-8) */}
             <div className="relative shrink-0">
                 <div className={`w-8 h-8 rounded-md flex items-center justify-center font-black text-xs shrink-0 border border-transparent ${avatarBg}`}>
                     {student.name.charAt(0).toUpperCase()}
                 </div>
-                {/* STATUS BADGE - Only for unpaid/partial */}
-                {!isPaidList && (
+                {!isPaidList && !isInactive && (
                     <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border border-white ${
                         isPartial ? 'bg-orange-500 text-white' :
                         (isCriticalPeriod ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-500 text-white')
@@ -204,13 +212,12 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
             
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
-                    <h4 className="font-bold text-slate-800 text-xs truncate pr-1 leading-tight">{student.name}</h4>
+                    <h4 className={`font-bold text-xs truncate pr-1 leading-tight ${isInactive ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{student.name}</h4>
                 </div>
                 <div className="flex items-center gap-1 mt-0.5">
                     <span className={`text-[8px] font-bold uppercase tracking-wide truncate leading-none ${badgeColorClass}`}>
                         {badgeText}
                     </span>
-                    {/* Show remaining amount logic could go here if needed */}
                 </div>
             </div>
 
@@ -232,7 +239,16 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           <div className="flex items-center justify-between mb-3">
             <div>
                 <h2 className="text-xl font-black text-slate-800 tracking-tight">Öğrenci Listesi</h2>
-                <p className="text-xs font-medium text-slate-400">{totalStudents} Kayıtlı Öğrenci</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs font-medium text-slate-400">{totalActiveStudents} Aktif Öğrenci</p>
+                    <button 
+                        onClick={() => setViewMode(prev => prev === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE')}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border transition-colors flex items-center gap-1 ${viewMode === 'ARCHIVED' ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}`}
+                    >
+                        {viewMode === 'ACTIVE' ? <Archive size={10} /> : <RefreshCw size={10} />}
+                        {viewMode === 'ACTIVE' ? 'Arşiv' : 'Aktif Liste'}
+                    </button>
+                </div>
             </div>
             
             <div className="flex gap-2">
@@ -251,72 +267,80 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
             </div>
             <input 
                 type="text" 
-                placeholder="İsim ile hızlı arama..." 
-                className="block w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                placeholder={viewMode === 'ACTIVE' ? "İsim ile hızlı arama..." : "Arşivde ara..."}
+                className={`block w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none transition-all ${viewMode === 'ARCHIVED' ? 'bg-slate-100 border-slate-200' : 'bg-slate-50 border-slate-200 focus:border-indigo-500 focus:bg-white'}`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
             />
           </div>
       </div>
 
-      {/* 
-          2. LIST CONTAINER 
-          Mobile: Sayfa scroll olur, listeler alt alta gelir ve uzar.
-          Desktop (lg): Sayfa sabit kalır, listeler yan yana gelir ve kendi içinde scroll olur.
-      */}
+      {/* 2. LIST CONTAINER */}
       <div className="flex-1 overflow-y-auto lg:overflow-hidden p-4">
         
-        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-4 lg:h-full">
-            
-            {/* --- LEFT: UNPAID/PARTIAL (RED/ORANGE) --- */}
-            <div className="flex flex-col bg-red-50/30 rounded-xl border border-red-100/50 p-2 h-fit lg:h-full lg:min-h-0">
-                {/* Header */}
-                <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-red-100/50">
-                    <h3 className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1.5">
-                        <AlertCircle size={12} />
-                        Ödeme Bekleyenler
-                    </h3>
-                    <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] font-bold">{unpaidStudents.length}</span>
+        {viewMode === 'ARCHIVED' ? (
+             <div className="flex flex-col gap-2">
+                 <div className="bg-slate-100 p-2 rounded-lg text-center mb-2">
+                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ARŞİV / AYRILANLAR</p>
+                 </div>
+                 {[...unpaidStudents, ...paidStudents].length === 0 ? (
+                     <div className="text-center py-10 opacity-40">
+                         <Archive size={32} className="mx-auto mb-2 text-slate-400" />
+                         <p className="text-xs font-bold text-slate-500">Arşiv boş.</p>
+                     </div>
+                 ) : (
+                     [...unpaidStudents, ...paidStudents].map(s => renderStudentRow(s, false))
+                 )}
+             </div>
+        ) : (
+            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-4 lg:h-full">
+                
+                {/* --- LEFT: UNPAID/PARTIAL --- */}
+                <div className="flex flex-col bg-red-50/30 rounded-xl border border-red-100/50 p-2 h-fit lg:h-full lg:min-h-0">
+                    <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-red-100/50">
+                        <h3 className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1.5">
+                            <AlertCircle size={12} />
+                            Ödeme Bekleyenler
+                        </h3>
+                        <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] font-bold">{unpaidStudents.length}</span>
+                    </div>
+
+                    <div className="flex-1 space-y-1.5 lg:overflow-y-auto lg:pr-1 custom-scrollbar">
+                        {unpaidStudents.length === 0 ? (
+                            <div className="text-center py-8 opacity-40 flex flex-col items-center">
+                                <CheckCircle2 size={24} className="text-red-300 mb-1" />
+                                <p className="text-[10px] font-bold text-red-400">Herkes Ödedi!</p>
+                            </div>
+                        ) : (
+                            unpaidStudents.map(s => renderStudentRow(s, false))
+                        )}
+                    </div>
                 </div>
 
-                {/* Content List */}
-                <div className="flex-1 space-y-1.5 lg:overflow-y-auto lg:pr-1 custom-scrollbar">
-                    {unpaidStudents.length === 0 ? (
-                        <div className="text-center py-8 opacity-40 flex flex-col items-center">
-                             <CheckCircle2 size={24} className="text-red-300 mb-1" />
-                             <p className="text-[10px] font-bold text-red-400">Herkes Ödedi!</p>
-                        </div>
-                    ) : (
-                        unpaidStudents.map(s => renderStudentRow(s, false))
-                    )}
+                {/* --- RIGHT: PAID --- */}
+                <div className="flex flex-col bg-emerald-50/30 rounded-xl border border-emerald-100/50 p-2 h-fit lg:h-full lg:min-h-0">
+                    <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-emerald-100/50">
+                        <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
+                            <CheckCircle2 size={12} />
+                            Ödeyenler
+                        </h3>
+                        <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] font-bold">{paidStudents.length}</span>
+                    </div>
+
+                    <div className="flex-1 space-y-1.5 lg:overflow-y-auto lg:pr-1 custom-scrollbar">
+                        {paidStudents.length === 0 ? (
+                            <div className="text-center py-8 opacity-40 flex flex-col items-center">
+                                <Clock size={24} className="text-emerald-300 mb-1" />
+                                <p className="text-[10px] font-bold text-emerald-400">Henüz ödeme yok.</p>
+                            </div>
+                        ) : (
+                            paidStudents.map(s => renderStudentRow(s, true))
+                        )}
+                    </div>
                 </div>
+
             </div>
-
-            {/* --- RIGHT: PAID (GREEN) --- */}
-            <div className="flex flex-col bg-emerald-50/30 rounded-xl border border-emerald-100/50 p-2 h-fit lg:h-full lg:min-h-0">
-                {/* Header */}
-                <div className="flex items-center justify-between px-1 py-2 mb-1 border-b border-emerald-100/50">
-                    <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
-                        <CheckCircle2 size={12} />
-                        Ödeyenler
-                    </h3>
-                    <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] font-bold">{paidStudents.length}</span>
-                </div>
-
-                {/* Content List */}
-                <div className="flex-1 space-y-1.5 lg:overflow-y-auto lg:pr-1 custom-scrollbar">
-                    {paidStudents.length === 0 ? (
-                        <div className="text-center py-8 opacity-40 flex flex-col items-center">
-                             <Clock size={24} className="text-emerald-300 mb-1" />
-                             <p className="text-[10px] font-bold text-emerald-400">Henüz ödeme yok.</p>
-                        </div>
-                    ) : (
-                        paidStudents.map(s => renderStudentRow(s, true))
-                    )}
-                </div>
-            </div>
-
-        </div>
+        )}
 
       </div>
 
@@ -363,7 +387,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       <Dialog isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} title="Toplu SMS">
         <div className="flex flex-col gap-4 py-2">
             
-            {/* Hedef Seçimi */}
             <div className="flex bg-slate-100 p-1 rounded-xl">
                 <button 
                     onClick={() => { setBulkTarget('UNPAID'); setBulkMessage("Sayın veli, ödeme hatırlatmasıdır. Bilginize."); }}
@@ -381,7 +404,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col gap-1">
                 <span className="text-slate-600 text-xs font-medium">
-                    {bulkTarget === 'UNPAID' ? `${unpaidStudents.length} kişiye gönderilecek (Ödeme Yapmayanlar)` : `${totalStudents} kişiye gönderilecek (Herkes)`}
+                    {bulkTarget === 'UNPAID' ? `${unpaidStudents.length} kişiye gönderilecek (Ödeme Yapmayanlar)` : `${totalActiveStudents} kişiye gönderilecek (Herkes)`}
                 </span>
             </div>
 
@@ -420,7 +443,8 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
         }
       >
         <p className="text-slate-600 text-sm">
-            <strong className="text-slate-900">{deleteId && state.students[deleteId]?.name}</strong> silinecek.
+            <strong className="text-slate-900">{deleteId && state.students[deleteId]?.name}</strong> silinecek. <br/>
+            <span className="text-xs text-slate-400 block mt-1">Eğer sadece dersleri bittiyse "Arşivle" özelliğini kullanabilirsiniz.</span>
         </p>
       </Dialog>
     </div>

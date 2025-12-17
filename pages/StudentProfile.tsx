@@ -62,6 +62,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [editPhone, setEditPhone] = useState("");
   const [editFee, setEditFee] = useState("");
   const [editColor, setEditColor] = useState("");
+  const [editIsActive, setEditIsActive] = useState(true);
 
   // NEXT LESSON NOTE
   const [isNoteEditing, setIsNoteEditing] = useState(false);
@@ -162,11 +163,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           }
       });
 
-      // ARTIK KUTUCUKTA 'counter' (Son ödemeden sonraki toplam) gösteriyoruz.
       return { 
           currentHistory: current, 
           archivedHistory: archived, 
-          totalDoneCount: counter, // BURASI GÜNCELLENDİ: Eskiden thisMonthDoneCount idi.
+          totalDoneCount: counter,
           lessonNumberMap: map
       };
   }, [student]);
@@ -215,17 +215,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleAddPastPayment = () => {
       if (pastPaymentDate && pastPaymentAmount !== "") {
-          // Robust parsing: Remove thousands separators (dots), replace decimal comma with dot
-          // ONLY if it has a comma. If no comma, strip dots (thousands)
           let cleanString = pastPaymentAmount.toString().replace(/\s/g, '');
-          if (cleanString.includes(',')) {
-              cleanString = cleanString.replace(/\./g, '').replace(',', '.');
-          } else {
-              cleanString = cleanString.replace(/\./g, '');
-          }
+          if (cleanString.includes(',')) cleanString = cleanString.replace(/\./g, '').replace(',', '.');
+          else cleanString = cleanString.replace(/\./g, '');
           
           const finalAmount = parseFloat(cleanString);
-          
           actions.addTransaction(
               studentId, 
               'PAYMENT', 
@@ -240,16 +234,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleUpdateStudent = () => {
       if (editName) {
-          // Robust parsing for fee in edit mode as well
           let cleanFee = editFee.toString().replace(/\s/g, '');
-          if (cleanFee.includes(',')) {
-              cleanFee = cleanFee.replace(/\./g, '').replace(',', '.');
-          } else {
-              cleanFee = cleanFee.replace(/\./g, '');
-          }
+          if (cleanFee.includes(',')) cleanFee = cleanFee.replace(/\./g, '').replace(',', '.');
+          else cleanFee = cleanFee.replace(/\./g, '');
           const finalFee = parseFloat(cleanFee) || 0;
           
           actions.updateStudent(studentId, editName, editPhone, finalFee, editColor);
+          actions.toggleStudentStatus(studentId, editIsActive); // Status update
+          
           setIsEditModalOpen(false);
       }
   };
@@ -514,13 +506,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
            icon = <XCircle size={16} />;
            iconClass = "bg-red-50 text-red-600";
       } else {
-          // --- DİNAMİK NUMARALANDIRMA (BURASI DÜZELTİLDİ) ---
-          // Veritabanında "11. Ders" yazsa bile, dinamik hesaplanan numarayı kullan.
           const calculatedNum = lessonNumberMap[tx.id];
           if (calculatedNum) {
               title = `${calculatedNum}. Ders İşlendi`;
           } else {
-              // Yedek olarak notu kullan
               title = tx.note;
           }
       }
@@ -568,7 +557,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                     <MessageCircle size={18} />
                 </button>
                 <button 
-                    onClick={() => { setEditName(student.name); setEditPhone(student.phone); setEditFee(student.fee.toString()); setEditColor(student.color || 'indigo'); setIsEditModalOpen(true); }}
+                    onClick={() => { setEditName(student.name); setEditPhone(student.phone); setEditFee(student.fee.toString()); setEditColor(student.color || 'indigo'); setEditIsActive(student.isActive !== false); setIsEditModalOpen(true); }}
                     className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
                     title="Düzenle"
                 >
@@ -584,9 +573,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
             <div>
                 <h2 className="text-xl font-black text-slate-900 leading-tight">{student.name}</h2>
                 <div className="flex items-center gap-2 mt-1">
-                     <button onClick={handleOpenParentPortal} className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors">
-                        <Globe size={10} /> Veli Bilgilendirme Linki
-                     </button>
+                     {student.isActive === false ? (
+                         <div className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold border border-slate-200">
+                             Arşivlenmiş (Pasif)
+                         </div>
+                     ) : (
+                         <button onClick={handleOpenParentPortal} className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors">
+                            <Globe size={10} /> Veli Bilgilendirme Linki
+                         </button>
+                     )}
                 </div>
             </div>
         </div>
@@ -772,6 +767,50 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       </div>
 
       {/* --- MODALS --- */}
+      <Dialog isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Öğrenci Düzenle" 
+          actions={<><button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleUpdateStudent} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Güncelle</button></>}
+      >
+          <div className="flex flex-col gap-3 py-2">
+              <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="İsim" />
+              <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Telefon" />
+              <input type="text" inputMode="decimal" value={editFee} onChange={(e) => setEditFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Ücret" />
+              
+              {/* Color Picker */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 ml-1">Öğrenci Rengi</label>
+                <div className="flex gap-2 justify-between">
+                    {STUDENT_COLORS.map(c => (
+                        <button 
+                            key={c.key} 
+                            onClick={() => setEditColor(c.key)}
+                            className={`w-8 h-8 rounded-full border-2 transition-all ${editColor === c.key ? 'border-slate-800 scale-110' : 'border-transparent'}`}
+                            style={{ backgroundColor: c.hex }}
+                            title={c.label}
+                        />
+                    ))}
+                </div>
+             </div>
+
+             {/* Status Switch */}
+             <div className="bg-slate-100 p-3 rounded-xl flex items-center justify-between mt-2">
+                 <div className="flex items-center gap-2">
+                     <Archive size={16} className={!editIsActive ? "text-slate-600" : "text-slate-400"} />
+                     <span className="text-xs font-bold text-slate-700">Öğrenci Durumu</span>
+                 </div>
+                 <button 
+                    onClick={() => setEditIsActive(!editIsActive)}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${editIsActive ? 'bg-emerald-500' : 'bg-slate-400'}`}
+                 >
+                     <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${editIsActive ? 'left-7' : 'left-1'}`}></div>
+                 </button>
+             </div>
+             <p className="text-[9px] text-center text-slate-400 font-medium">
+                 {editIsActive ? "Aktif: Listelerde görünür." : "Pasif: Arşive kaldırılır, listelerden gizlenir."}
+             </p>
+          </div>
+      </Dialog>
+      
+      {/* Other Modals omitted for brevity - they remain unchanged */}
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" 
           actions={<><button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddPastLesson} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Ekle</button></>}
       >
@@ -785,7 +824,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
               <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tutar (TL)</label>
-                  {/* Changed input type to text/decimal to prevent browser localization issues */}
                   <input 
                       type="text" 
                       inputMode="decimal"
@@ -794,7 +832,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" 
                       placeholder="Örn: 1500" 
                   />
-                  <p className="text-[9px] text-slate-400 mt-1">Sadece rakam giriniz (Kuruş için virgül veya nokta kullanabilirsiniz)</p>
+                  <p className="text-[9px] text-slate-400 mt-1">Sadece rakam giriniz</p>
               </div>
           </div>
       </Dialog>
@@ -825,31 +863,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  Seçilen saatte başka bir ders varsa, üzerine yazılacaktır.
              </div>
          </div>
-      </Dialog>
-
-      <Dialog isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Öğrenci Düzenle" 
-          actions={<><button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleUpdateStudent} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Güncelle</button></>}
-      >
-          <div className="flex flex-col gap-3 py-2">
-              <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="İsim" />
-              <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Telefon" />
-              <input type="text" inputMode="decimal" value={editFee} onChange={(e) => setEditFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Ücret" />
-              
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 ml-1">Öğrenci Rengi</label>
-                <div className="flex gap-2 justify-between">
-                    {STUDENT_COLORS.map(c => (
-                        <button 
-                            key={c.key} 
-                            onClick={() => setEditColor(c.key)}
-                            className={`w-8 h-8 rounded-full border-2 transition-all ${editColor === c.key ? 'border-slate-800 scale-110' : 'border-transparent'}`}
-                            style={{ backgroundColor: c.hex }}
-                            title={c.label}
-                        />
-                    ))}
-                </div>
-             </div>
-          </div>
       </Dialog>
       
       {/* NOTE EDIT MODAL */}
@@ -935,6 +948,13 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       <Dialog isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title="Dosya Önizleme" actions={<button onClick={() => setIsPreviewOpen(false)} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Kapat</button>}>
           <div className="flex items-center justify-center min-h-[200px] max-h-[60vh] overflow-auto bg-slate-50 rounded-xl p-2 border border-slate-100">
               {isPreviewLoading ? (<div className="flex flex-col items-center gap-2"><Loader2 size={32} className="animate-spin text-indigo-600" /><span className="text-xs font-bold text-slate-400">Yükleniyor...</span></div>) : previewContent ? (previewType === 'IMAGE' ? (<img src={previewContent} alt="Preview" className="max-w-full h-auto rounded-lg shadow-sm" />) : (<iframe src={previewContent} className="w-full h-[300px] rounded-lg" title="PDF Preview"></iframe>)) : (<div className="flex flex-col items-center gap-2"><XCircle size={32} className="text-red-300" /><span className="text-xs font-bold text-slate-400">Dosya görüntülenemedi.</span></div>)}
+          </div>
+      </Dialog>
+      
+      {/* Archive Modal */}
+      <Dialog isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)} title="Geçmiş Kayıtlar">
+          <div className="max-h-[60vh] overflow-y-auto space-y-4 py-2 pr-1 custom-scrollbar">
+               {archivedHistory.length === 0 ? <p className="text-center text-slate-400 text-sm">Kayıt yok.</p> : archivedHistory.map(tx => renderTransactionItem(tx))}
           </div>
       </Dialog>
     </div>

@@ -73,12 +73,7 @@ const parseCurrency = (val: string | number): number => {
         clean = clean.replace(/\./g, '').replace(',', '.');
     } else {
         // Format: 1.500 or 1500
-        // If it contains dots, we assume they are thousands separators IF logic suggests so.
-        // However, standard parseFloat("1.500") is 1.5.
-        // To support "1.500" as 1500 in TR locale without commas, we must strip dots.
-        // BUT "1.5" could mean 1.5. 
-        // Heuristic: If it has more than 3 digits, or if the user is typing a fee, it's likely an integer.
-        // SAFEST: Just strip dots if no comma is present, assuming integer input for fees mostly.
+        // Safest: Just strip dots if no comma is present, assuming integer input for fees mostly.
         clean = clean.replace(/\./g, '');
     }
     
@@ -145,6 +140,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               if (lessonEnd < now) {
                   const student = newState.students[slot.studentId];
                   if (!student) return;
+                  if (student.isActive === false) return; // Skip inactive students
+
                   const history = student.history || [];
                   const hasTx = history.some(tx => {
                       if (!tx.isDebt) return false;
@@ -241,12 +238,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const newState = updater(current);
           newState.updatedAt = new Date().toISOString();
           if (user) {
-              // Ensure we don't save undefined values to Firestore
-              // Deep clone or sanitized object might be needed if complex, 
-              // but here we ensure critical paths are clean in actions.
               DataService.saveUserData(user.id, newState).catch(err => {
                   console.error("CRITICAL SAVE ERROR:", err);
-                  // Retry or alert user could go here
               });
           }
           if (current.themeColor !== newState.themeColor) updateCssVariables(newState.themeColor);
@@ -297,7 +290,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               history: [],
               resources: [],
               color: color || 'indigo',
-              nextLessonNote: "" // Ensure empty string, not undefined
+              nextLessonNote: "",
+              isActive: true // Default Active
           };
           updateState(s => ({ ...s, students: { ...s.students, [id]: newStudent } }));
           return id;
@@ -325,15 +319,27 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           };
       }),
 
+      toggleStudentStatus: (id, isActive) => updateState(s => {
+          const student = s.students[id];
+          if (!student) return s;
+          
+          // If deactivated, we might want to optionally clear future slots, but for now we keep data intact.
+          return {
+              ...s,
+              students: {
+                  ...s.students,
+                  [id]: { ...student, isActive }
+              }
+          };
+      }),
+
       deleteStudent: (id) => updateState(s => {
           const { [id]: deleted, ...rest } = s.students;
           const newSchedule = { ...s.schedule };
           Object.keys(newSchedule).forEach(key => {
-              // Ensure we clean up the slot completely to avoid undefined labels
               newSchedule[key] = newSchedule[key].map(slot => 
                   slot.studentId === id ? { ...slot, studentId: null, label: undefined } : slot
               );
-              // Clean undefineds from map just in case (Firestore hates them)
               newSchedule[key] = JSON.parse(JSON.stringify(newSchedule[key]));
           });
           return { ...s, students: rest, schedule: newSchedule };
@@ -370,8 +376,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   };
               }
           }
-          // IMPORTANT: If label is undefined, don't pass it or pass null/string. 
-          // Undefined crashes Firestore setDoc.
           const finalLabel = label || null; 
           
           return { 
@@ -423,10 +427,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           const newTx: Transaction = {
               id: Math.random().toString(36).substr(2, 9),
-              note: note || "", // Ensure string
+              note: note || "", 
               date,
               isDebt,
-              amount: isNaN(parsedAmount) ? 0 : parsedAmount // Ensure number
+              amount: isNaN(parsedAmount) ? 0 : parsedAmount
           };
           
           return {
@@ -437,7 +441,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       ...student,
                       debtLessonCount: newDebtCount,
                       history: [newTx, ...history],
-                      // IMPORTANT: Handle potentially undefined nextLessonNote
                       nextLessonNote: isDebt ? "" : (student.nextLessonNote || "") 
                   }
               }
@@ -485,8 +488,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       moveStudent: (studentId, fromDay, fromSlotId, toDay, newStart) => updateState(s => {
         const oldKey = `${s.currentTeacher}|${fromDay}`;
         const oldSlots = s.schedule[oldKey] || [];
-        
-        // Ensure old label is preserved safely
         const oldSlot = oldSlots.find(sl => sl.id === fromSlotId);
         const oldLabel = oldSlot?.label || null;
         

@@ -27,6 +27,7 @@ export interface Student {
   resources: Resource[]; // Ödevler ve Materyaller
   color?: string; // 'indigo' | 'rose' | 'emerald' | 'amber' | 'cyan' | 'purple'
   nextLessonNote?: string; // "Haftaya yok" gibi geçici notlar
+  isActive?: boolean; // true: Devam Ediyor, false: Ayrıldı/Pasif
 }
 
 export interface LessonSlot {
@@ -69,6 +70,7 @@ export interface CourseContextType {
     switchTeacher: (name: string) => void;
     addStudent: (name: string, phone: string, fee: number, registrationDate?: string, color?: string) => string;
     updateStudent: (id: string, name: string, phone: string, fee: number, color?: string, nextLessonNote?: string) => void;
+    toggleStudentStatus: (id: string, isActive: boolean) => void; // Yeni Eklendi
     deleteStudent: (id: string) => void;
     getStudent: (id: string) => Student | undefined;
     addSlot: (day: WeekDay, start: string, end: string) => void;
