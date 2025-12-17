@@ -64,18 +64,23 @@ const parseCurrency = (val: string | number): number => {
     // Remove all spaces
     let clean = val.toString().replace(/\s/g, '');
     
-    // Check if it has a comma (common in TR for decimal) and dots for thousands
-    if (clean.includes(',') && clean.includes('.')) {
-        // Assume format 1.500,50 -> remove dots, replace comma with dot
+    // TR Format Detection (e.g. 1.500 or 1.500,50)
+    // If there is a comma, it is likely the decimal separator in TR.
+    // If there are dots, they are likely thousands separators.
+    
+    if (clean.includes(',')) {
+        // Format: 1.500,50 or 1500,50 -> Remove dots, replace comma with dot
         clean = clean.replace(/\./g, '').replace(',', '.');
-    } else if (clean.includes(',')) {
-        // Assume format 1500,50 -> replace comma with dot
-        clean = clean.replace(',', '.');
+    } else {
+        // Format: 1.500 or 1500
+        // If it contains dots, we assume they are thousands separators IF logic suggests so.
+        // However, standard parseFloat("1.500") is 1.5.
+        // To support "1.500" as 1500 in TR locale without commas, we must strip dots.
+        // BUT "1.5" could mean 1.5. 
+        // Heuristic: If it has more than 3 digits, or if the user is typing a fee, it's likely an integer.
+        // SAFEST: Just strip dots if no comma is present, assuming integer input for fees mostly.
+        clean = clean.replace(/\./g, '');
     }
-    // Note: If only dots exist (1.500), parseFloat treats it as 1.5 (decimal) or 1500 (ignoring invalid stuff after dot?)
-    // In JS parseFloat("1.500") is 1.5. 
-    // To support "1.500" as 1500, we'd need to know context. 
-    // We assume the inputs will be pre-processed or standard JS format if no commas are involved.
     
     const result = parseFloat(clean);
     return isNaN(result) ? 0 : result;
@@ -173,7 +178,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                                    ...student,
                                    debtLessonCount: nextNum,
                                    history: [newTx, ...history],
-                                   nextLessonNote: "" 
+                                   nextLessonNote: student.nextLessonNote || "" 
                                }
                            }
                        };
@@ -235,7 +240,15 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setState(current => {
           const newState = updater(current);
           newState.updatedAt = new Date().toISOString();
-          if (user) DataService.saveUserData(user.id, newState).catch(console.error);
+          if (user) {
+              // Ensure we don't save undefined values to Firestore
+              // Deep clone or sanitized object might be needed if complex, 
+              // but here we ensure critical paths are clean in actions.
+              DataService.saveUserData(user.id, newState).catch(err => {
+                  console.error("CRITICAL SAVE ERROR:", err);
+                  // Retry or alert user could go here
+              });
+          }
           if (current.themeColor !== newState.themeColor) updateCssVariables(newState.themeColor);
           return newState;
       });
@@ -250,9 +263,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const actions: CourseContextType['actions'] = {
-      updateSchoolName: (name) => updateState(s => ({ ...s, schoolName: name })),
-      updateSchoolIcon: (icon) => updateState(s => ({ ...s, schoolIcon: icon })),
-      updateThemeColor: (color) => updateState(s => ({ ...s, themeColor: color })),
+      updateSchoolName: (name) => updateState(s => ({ ...s, schoolName: name || "" })),
+      updateSchoolIcon: (icon) => updateState(s => ({ ...s, schoolIcon: icon || "sparkles" })),
+      updateThemeColor: (color) => updateState(s => ({ ...s, themeColor: color || "indigo" })),
       
       addTeacher: (name) => updateState(s => {
           if (s.teachers.includes(name)) return s;
@@ -284,7 +297,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               history: [],
               resources: [],
               color: color || 'indigo',
-              nextLessonNote: ""
+              nextLessonNote: "" // Ensure empty string, not undefined
           };
           updateState(s => ({ ...s, students: { ...s.students, [id]: newStudent } }));
           return id;
@@ -294,6 +307,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const student = s.students[id];
           if (!student) return s;
           const finalColor = color !== undefined ? color : (student.color || 'indigo');
+          const finalNote = nextLessonNote !== undefined ? nextLessonNote : (student.nextLessonNote || "");
+          
           return { 
               ...s, 
               students: { 
@@ -304,7 +319,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       phone: phone.trim(), 
                       fee: parseCurrency(fee),
                       color: finalColor,
-                      nextLessonNote: nextLessonNote !== undefined ? nextLessonNote : student.nextLessonNote
+                      nextLessonNote: finalNote
                   } 
               } 
           };
@@ -314,9 +329,12 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const { [id]: deleted, ...rest } = s.students;
           const newSchedule = { ...s.schedule };
           Object.keys(newSchedule).forEach(key => {
+              // Ensure we clean up the slot completely to avoid undefined labels
               newSchedule[key] = newSchedule[key].map(slot => 
                   slot.studentId === id ? { ...slot, studentId: null, label: undefined } : slot
               );
+              // Clean undefineds from map just in case (Firestore hates them)
+              newSchedule[key] = JSON.parse(JSON.stringify(newSchedule[key]));
           });
           return { ...s, students: rest, schedule: newSchedule };
       }),
@@ -352,17 +370,34 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   };
               }
           }
+          // IMPORTANT: If label is undefined, don't pass it or pass null/string. 
+          // Undefined crashes Firestore setDoc.
+          const finalLabel = label || null; 
+          
           return { 
               ...s, 
               students: studentsUpdate,
-              schedule: { ...s.schedule, [key]: currentSlots.map(slot => slot.id === slotId ? { ...slot, studentId, label } : slot) } 
+              schedule: { 
+                  ...s.schedule, 
+                  [key]: currentSlots.map(slot => 
+                      slot.id === slotId ? { ...slot, studentId, label: finalLabel as any } : slot
+                  ) 
+              } 
           };
       }),
 
       cancelSlot: (day, slotId) => updateState(s => {
           const key = `${s.currentTeacher}|${day}`;
           const currentSlots = s.schedule[key] || [];
-          return { ...s, schedule: { ...s.schedule, [key]: currentSlots.map(slot => slot.id === slotId ? { ...slot, studentId: null, label: undefined } : slot) } };
+          return { 
+              ...s, 
+              schedule: { 
+                  ...s.schedule, 
+                  [key]: currentSlots.map(slot => 
+                      slot.id === slotId ? { ...slot, studentId: null, label: null as any } : slot
+                  ) 
+              } 
+          };
       }),
 
       addTransaction: (studentId, type, customDate, amount) => updateState(s => {
@@ -388,11 +423,12 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           const newTx: Transaction = {
               id: Math.random().toString(36).substr(2, 9),
-              note,
+              note: note || "", // Ensure string
               date,
               isDebt,
-              amount: parsedAmount
+              amount: isNaN(parsedAmount) ? 0 : parsedAmount // Ensure number
           };
+          
           return {
               ...s,
               students: {
@@ -401,7 +437,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       ...student,
                       debtLessonCount: newDebtCount,
                       history: [newTx, ...history],
-                      nextLessonNote: isDebt ? "" : student.nextLessonNote 
+                      // IMPORTANT: Handle potentially undefined nextLessonNote
+                      nextLessonNote: isDebt ? "" : (student.nextLessonNote || "") 
                   }
               }
           };
@@ -416,7 +453,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
           const updatedHistory = (student.history || []).map(tx => {
               if (tx.id === transactionId) {
-                  return { ...tx, note, date: customDate ? new Date(customDate).toISOString() : tx.date };
+                  return { ...tx, note: note || "", date: customDate ? new Date(customDate).toISOString() : tx.date };
               }
               return tx;
           });
@@ -446,35 +483,30 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       moveSlot: (fromDay, fromSlotId, toDay, toSlotId) => updateState(s => s), 
       
       moveStudent: (studentId, fromDay, fromSlotId, toDay, newStart) => updateState(s => {
-        // 1. Remove from old slot
         const oldKey = `${s.currentTeacher}|${fromDay}`;
         const oldSlots = s.schedule[oldKey] || [];
-        const student = s.students[studentId];
-        // Find existing slot data to keep label (e.g. TRIAL/MAKEUP) if needed, usually we keep standard unless defined
+        
+        // Ensure old label is preserved safely
         const oldSlot = oldSlots.find(sl => sl.id === fromSlotId);
-        const oldLabel = oldSlot?.label;
+        const oldLabel = oldSlot?.label || null;
         
         const updatedOldSlots = oldSlots.map(slot => 
-            slot.id === fromSlotId ? { ...slot, studentId: null, label: undefined } : slot
+            slot.id === fromSlotId ? { ...slot, studentId: null, label: null as any } : slot
         );
 
-        // 2. Add to new slot
         const newKey = `${s.currentTeacher}|${toDay}`;
         let newSlots = [...(s.schedule[newKey] || [])];
         
-        // Find if slot exists at that time
         const targetSlotIndex = newSlots.findIndex(slot => slot.start === newStart);
         
         if (targetSlotIndex > -1) {
-            // Update existing slot
             newSlots[targetSlotIndex] = {
                 ...newSlots[targetSlotIndex],
                 studentId: studentId,
-                label: oldLabel
+                label: oldLabel as any
             };
         } else {
-            // Create new slot
-            const duration = 40; // Default assumption or calculate from old slot
+            const duration = 40; 
             const [h, m] = newStart.split(':').map(Number);
             const startMins = h * 60 + m;
             const endMins = startMins + duration;
@@ -485,10 +517,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 start: newStart,
                 end: newEnd,
                 studentId: studentId,
-                label: oldLabel
+                label: oldLabel as any
             };
             newSlots.push(newSlot);
-            // Sort slots
             newSlots.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
         }
 
@@ -507,7 +538,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       addResource: (studentId, title, url, type) => updateState(s => {
           const student = s.students[studentId];
           if(!student) return s;
-          const newRes: Resource = { id: Math.random().toString(36).substr(2,9), title, url, type, date: new Date().toISOString() };
+          const newRes: Resource = { id: Math.random().toString(36).substr(2,9), title: title || "Belge", url, type, date: new Date().toISOString() };
           return { ...s, students: { ...s.students, [studentId]: { ...student, resources: [newRes, ...(student.resources || [])] } } };
       }),
 

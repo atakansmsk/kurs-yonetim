@@ -216,7 +216,14 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const handleAddPastPayment = () => {
       if (pastPaymentDate && pastPaymentAmount !== "") {
           // Robust parsing: Remove thousands separators (dots), replace decimal comma with dot
-          const cleanString = pastPaymentAmount.replace(/\./g, '').replace(',', '.');
+          // ONLY if it has a comma. If no comma, strip dots (thousands)
+          let cleanString = pastPaymentAmount.toString().replace(/\s/g, '');
+          if (cleanString.includes(',')) {
+              cleanString = cleanString.replace(/\./g, '').replace(',', '.');
+          } else {
+              cleanString = cleanString.replace(/\./g, '');
+          }
+          
           const finalAmount = parseFloat(cleanString);
           
           actions.addTransaction(
@@ -234,7 +241,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const handleUpdateStudent = () => {
       if (editName) {
           // Robust parsing for fee in edit mode as well
-          const cleanFee = editFee.toString().replace(/\./g, '').replace(',', '.');
+          let cleanFee = editFee.toString().replace(/\s/g, '');
+          if (cleanFee.includes(',')) {
+              cleanFee = cleanFee.replace(/\./g, '').replace(',', '.');
+          } else {
+              cleanFee = cleanFee.replace(/\./g, '');
+          }
           const finalFee = parseFloat(cleanFee) || 0;
           
           actions.updateStudent(studentId, editName, editPhone, finalFee, editColor);
