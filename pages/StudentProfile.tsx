@@ -5,7 +5,6 @@ import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Walle
 import { Dialog } from '../components/Dialog';
 import { Transaction, DAYS, WeekDay } from '../types';
 import { FileService } from '../services/api';
-import { AiAssistantDialog } from '../components/AiAssistantDialog';
 
 interface StudentProfileProps {
   studentId: string;
@@ -35,7 +34,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
   const [isResourcesModalOpen, setIsResourcesModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   
   // Move Lesson Modal
   const [isMoveLessonModalOpen, setIsMoveLessonModalOpen] = useState(false);
@@ -538,9 +536,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
             </button>
             
             <div className="flex gap-2">
-                 <button onClick={() => setIsAiAssistantOpen(true)} className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200" title="AI Asistanı">
-                    <Sparkles size={18} />
-                 </button>
                  <button onClick={handleCall} className="w-10 h-10 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors" title="Ara">
                     <Phone size={18} />
                 </button>
@@ -750,13 +745,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                )}
           </div>
       </div>
-
-      {/* --- AI Assistant Modal --- */}
-      <AiAssistantDialog 
-        isOpen={isAiAssistantOpen} 
-        onClose={() => setIsAiAssistantOpen(false)} 
-        student={student} 
-      />
 
       {/* --- MODALS --- */}
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" 
