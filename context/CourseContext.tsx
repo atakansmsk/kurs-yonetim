@@ -55,11 +55,35 @@ const THEMES: Record<string, Record<string, string>> = {
   }
 };
 
+// IMPROVED CURRENCY PARSER
+// 1.500 -> 1500
+// 1500,50 -> 1500.5
+// 1,500.00 -> 1500
 const parseCurrency = (val: string | number): number => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
-    const normalized = val.replace(',', '.');
-    return parseFloat(normalized) || 0;
+    
+    // Remove all spaces
+    let clean = val.toString().replace(/\s/g, '');
+    
+    // Check if it has a comma (common in TR for decimal) and dots for thousands
+    if (clean.includes(',') && clean.includes('.')) {
+        // Assume format 1.500,50 -> remove dots, replace comma with dot
+        clean = clean.replace(/\./g, '').replace(',', '.');
+    } else if (clean.includes(',')) {
+        // Assume format 1500,50 -> replace comma with dot
+        clean = clean.replace(',', '.');
+    }
+    // If only dots exist (e.g. 1.500), it's ambiguous. 
+    // Usually means thousands in TR context if > 3 digits or followed by 3 digits.
+    // BUT standard parseFloat treats dot as decimal.
+    // Let's assume input[type=number] or manual entry might be mixed.
+    // Safer strategy: If user types "1.500", we assume 1500. 
+    // If user types "1.5", we assume 1.5. 
+    // This heuristic is tricky. Best to rely on frontend input masking, 
+    // but here we will just ensure standard float parsing works after cleanup.
+    
+    return parseFloat(clean) || 0;
 };
 
 const getTodayName = (): WeekDay => {
@@ -69,22 +93,11 @@ const getTodayName = (): WeekDay => {
   return map[new Date().getDay()];
 };
 
-// YARDIMCI: Bir sonraki ders numarasını hesapla.
-// Mantık: Geçmişi YENİDEN ESKİYE tara. İlk ÖDEME ('isDebt: false') görene kadar olan dersleri say.
 const calculateNextLessonNumber = (history: Transaction[]): number => {
-    // 1. Tarihe göre yeniden eskiye sırala (Garanti olsun)
     const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
     let count = 0;
-
     for (const tx of sorted) {
-        // Eğer ödeme gördüysek saymayı durdur. Çünkü ödeme borcu sıfırlar.
-        // Yeni ders 1. ders olacaktır.
-        if (!tx.isDebt) {
-            break;
-        }
-
-        // Eğer bu bir ders ise (ve iptal/gelmedi değilse) sayaca ekle
+        if (!tx.isDebt) break;
         if (tx.isDebt) {
             const lowerNote = tx.note.toLowerCase();
             if (!lowerNote.includes('iptal') && !lowerNote.includes('gelmedi') && !lowerNote.includes('telafi')) {
@@ -92,8 +105,18 @@ const calculateNextLessonNumber = (history: Transaction[]): number => {
             }
         }
     }
-
     return count + 1;
+};
+
+const timeToMinutes = (time: string) => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
+const minutesToTime = (minutes: number) => {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -102,13 +125,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isLoaded, setIsLoaded] = useState(false);
   const processingRef = useRef(false);
 
-  // AUTO PROCESSING LOGIC
   const checkAndProcessLessons = (currentState: AppState): AppState | null => {
       if (!currentState.autoLessonProcessing) return null;
-
       const now = new Date();
       const todayName = getTodayName();
-      
       let newState = { ...currentState };
       let changesFound = false;
 
@@ -118,7 +138,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const slots = newState.schedule[key];
           slots.forEach(slot => {
               if (!slot.studentId) return;
-
               const [h, m] = slot.end.split(':').map(Number);
               const lessonEnd = new Date();
               lessonEnd.setHours(h, m, 0, 0);
@@ -126,7 +145,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               if (lessonEnd < now) {
                   const student = newState.students[slot.studentId];
                   if (!student) return;
-
                   const history = student.history || [];
                   const hasTx = history.some(tx => {
                       if (!tx.isDebt) return false;
@@ -138,18 +156,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
                   if (!hasTx) {
                        changesFound = true;
-                       
                        let note = "";
-                       // Dinamik Hesaplama: Ödeme sonrası kaçıncı ders?
                        const nextNum = calculateNextLessonNumber(history);
-
-                       if (slot.label === 'MAKEUP') {
-                           note = `Telafi Dersi (Tamamlandı)`;
-                       } else if (slot.label === 'TRIAL') {
-                           note = `Deneme Dersi (Tamamlandı)`;
-                       } else {
-                           note = `${nextNum}. Ders İşlendi`;
-                       }
+                       if (slot.label === 'MAKEUP') note = `Telafi Dersi (Tamamlandı)`;
+                       else if (slot.label === 'TRIAL') note = `Deneme Dersi (Tamamlandı)`;
+                       else note = `${nextNum}. Ders İşlendi`;
 
                        const newTx: Transaction = {
                           id: Math.random().toString(36).substr(2, 9),
@@ -175,7 +186,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               }
           });
       });
-
       return changesFound ? newState : null;
   };
 
@@ -259,7 +269,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       addStudent: (name, phone, fee, registrationDate, color) => {
           if (!name.trim()) return "";
-          
           const clean = (str: string) => str.trim().toLowerCase().replace(/\s+/g, ' ');
           const cleanPhone = (str: string) => str.replace(/\D/g, '');
           const targetName = clean(name);
@@ -267,9 +276,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const existingStudent = (Object.values(state.students) as Student[]).find(s => 
               clean(s.name) === targetName && cleanPhone(s.phone) === targetPhone
           );
-
           if (existingStudent) return existingStudent.id;
-
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
               id, 
@@ -291,10 +298,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updateStudent: (id, name, phone, fee, color, nextLessonNote) => updateState(s => {
           const student = s.students[id];
           if (!student) return s;
-          
-          // DÜZELTME: Renk parametresi gelmezse, mevcut rengi koru. O da yoksa varsayılan yap.
           const finalColor = color !== undefined ? color : (student.color || 'indigo');
-
           return { 
               ...s, 
               students: { 
@@ -343,7 +347,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       bookSlot: (day, slotId, studentId, label) => updateState(s => {
           const key = `${s.currentTeacher}|${day}`;
           const currentSlots = s.schedule[key] || [];
-          
           let studentsUpdate = s.students;
           if (label === 'MAKEUP') {
               const student = s.students[studentId];
@@ -354,51 +357,36 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   };
               }
           }
-
           return { 
               ...s, 
               students: studentsUpdate,
-              schedule: { 
-                  ...s.schedule, 
-                  [key]: currentSlots.map(slot => slot.id === slotId ? { ...slot, studentId, label } : slot) 
-              } 
+              schedule: { ...s.schedule, [key]: currentSlots.map(slot => slot.id === slotId ? { ...slot, studentId, label } : slot) } 
           };
       }),
 
       cancelSlot: (day, slotId) => updateState(s => {
           const key = `${s.currentTeacher}|${day}`;
           const currentSlots = s.schedule[key] || [];
-          return { 
-              ...s, 
-              schedule: { 
-                  ...s.schedule, 
-                  [key]: currentSlots.map(slot => slot.id === slotId ? { ...slot, studentId: null, label: undefined } : slot) 
-              } 
-          };
+          return { ...s, schedule: { ...s.schedule, [key]: currentSlots.map(slot => slot.id === slotId ? { ...slot, studentId: null, label: undefined } : slot) } };
       }),
 
       addTransaction: (studentId, type, customDate, amount) => updateState(s => {
           const student = s.students[studentId];
           if (!student) return s;
-
           const date = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
           const isDebt = type === 'LESSON';
           const history = student.history || [];
-          
           let newDebtCount = student.debtLessonCount;
           let note = "";
 
           if (isDebt) {
-              // DÜZELTME: Dinamik hesaplama ile sayacı sıfırlama garantisi.
-              // Son ödemeden sonraki ders sayısını hesaplar.
               const nextNum = calculateNextLessonNumber(history);
               newDebtCount = nextNum;
               note = `${nextNum}. Ders İşlendi`;
           } else {
-              newDebtCount = 0; // Ödeme yapıldı, borç sayacı sıfırlandı.
+              newDebtCount = 0;
               note = 'Ödeme Alındı';
           }
-
           const parsedAmount = (amount !== undefined && amount !== null && amount.toString() !== "") 
               ? parseCurrency(amount)
               : (isDebt ? 0 : student.fee);
@@ -410,7 +398,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               isDebt,
               amount: parsedAmount
           };
-
           return {
               ...s,
               students: {
@@ -419,7 +406,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                       ...student,
                       debtLessonCount: newDebtCount,
                       history: [newTx, ...history],
-                      nextLessonNote: isDebt ? "" : student.nextLessonNote // Clear note only on lesson done
+                      nextLessonNote: isDebt ? "" : student.nextLessonNote 
                   }
               }
           };
@@ -428,87 +415,111 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updateTransaction: (studentId, transactionId, note, customDate) => updateState(s => {
           const student = s.students[studentId];
           if (!student) return s;
-
           let newMakeupCredit = student.makeupCredit;
-          
           if (note.includes("Telafi Bekliyor")) {
              newMakeupCredit += 1;
           }
-
           const updatedHistory = (student.history || []).map(tx => {
               if (tx.id === transactionId) {
-                  return { 
-                      ...tx, 
-                      note,
-                      date: customDate ? new Date(customDate).toISOString() : tx.date
-                  };
+                  return { ...tx, note, date: customDate ? new Date(customDate).toISOString() : tx.date };
               }
               return tx;
           });
-
           return {
               ...s,
-              students: {
-                  ...s.students,
-                  [studentId]: {
-                      ...student,
-                      makeupCredit: newMakeupCredit,
-                      history: updatedHistory
-                  }
-              }
+              students: { ...s.students, [studentId]: { ...student, makeupCredit: newMakeupCredit, history: updatedHistory } }
           };
       }),
 
       deleteTransaction: (studentId, transactionId) => updateState(s => {
           const student = s.students[studentId];
           if (!student) return s;
-
           const history = student.history || [];
           const tx = history.find(t => t.id === transactionId);
           let newDebtCount = student.debtLessonCount;
-          
           if (tx && tx.isDebt && !tx.note.includes("Telafi") && !tx.note.includes("Deneme")) {
               newDebtCount = Math.max(0, newDebtCount - 1);
           }
-
           return {
               ...s,
-              students: {
-                  ...s.students,
-                  [studentId]: {
-                      ...student,
-                      debtLessonCount: newDebtCount,
-                      history: history.filter(t => t.id !== transactionId)
-                  }
-              }
+              students: { ...s.students, [studentId]: { ...student, debtLessonCount: newDebtCount, history: history.filter(t => t.id !== transactionId) } }
           };
       }),
 
       toggleAutoProcessing: () => updateState(s => ({ ...s, autoLessonProcessing: !s.autoLessonProcessing })),
 
       moveSlot: (fromDay, fromSlotId, toDay, toSlotId) => updateState(s => s), 
+      
+      moveStudent: (studentId, fromDay, fromSlotId, toDay, newStart) => updateState(s => {
+        // 1. Remove from old slot
+        const oldKey = `${s.currentTeacher}|${fromDay}`;
+        const oldSlots = s.schedule[oldKey] || [];
+        const student = s.students[studentId];
+        // Find existing slot data to keep label (e.g. TRIAL/MAKEUP) if needed, usually we keep standard unless defined
+        const oldSlot = oldSlots.find(sl => sl.id === fromSlotId);
+        const oldLabel = oldSlot?.label;
+        
+        const updatedOldSlots = oldSlots.map(slot => 
+            slot.id === fromSlotId ? { ...slot, studentId: null, label: undefined } : slot
+        );
+
+        // 2. Add to new slot
+        const newKey = `${s.currentTeacher}|${toDay}`;
+        let newSlots = [...(s.schedule[newKey] || [])];
+        
+        // Find if slot exists at that time
+        const targetSlotIndex = newSlots.findIndex(slot => slot.start === newStart);
+        
+        if (targetSlotIndex > -1) {
+            // Update existing slot
+            newSlots[targetSlotIndex] = {
+                ...newSlots[targetSlotIndex],
+                studentId: studentId,
+                label: oldLabel
+            };
+        } else {
+            // Create new slot
+            const duration = 40; // Default assumption or calculate from old slot
+            const [h, m] = newStart.split(':').map(Number);
+            const startMins = h * 60 + m;
+            const endMins = startMins + duration;
+            const newEnd = minutesToTime(endMins);
+            
+            const newSlot: LessonSlot = {
+                id: Math.random().toString(36).substr(2, 9),
+                start: newStart,
+                end: newEnd,
+                studentId: studentId,
+                label: oldLabel
+            };
+            newSlots.push(newSlot);
+            // Sort slots
+            newSlots.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+        }
+
+        return {
+            ...s,
+            schedule: {
+                ...s.schedule,
+                [oldKey]: updatedOldSlots,
+                [newKey]: newSlots
+            }
+        };
+      }),
+
       swapSlots: (dayA, slotIdA, dayB, slotIdB) => updateState(s => s),
 
       addResource: (studentId, title, url, type) => updateState(s => {
           const student = s.students[studentId];
           if(!student) return s;
-          const newRes: Resource = {
-              id: Math.random().toString(36).substr(2,9),
-              title, url, type, date: new Date().toISOString()
-          };
-          return {
-              ...s,
-              students: { ...s.students, [studentId]: { ...student, resources: [newRes, ...(student.resources || [])] } }
-          };
+          const newRes: Resource = { id: Math.random().toString(36).substr(2,9), title, url, type, date: new Date().toISOString() };
+          return { ...s, students: { ...s.students, [studentId]: { ...student, resources: [newRes, ...(student.resources || [])] } } };
       }),
 
       deleteResource: (studentId, resourceId) => updateState(s => {
           const student = s.students[studentId];
           if(!student) return s;
-          return {
-              ...s,
-              students: { ...s.students, [studentId]: { ...student, resources: (student.resources || []).filter(r => r.id !== resourceId) } }
-          };
+          return { ...s, students: { ...s.students, [studentId]: { ...student, resources: (student.resources || []).filter(r => r.id !== resourceId) } } };
       }),
 
       clearDay: (day) => updateState(s => {

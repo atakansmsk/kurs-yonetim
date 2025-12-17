@@ -1,9 +1,9 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, Eye, AlertTriangle, Sparkles } from 'lucide-react';
+import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, Eye, AlertTriangle, Sparkles, Clock, Calendar } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
-import { Transaction } from '../types';
+import { Transaction, DAYS, WeekDay } from '../types';
 import { FileService } from '../services/api';
 import { AiAssistantDialog } from '../components/AiAssistantDialog';
 
@@ -37,6 +37,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   
+  // Move Lesson Modal
+  const [isMoveLessonModalOpen, setIsMoveLessonModalOpen] = useState(false);
+  const [moveTargetDay, setMoveTargetDay] = useState<WeekDay>("Pazartesi");
+  const [moveTargetTime, setMoveTargetTime] = useState("12:00");
+  const [lessonToMove, setLessonToMove] = useState<{day: WeekDay, slotId: string, currentStart: string} | null>(null);
+
   // File Preview State
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
@@ -76,6 +82,21 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isProcessing, setIsProcessing] = useState(false); 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusText, setUploadStatusText] = useState("");
+
+  // Calculate Assigned Slots for Schedule Card
+  const assignedSlots = useMemo(() => {
+    if (!student) return [];
+    const slots: { day: WeekDay, start: string, end: string, slotId: string }[] = [];
+    DAYS.forEach(day => {
+        const key = `${state.currentTeacher}|${day}`;
+        (state.schedule[key] || []).forEach(slot => {
+            if (slot.studentId === student.id) {
+                slots.push({ day, start: slot.start, end: slot.end, slotId: slot.id });
+            }
+        });
+    });
+    return slots;
+  }, [state.schedule, state.currentTeacher, student]);
 
   useEffect(() => {
       if (isPastPaymentModalOpen && student) {
@@ -172,14 +193,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       window.open(url, '_blank');
   };
 
-  const handlePaymentReminder = () => {
-      const phone = getPhoneClean();
-      const currentMonth = new Date().toLocaleDateString('tr-TR', { month: 'long' });
-      const message = `Merhaba ${student.name}, ${currentMonth} ayı için ödeme hatırlatması yapmak istedim. Müsait olduğunuzda yardımcı olabilirseniz sevinirim. Teşekkürler! 🌸`;
-      const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-      window.open(url, '_blank');
-  };
-
   const handleShareResource = (title: string, resourceUrl: string) => {
       const phone = getPhoneClean();
       let message = "";
@@ -204,7 +217,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleAddPastPayment = () => {
       if (pastPaymentDate && pastPaymentAmount !== "") {
-          actions.addTransaction(studentId, 'PAYMENT', pastPaymentDate, parseFloat(pastPaymentAmount));
+          // Convert string to number safely before sending
+          actions.addTransaction(studentId, 'PAYMENT', pastPaymentDate, parseFloat(pastPaymentAmount.replace('.','').replace(',','.')));
           setIsPastPaymentModalOpen(false);
           setPastPaymentDate(getTodayString());
       }
@@ -258,6 +272,22 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       const baseUrl = window.location.origin + window.location.pathname;
       const portalUrl = `${baseUrl}?parentView=true&teacherId=${user?.id}&studentId=${student.id}`;
       window.open(portalUrl, '_blank');
+  };
+
+  // --- SCHEDULE MOVE HANDLER ---
+  const handleOpenMoveModal = (slot: {day: WeekDay, slotId: string, start: string}) => {
+      setLessonToMove({ day: slot.day, slotId: slot.slotId, currentStart: slot.start });
+      setMoveTargetDay(slot.day);
+      setMoveTargetTime(slot.start);
+      setIsMoveLessonModalOpen(true);
+  };
+
+  const handleConfirmMove = () => {
+      if (lessonToMove && moveTargetDay && moveTargetTime) {
+          actions.moveStudent(studentId, lessonToMove.day, lessonToMove.slotId, moveTargetDay, moveTargetTime);
+          setIsMoveLessonModalOpen(false);
+          setLessonToMove(null);
+      }
   };
 
   // --- FILE HANDLING ... (Aynı)
@@ -558,6 +588,37 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               )}
           </div>
 
+          {/* SCHEDULE CARD (NEW) */}
+          <div className="bg-white rounded-[24px] border border-slate-100 p-4 shadow-sm">
+             <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Calendar size={14} /> Ders Programı
+                  </h3>
+             </div>
+             {assignedSlots.length === 0 ? (
+                 <p className="text-xs text-slate-400 font-bold text-center py-2">Ders kaydı bulunmuyor.</p>
+             ) : (
+                 <div className="space-y-2">
+                     {assignedSlots.map((slot, index) => (
+                         <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                             <div>
+                                 <div className="text-sm font-black text-slate-700">{slot.day}</div>
+                                 <div className="text-xs font-bold text-slate-400 mt-0.5 flex items-center gap-1">
+                                    <Clock size={12} /> {slot.start} - {slot.end}
+                                 </div>
+                             </div>
+                             <button 
+                                onClick={() => handleOpenMoveModal(slot)}
+                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-[10px] font-bold rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                             >
+                                 Değiştir
+                             </button>
+                         </div>
+                     ))}
+                 </div>
+             )}
+          </div>
+
           {/* STATS CARDS */}
           <div className="grid grid-cols-2 gap-4">
               <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-5 text-white shadow-xl shadow-indigo-200 flex flex-col justify-between h-48 group">
@@ -709,8 +770,48 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       >
           <div className="flex flex-col gap-3 py-2">
               <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
-              <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tutar (TL)</label><input type="number" value={pastPaymentAmount} onChange={(e) => setPastPaymentAmount(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="0.00" /></div>
+              <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tutar (TL)</label>
+                  {/* Changed input type to text/decimal to prevent browser localization issues */}
+                  <input 
+                      type="text" 
+                      inputMode="decimal"
+                      value={pastPaymentAmount} 
+                      onChange={(e) => setPastPaymentAmount(e.target.value)} 
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" 
+                      placeholder="Örn: 1500" 
+                  />
+                  <p className="text-[9px] text-slate-400 mt-1">Sadece rakam giriniz (Kuruş için virgül veya nokta kullanabilirsiniz)</p>
+              </div>
           </div>
+      </Dialog>
+      
+      {/* MOVE LESSON MODAL */}
+      <Dialog isOpen={isMoveLessonModalOpen} onClose={() => setIsMoveLessonModalOpen(false)} title="Ders Saatini Değiştir"
+         actions={<><button onClick={() => setIsMoveLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleConfirmMove} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button></>}
+      >
+         <div className="flex flex-col gap-4 py-2">
+             <div className="text-xs text-slate-500 font-medium">
+                 Mevcut: <strong className="text-slate-800">{lessonToMove?.day}, {lessonToMove?.currentStart}</strong>
+             </div>
+             
+             <div>
+                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Yeni Gün</label>
+                 <select value={moveTargetDay} onChange={(e) => setMoveTargetDay(e.target.value as WeekDay)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none">
+                     {DAYS.map(day => <option key={day} value={day}>{day}</option>)}
+                 </select>
+             </div>
+             
+             <div>
+                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Yeni Saat</label>
+                 <input type="time" value={moveTargetTime} onChange={(e) => setMoveTargetTime(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+             </div>
+             
+             <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[10px] text-amber-700 font-medium">
+                 <AlertTriangle size={12} className="inline mr-1 -mt-0.5" />
+                 Seçilen saatte başka bir ders varsa, üzerine yazılacaktır.
+             </div>
+         </div>
       </Dialog>
 
       <Dialog isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Öğrenci Düzenle" 
