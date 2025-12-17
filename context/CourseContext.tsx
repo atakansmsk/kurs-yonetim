@@ -56,11 +56,9 @@ const THEMES: Record<string, Record<string, string>> = {
 };
 
 // IMPROVED CURRENCY PARSER
-// 1.500 -> 1500
-// 1500,50 -> 1500.5
-// 1,500.00 -> 1500
+// Handles NaN, thousands dots, and decimal commas
 const parseCurrency = (val: string | number): number => {
-    if (typeof val === 'number') return val;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
     if (!val) return 0;
     
     // Remove all spaces
@@ -74,16 +72,13 @@ const parseCurrency = (val: string | number): number => {
         // Assume format 1500,50 -> replace comma with dot
         clean = clean.replace(',', '.');
     }
-    // If only dots exist (e.g. 1.500), it's ambiguous. 
-    // Usually means thousands in TR context if > 3 digits or followed by 3 digits.
-    // BUT standard parseFloat treats dot as decimal.
-    // Let's assume input[type=number] or manual entry might be mixed.
-    // Safer strategy: If user types "1.500", we assume 1500. 
-    // If user types "1.5", we assume 1.5. 
-    // This heuristic is tricky. Best to rely on frontend input masking, 
-    // but here we will just ensure standard float parsing works after cleanup.
+    // Note: If only dots exist (1.500), parseFloat treats it as 1.5 (decimal) or 1500 (ignoring invalid stuff after dot?)
+    // In JS parseFloat("1.500") is 1.5. 
+    // To support "1.500" as 1500, we'd need to know context. 
+    // We assume the inputs will be pre-processed or standard JS format if no commas are involved.
     
-    return parseFloat(clean) || 0;
+    const result = parseFloat(clean);
+    return isNaN(result) ? 0 : result;
 };
 
 const getTodayName = (): WeekDay => {

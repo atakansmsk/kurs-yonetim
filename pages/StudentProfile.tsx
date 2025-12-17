@@ -215,8 +215,17 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleAddPastPayment = () => {
       if (pastPaymentDate && pastPaymentAmount !== "") {
-          // Convert string to number safely before sending
-          actions.addTransaction(studentId, 'PAYMENT', pastPaymentDate, parseFloat(pastPaymentAmount.replace('.','').replace(',','.')));
+          // Robust parsing: Remove thousands separators (dots), replace decimal comma with dot
+          const cleanString = pastPaymentAmount.replace(/\./g, '').replace(',', '.');
+          const finalAmount = parseFloat(cleanString);
+          
+          actions.addTransaction(
+              studentId, 
+              'PAYMENT', 
+              pastPaymentDate, 
+              isNaN(finalAmount) ? 0 : finalAmount
+          );
+          
           setIsPastPaymentModalOpen(false);
           setPastPaymentDate(getTodayString());
       }
@@ -224,7 +233,11 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleUpdateStudent = () => {
       if (editName) {
-          actions.updateStudent(studentId, editName, editPhone, parseFloat(editFee) || 0, editColor);
+          // Robust parsing for fee in edit mode as well
+          const cleanFee = editFee.toString().replace(/\./g, '').replace(',', '.');
+          const finalFee = parseFloat(cleanFee) || 0;
+          
+          actions.updateStudent(studentId, editName, editPhone, finalFee, editColor);
           setIsEditModalOpen(false);
       }
   };
@@ -808,7 +821,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           <div className="flex flex-col gap-3 py-2">
               <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="İsim" />
               <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Telefon" />
-              <input type="number" value={editFee} onChange={(e) => setEditFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Ücret" />
+              <input type="text" inputMode="decimal" value={editFee} onChange={(e) => setEditFee(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Ücret" />
               
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1 ml-1">Öğrenci Rengi</label>
@@ -904,12 +917,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       </div>
                   )
               )}
-          </div>
-      </Dialog>
-      
-      <Dialog isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)} title="Geçmiş Kayıtlar">
-          <div className="max-h-[60vh] overflow-y-auto space-y-4 py-2 pr-1 custom-scrollbar">
-               {archivedHistory.length === 0 ? <p className="text-center text-slate-400 text-sm">Kayıt yok.</p> : archivedHistory.map(tx => renderTransactionItem(tx))}
           </div>
       </Dialog>
 
