@@ -23,6 +23,11 @@ const sanitize = (data: any): any => {
     return JSON.parse(JSON.stringify(data, (key, value) => value === undefined ? null : value));
 };
 
+const timeToMinutes = (time: string) => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -71,6 +76,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (!finalData.teachers || finalData.teachers.length === 0) finalData.teachers = ["Eğitmen"];
             if (!finalData.currentTeacher) finalData.currentTeacher = finalData.teachers[0];
             if (!finalData.schedule) finalData.schedule = {};
+            if (!finalData.processedSlots) finalData.processedSlots = {};
 
             setState(finalData);
             setIsLoaded(true);
@@ -86,6 +92,76 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
     return () => unsubscribe();
   }, [user]);
+
+  // --- AUTOMATIC LESSON PROCESSING ENGINE ---
+  useEffect(() => {
+    if (!isLoaded || !state.autoLessonProcessing || !user) return;
+
+    const processInterval = setInterval(() => {
+      const now = new Date();
+      const todayDateStr = now.toISOString().split('T')[0];
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      
+      const jsDayToAppKey: Record<number, WeekDay> = {
+        0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
+      };
+      const currentDayName = jsDayToAppKey[now.getDay()];
+      
+      const teacherKey = `${state.currentTeacher}|${currentDayName}`;
+      const todaysSlots = state.schedule[teacherKey] || [];
+      const processedToday = state.processedSlots?.[todayDateStr] || [];
+
+      let hasChanges = false;
+      let nextProcessedToday = [...processedToday];
+      let nextStudents = { ...state.students };
+
+      todaysSlots.forEach(slot => {
+        if (slot.studentId && !nextProcessedToday.includes(slot.id)) {
+          const slotStartMinutes = timeToMinutes(slot.start);
+          
+          // If lesson time has arrived/passed
+          if (currentMinutes >= slotStartMinutes) {
+            const student = nextStudents[slot.studentId];
+            if (student && student.isActive !== false) {
+              // Add transaction
+              const txId = Math.random().toString(36).substr(2, 9);
+              const isMakeup = slot.label === 'MAKEUP';
+              const isTrial = slot.label === 'TRIAL';
+              
+              const newTx: Transaction = {
+                id: txId,
+                note: isMakeup ? 'Telafi Dersi İşlendi' : isTrial ? 'Deneme Dersi İşlendi' : 'Otomatik Ders İşlendi',
+                date: now.toISOString(),
+                isDebt: true,
+                amount: isTrial ? 0 : 0 // Fees are usually handled as 'Lesson Count' or fixed debt. Here we follow app's logic of isDebt:true
+              };
+
+              nextStudents[slot.studentId] = {
+                ...student,
+                history: [newTx, ...(student.history || [])]
+              };
+              
+              nextProcessedToday.push(slot.id);
+              hasChanges = true;
+            }
+          }
+        }
+      });
+
+      if (hasChanges) {
+        updateState(s => ({
+          ...s,
+          students: nextStudents,
+          processedSlots: {
+            ...s.processedSlots,
+            [todayDateStr]: nextProcessedToday
+          }
+        }));
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(processInterval);
+  }, [isLoaded, state.autoLessonProcessing, state.currentTeacher, state.schedule, state.processedSlots, state.students, user]);
 
   const updateState = (updater: (prev: AppState) => AppState) => {
       setState(current => {
