@@ -8,7 +8,8 @@ import {
   Zap, CalendarRange, ChevronRight, 
   Plus, Clock, MessageCircle, AlertTriangle,
   TrendingUp, Wallet, ListChecks, Building2, PencilLine,
-  Search, CalendarCheck, CreditCard, Star, CheckCircle2
+  Search, CalendarCheck, CreditCard, Star, CheckCircle2,
+  Coffee, Droplets, PartyPopper
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 import { WeekDay, Student } from '../types';
@@ -27,39 +28,10 @@ const ICONS: Record<string, React.ElementType> = {
 };
 
 const COLOR_GRADIENTS: Record<string, string> = {
-  indigo: 'from-indigo-600 to-indigo-700 shadow-indigo-500/20',
-  rose: 'from-rose-500 to-rose-600 shadow-rose-500/20',
-  emerald: 'from-emerald-500 to-emerald-600 shadow-emerald-500/20',
-  amber: 'from-amber-500 to-amber-600 shadow-amber-500/20',
-  cyan: 'from-cyan-500 to-cyan-600 shadow-cyan-500/20',
-  purple: 'from-purple-600 to-purple-700 shadow-purple-500/20',
-};
-
-const CircularProgress: React.FC<{ percent: number; size?: number }> = ({ percent, size = 64 }) => {
-  const radius = size / 2 - 4;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percent / 100) * circumference;
-  
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90 drop-shadow-sm">
-        <circle 
-          cx={size/2} cy={size/2} r={radius} 
-          stroke="currentColor" strokeWidth="5" 
-          fill="transparent" className="text-slate-100" 
-        />
-        <circle 
-          cx={size/2} cy={size/2} r={radius} 
-          stroke="currentColor" strokeWidth="5" 
-          fill="transparent" strokeDasharray={circumference} 
-          strokeDashoffset={strokeDashoffset} 
-          className="text-indigo-600 transition-all duration-1000 ease-out" 
-          strokeLinecap="round" 
-        />
-      </svg>
-      <span className="absolute text-[11px] font-black text-slate-800">%{Math.round(percent)}</span>
-    </div>
-  );
+  active: 'from-indigo-600 to-indigo-700 shadow-indigo-500/20',
+  break: 'from-emerald-500 to-emerald-600 shadow-emerald-500/20',
+  success: 'from-slate-800 to-slate-900 shadow-slate-400/20',
+  done: 'from-purple-600 to-purple-700 shadow-purple-500/20',
 };
 
 export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
@@ -91,31 +63,33 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     return map[now.getDay()];
   }, [now]);
 
-  const dashboardData = useMemo(() => {
+  const smartData = useMemo(() => {
     const todayKey = `${state.currentTeacher}|${todayName}`;
     const todaySlots = state.schedule[todayKey] || [];
     const activeSlots = todaySlots.filter(s => s.studentId);
     const sortedSlots = [...activeSlots].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-    const completedCount = sortedSlots.filter(s => timeToMinutes(s.end) < currentMinutes).length;
-    const totalCount = sortedSlots.length;
-    const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
     
-    // Sadece henüz başlamamış veya bitmemiş olan en yakın dersi bul
-    const nextSlot = sortedSlots.find(s => timeToMinutes(s.end) > currentMinutes);
-    const nextStudent = nextSlot ? state.students[nextSlot.studentId!] : null;
+    // 1. Current Lesson?
+    const currentLesson = sortedSlots.find(s => currentMinutes >= timeToMinutes(s.start) && currentMinutes <= timeToMinutes(s.end));
+    
+    // 2. Just Finished? (Last 10 minutes)
+    const recentlyFinished = sortedSlots.filter(s => currentMinutes > timeToMinutes(s.end) && currentMinutes <= timeToMinutes(s.end) + 10)
+                                      .sort((a,b) => timeToMinutes(b.end) - timeToMinutes(a.end))[0];
 
-    const unpaidCount = Object.values(state.students).filter((s: Student) => {
-        if (!s.isActive || s.fee <= 0) return false;
-        const thisMonthPayments = (s.history || []).filter(tx => {
-            if (tx.isDebt) return false;
-            const d = new Date(tx.date);
-            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        });
-        const totalPaid = thisMonthPayments.reduce((acc, curr) => acc + curr.amount, 0);
-        return totalPaid < s.fee;
-    }).length;
+    // 3. Next Lesson?
+    const upcomingLesson = sortedSlots.find(s => currentMinutes < timeToMinutes(s.start));
 
-    return { totalCount, completedCount, progressPercent, nextSlot, nextStudent, unpaidCount };
+    // 4. Gap Calculation
+    let gapMinutes = 0;
+    if (upcomingLesson) {
+        const lastEnd = recentlyFinished ? timeToMinutes(recentlyFinished.end) : currentMinutes;
+        gapMinutes = timeToMinutes(upcomingLesson.start) - currentMinutes;
+    }
+
+    const totalCount = sortedSlots.length;
+    const completedCount = sortedSlots.filter(s => currentMinutes > timeToMinutes(s.end)).length;
+
+    return { currentLesson, recentlyFinished, upcomingLesson, gapMinutes, totalCount, completedCount };
   }, [state.schedule, state.students, state.currentTeacher, todayName, currentMinutes]);
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,58 +106,161 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const isCustomLogo = state.schoolIcon.startsWith('data:');
   const CurrentIcon = !isCustomLogo ? (ICONS[state.schoolIcon] || Sparkles) : Sparkles;
 
+  const renderSmartHub = () => {
+    const { currentLesson, recentlyFinished, upcomingLesson, gapMinutes, totalCount, completedCount } = smartData;
+
+    // CASE 1: Active Lesson
+    if (currentLesson) {
+        const student = state.students[currentLesson.studentId!];
+        return (
+            <div className={`group relative overflow-hidden rounded-[2.5rem] p-8 text-white shadow-2xl animate-slide-up bg-gradient-to-br ${COLOR_GRADIENTS.active}`}>
+                <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-20 -mt-20"></div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-4 bg-white/20 w-fit px-3 py-1 rounded-full border border-white/20">
+                        <Activity size={14} className="animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">ŞU AN DERSTESİNİZ</span>
+                    </div>
+                    <h2 className="text-3xl font-black tracking-tight mb-2">{student?.name}</h2>
+                    <div className="flex items-center gap-2 text-indigo-100 font-bold mb-8">
+                        <Clock size={16} />
+                        <span>{currentLesson.start} - {currentLesson.end}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="text-[11px] font-black uppercase tracking-widest opacity-80">
+                           Derse Odaklanma Zamanı
+                        </div>
+                        <CheckCircle2 size={24} className="opacity-40" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // CASE 2: Just Finished (Confirmation)
+    if (recentlyFinished) {
+        const student = state.students[recentlyFinished.studentId!];
+        return (
+            <div className={`group relative overflow-hidden rounded-[2.5rem] p-8 text-white shadow-2xl animate-slide-up bg-gradient-to-br ${COLOR_GRADIENTS.break}`}>
+                <div className="absolute inset-0 bg-white/5 opacity-20 pointer-events-none"></div>
+                <div className="relative z-10 flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4 border border-white/30 shadow-inner">
+                        <CheckCircle2 size={32} strokeWidth={3} />
+                    </div>
+                    <h2 className="text-xl font-black tracking-tight mb-1">{student?.name} Dersi Tamamlandı</h2>
+                    <p className="text-xs font-bold text-emerald-50 opacity-90 uppercase tracking-widest mb-6">OTOMATİK OLARAK KAYDEDİLDİ</p>
+                    
+                    {upcomingLesson ? (
+                        <div className="bg-black/10 px-6 py-3 rounded-2xl border border-white/10 w-full flex items-center justify-center gap-3">
+                            <Clock size={16} />
+                            <span className="text-sm font-bold">Sıradaki Ders: {upcomingLesson.start}</span>
+                        </div>
+                    ) : (
+                        <p className="text-xs font-bold opacity-70 italic">Günü harika tamamladın!</p>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // CASE 3: Gap / Break Time
+    if (upcomingLesson && gapMinutes > 5) {
+        const student = state.students[upcomingLesson.studentId!];
+        const isCoffeeTime = gapMinutes >= 15;
+        return (
+            <div className={`group relative overflow-hidden rounded-[2.5rem] p-8 text-white shadow-2xl animate-slide-up bg-gradient-to-br ${isCoffeeTime ? COLOR_GRADIENTS.break : COLOR_GRADIENTS.active}`}>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-6">
+                        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                            {isCoffeeTime ? <Coffee size={28} /> : <Droplets size={28} />}
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black tracking-tight leading-none">{gapMinutes} Dakika Ara</h2>
+                            <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1.5">
+                                {isCoffeeTime ? "Kahve & Dinlenme Zamanı" : "Su İçmeyi Unutmayın"}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-white/10 p-5 rounded-3xl border border-white/10 backdrop-blur-md">
+                        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2">SIRADAKİ DERSİNİZ</p>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-2xl font-black tracking-tight">{student?.name}</h3>
+                            <span className="text-lg font-black tracking-tighter bg-white text-emerald-600 px-3 py-1 rounded-xl shadow-lg">
+                                {upcomingLesson.start}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // CASE 4: Day Finished
+    if (totalCount > 0 && completedCount === totalCount) {
+        return (
+            <div className={`group relative overflow-hidden rounded-[2.5rem] p-8 text-white shadow-2xl animate-slide-up bg-gradient-to-br ${COLOR_GRADIENTS.done}`}>
+                <div className="relative z-10 flex flex-col items-center text-center py-4">
+                    <PartyPopper size={56} className="mb-4 text-purple-200" />
+                    <h2 className="text-2xl font-black tracking-tight mb-2">Günün Sonu!</h2>
+                    <p className="text-sm font-bold text-purple-100 opacity-80 max-w-[200px] leading-relaxed">
+                        Bugün toplam {totalCount} dersi başarıyla tamamladınız. Dinlenme zamanı!
+                    </p>
+                    <button 
+                        onClick={() => onNavigate('WEEKLY')}
+                        className="mt-8 px-6 py-3 bg-white text-purple-600 rounded-2xl text-xs font-black shadow-xl active:scale-95 transition-all"
+                    >
+                        FİNANSAL DURUMU İNCELE
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // CASE 5: Empty Day
+    return (
+        <div className="py-12 flex flex-col items-center justify-center text-center animate-slide-up">
+            <div className="w-24 h-24 bg-white rounded-[2.5rem] flex items-center justify-center mb-6 border border-slate-100 shadow-soft">
+                <Building2 size={40} className="text-slate-300" strokeWidth={1.5} />
+            </div>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">Bugün Program Boş</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-3">YENİ DERSLER EKLEYEREK BAŞLAYIN</p>
+            <button onClick={() => onNavigate('SCHEDULE')} className="mt-8 px-8 py-4 bg-slate-900 text-white rounded-[1.5rem] text-xs font-black shadow-xl shadow-slate-200 active:scale-95 transition-all">SAATLERİ DÜZENLE</button>
+        </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-6 pt-12 pb-32 no-scrollbar">
       
-      {/* 1. Dynamic Header */}
+      {/* 1. Clean Header */}
       <div className="flex items-center justify-between mb-8 animate-slide-up">
           <div className="flex flex-col">
              <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none">
                {getGreeting()}, {user?.name.split(' ')[0]}
              </h1>
              <div className="flex items-center gap-2 mt-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">
-                   {dashboardData.totalCount > 0 
-                    ? `BUGÜN ${dashboardData.totalCount} DERSİNİZ VAR` 
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                   {smartData.totalCount > 0 
+                    ? `PROGRAMINIZDA ${smartData.totalCount} DERS VAR` 
                     : 'BUGÜN İÇİN PLANLI DERS YOK'}
                 </p>
              </div>
           </div>
           <button 
             onClick={() => setIsSettingsOpen(true)} 
-            className="w-12 h-12 flex items-center justify-center bg-white text-slate-400 rounded-2xl border border-slate-100 shadow-soft hover:text-indigo-600 hover:shadow-indigo-100 active:scale-95 transition-all"
+            className="w-12 h-12 flex items-center justify-center bg-white text-slate-400 rounded-2xl border border-slate-100 shadow-soft hover:text-indigo-600 active:scale-95 transition-all"
           >
             <Settings size={22} />
           </button>
       </div>
 
-      {/* 2. Premium Progress Card */}
-      <div className="mb-8 animate-slide-up bg-white rounded-[2.2rem] p-6 border border-slate-100 shadow-soft flex items-center justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-indigo-100 transition-colors duration-700"></div>
-          <div className="flex flex-col gap-1 z-10">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">GÜNLÜK VERİM</span>
-              <h4 className="text-lg font-black text-slate-800 tracking-tight">
-                {dashboardData.completedCount} / {dashboardData.totalCount} Tamamlandı
-              </h4>
-              <div className="flex items-center gap-2 mt-1">
-                 {dashboardData.progressPercent >= 100 ? (
-                    <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-bold">
-                       <Star size={12} fill="currentColor" /> Mükemmel Seviye
-                    </div>
-                 ) : (
-                    <div className="flex items-center gap-1 text-indigo-500 text-[10px] font-bold">
-                       <Activity size={12} /> Odaklanma Modu
-                    </div>
-                 )}
-              </div>
-          </div>
-          <div className="z-10 bg-white p-1 rounded-full shadow-inner">
-            <CircularProgress percent={dashboardData.progressPercent} size={64} />
-          </div>
+      {/* 2. Smart Hub Hero Section */}
+      <div className="mb-10">
+          {renderSmartHub()}
       </div>
 
       {/* 3. Action Strip */}
-      <div className="flex gap-3 overflow-x-auto no-scrollbar mb-8 animate-slide-up px-1">
+      <div className="flex gap-3 overflow-x-auto no-scrollbar mb-10 animate-slide-up px-1">
           <button onClick={() => onNavigate('STUDENTS')} className="flex items-center gap-2 bg-white px-4 py-3 rounded-2xl border border-slate-100 shadow-sm transition-all active:scale-95 shrink-0 hover:border-indigo-200 group">
             <Search size={16} className="text-slate-400 group-hover:text-indigo-500" />
             <span className="text-xs font-bold text-slate-600">Öğrenci Ara</span>
@@ -198,85 +275,13 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           </button>
       </div>
 
-      {/* 4. Hero Section - Logic Fixed */}
-      <div className="mb-10 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          {dashboardData.nextSlot && dashboardData.nextStudent ? (
-              <div 
-                onClick={() => onNavigate('SCHEDULE')}
-                className={`group relative overflow-hidden rounded-[2.5rem] p-7 text-white shadow-2xl active:scale-[0.98] transition-all bg-gradient-to-br ${COLOR_GRADIENTS[dashboardData.nextStudent.color || 'indigo']}`}
-              >
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-[60px] -mr-16 -mt-16 pointer-events-none"></div>
-                  
-                  <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-8">
-                          <div className="px-3.5 py-1.5 bg-white/15 backdrop-blur-xl rounded-2xl border border-white/20 flex items-center gap-2 shadow-inner">
-                              <Zap size={14} fill="currentColor" className="text-white" />
-                              <span className="text-[10px] font-black uppercase tracking-widest"> SIRADAKİ </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-white/90 font-black">
-                              <Clock size={18} strokeWidth={3} />
-                              <span className="text-lg tracking-tighter">{dashboardData.nextSlot.start}</span>
-                          </div>
-                      </div>
-
-                      <div className="mb-8">
-                          <h2 className="text-3xl font-black tracking-tight mb-2 group-hover:translate-x-1 transition-transform">{dashboardData.nextStudent.name}</h2>
-                          {dashboardData.nextStudent.nextLessonNote ? (
-                              <div className="flex items-center gap-2 text-white/95 bg-white/10 p-3 rounded-xl border border-white/10 backdrop-blur-sm">
-                                  <AlertTriangle size={14} fill="currentColor" className="shrink-0" />
-                                  <p className="text-[11px] font-bold leading-tight">{dashboardData.nextStudent.nextLessonNote}</p>
-                              </div>
-                          ) : (
-                              <p className="text-xs font-bold text-white/60 tracking-wide uppercase">Ders Saati Yaklaşıyor</p>
-                          )}
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                          <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                const phone = dashboardData.nextStudent?.phone.replace(/[^0-9]/g, '');
-                                window.open(`https://wa.me/90${phone}`, '_blank');
-                            }}
-                            className="flex items-center gap-2 bg-white text-slate-900 px-6 py-3.5 rounded-2xl text-[11px] font-black shadow-xl hover:shadow-white/20 transition-all active:scale-95"
-                          >
-                              <MessageCircle size={16} fill="currentColor" /> WHATSAPP
-                          </button>
-                          <div className="text-[10px] font-black bg-white/15 px-3 py-1.5 rounded-full border border-white/10 uppercase tracking-widest">
-                             {dashboardData.totalCount - dashboardData.completedCount} DERS KALDI
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          ) : dashboardData.totalCount > 0 ? (
-              /* All Done State */
-              <div className="bg-emerald-500 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-emerald-100 flex flex-col items-center text-center relative overflow-hidden">
-                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-                  <CheckCircle2 size={48} className="mb-4 text-emerald-100" />
-                  <h3 className="text-2xl font-black tracking-tight">Harika İş!</h3>
-                  <p className="text-sm font-bold text-emerald-50 opacity-80 mt-2 max-w-[200px]">Bugün planlanan tüm derslerinizi başarıyla tamamladınız.</p>
-                  <button onClick={() => onNavigate('WEEKLY')} className="mt-6 px-6 py-2.5 bg-white/15 hover:bg-white/25 rounded-xl text-xs font-black transition-all border border-white/20 backdrop-blur-md">Günü Kapat & Finansa Bak</button>
-              </div>
-          ) : (
-              /* Completely Empty State */
-              <div className="py-12 flex flex-col items-center justify-center text-center">
-                  <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center mb-6 border border-slate-50 shadow-inner">
-                     <Building2 size={40} className="text-slate-300" strokeWidth={1.5} />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Bugün Program Boş</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-3">YENİ DERSLER EKLEYEREK BAŞLAYIN</p>
-                  <button onClick={() => onNavigate('SCHEDULE')} className="mt-6 px-8 py-4 bg-slate-900 text-white rounded-[1.5rem] text-xs font-black shadow-xl shadow-slate-200 active:scale-95 transition-all">SAATLERİ DÜZENLE</button>
-              </div>
-          )}
-      </div>
-
-      {/* 5. Bento Grid */}
+      {/* 4. Bento Grid Nav */}
       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.35em] mb-4 ml-2">NAVİGASYON</h3>
       <div className="grid grid-cols-2 gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           
           <button 
             onClick={() => onNavigate('SCHEDULE')}
-            className="col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-soft flex items-center justify-between group hover:border-indigo-200 hover:shadow-glow-colored shadow-indigo-500/5 transition-all active:scale-[0.99]"
+            className="col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-soft flex items-center justify-between group hover:border-indigo-200 transition-all active:scale-[0.99]"
           >
               <div className="flex items-center gap-5">
                   <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-inner">
@@ -284,12 +289,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                   </div>
                   <div className="text-left">
                       <h4 className="font-black text-lg text-slate-800 tracking-tight">Günün Listesi</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em]">{dashboardData.totalCount} Ders Saati</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em]">{smartData.totalCount} Ders Saati</p>
                   </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-all">
-                <ChevronRight size={18} strokeWidth={2.5} />
-              </div>
+              <ChevronRight size={18} strokeWidth={2.5} className="text-slate-200" />
           </button>
 
           <button 
@@ -305,9 +308,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                     {Object.keys(state.students).length} Kayıt
                   </p>
               </div>
-              {dashboardData.unpaidCount > 0 && (
+              {smartData.unpaidCount > 0 && (
                 <div className="absolute top-6 right-6 bg-rose-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-pulse">
-                    {dashboardData.unpaidCount}
+                    {smartData.unpaidCount}
                 </div>
               )}
           </button>
@@ -331,11 +334,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">EĞİTMEN</span>
                 </div>
                 <div className="flex flex-col items-center flex-1 border-r border-slate-800">
-                    <span className="text-xl font-black text-white">{dashboardData.totalCount}</span>
+                    <span className="text-xl font-black text-white">{smartData.totalCount}</span>
                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">BUGÜN</span>
                 </div>
                 <div className="flex flex-col items-center flex-1">
-                    <button onClick={() => onNavigate('WEEKLY')} className="flex flex-col items-center">
+                    <button onClick={() => onNavigate('WEEKLY')} className="flex flex-col items-center group">
                         <TrendingUp size={20} className="text-indigo-400 mb-1 active:scale-90 transition-transform" />
                         <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em]">FİNANS</span>
                     </button>
