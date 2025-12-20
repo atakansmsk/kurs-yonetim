@@ -8,17 +8,50 @@ import { WeeklySummary } from './pages/WeeklySummary';
 import { StudentList } from './pages/StudentList';
 import { StudentProfile } from './pages/StudentProfile';
 import { Login } from './pages/Login';
-import { ParentView } from './pages/ParentView';
-import { TeacherView } from './pages/TeacherView';
 import { CalendarRange, Users2, Home as HomeIcon, TrendingUp } from 'lucide-react';
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
+
+const THEME_PALETTES: Record<string, Record<string, string>> = {
+  indigo: {
+    50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81', 950: '#1e1b4b'
+  },
+  blue: {
+    50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49'
+  },
+  emerald: {
+    50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22'
+  },
+  violet: {
+    50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065'
+  },
+  rose: {
+    50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af', 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337', 950: '#4c0519'
+  },
+  amber: {
+    50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03'
+  },
+  neutral: {
+    50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4', 400: '#a3a3a3', 500: '#737373', 600: '#525252', 700: '#404040', 800: '#262626', 900: '#171717', 950: '#0a0a0a'
+  }
+};
 
 const AppContent: React.FC = () => {
   const { user } = useAuth();
   const { state } = useCourse();
   const [activeTab, setActiveTab] = useState<Tab>('HOME');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+
+  // DİNAMİK TEMA MOTORU
+  useEffect(() => {
+    const theme = state.themeColor || 'indigo';
+    const palette = THEME_PALETTES[theme] || THEME_PALETTES['indigo'];
+    
+    const root = document.documentElement;
+    Object.entries(palette).forEach(([shade, hex]) => {
+      root.style.setProperty(`--c-${shade}`, hex);
+    });
+  }, [state.themeColor]);
 
   useEffect(() => {
     const handlePopState = () => {
