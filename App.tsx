@@ -10,7 +10,8 @@ import { StudentProfile } from './pages/StudentProfile';
 import { Login } from './pages/Login';
 import { ParentView } from './pages/ParentView';
 import { TeacherView } from './pages/TeacherView';
-import { CalendarRange, LayoutDashboard, Users2, ChevronDown, Home as HomeIcon, Check, Sparkles, Palette, Music, BookOpen, Trophy, Activity, TrendingUp } from 'lucide-react';
+import { Dialog } from './components/Dialog';
+import { CalendarRange, LayoutDashboard, Users2, ChevronDown, Home as HomeIcon, Check, Sparkles, Palette, Music, BookOpen, Trophy, Activity, TrendingUp, Plus, UserPlus } from 'lucide-react';
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
 
@@ -69,6 +70,11 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('HOME');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  
+  // Teacher Selection States
+  const [isTeacherMenuOpen, setIsTeacherMenuOpen] = useState(false);
+  const [isAddTeacherDialogOpen, setIsAddTeacherDialogOpen] = useState(false);
+  const [newTeacherName, setNewTeacherName] = useState("");
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -85,6 +91,13 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [selectedStudentId, activeTab]);
 
+  // Ensure there's at least one teacher
+  useEffect(() => {
+    if (user && state.teachers.length === 0) {
+      actions.addTeacher(user.name);
+    }
+  }, [user, state.teachers, actions]);
+
   const handleTabChange = (tab: Tab) => {
     if (tab === activeTab) return;
     if (tab !== 'HOME') {
@@ -96,6 +109,15 @@ const AppContent: React.FC = () => {
   const handleOpenProfile = (id: string) => {
     window.history.pushState({ view: 'profile', id: id }, '');
     setSelectedStudentId(id);
+  };
+
+  const handleAddTeacher = () => {
+    if (newTeacherName.trim()) {
+      actions.addTeacher(newTeacherName.trim());
+      setNewTeacherName("");
+      setIsAddTeacherDialogOpen(false);
+      setIsTeacherMenuOpen(true); // Reopen menu to show new teacher
+    }
   };
 
   if (!user) return <Login />;
@@ -117,35 +139,74 @@ const AppContent: React.FC = () => {
     <>
       {showSplash && <SplashScreen logoStr={state.schoolIcon} onFinish={() => setShowSplash(false)} />}
       <div className="flex flex-col h-[100dvh] w-full max-w-md bg-[#F8FAFC] shadow-2xl overflow-hidden relative mx-auto sm:rounded-[2.5rem] sm:my-4 sm:h-[calc(100dvh-2rem)] border-0 sm:border-8 border-white ring-1 ring-black/5 animate-in fade-in duration-500">
-        {!selectedStudentId && activeTab !== 'HOME' && (
-            <header className="bg-white/80 backdrop-blur-md px-6 py-4 sticky top-0 z-50 flex justify-between items-center animate-slide-up border-b border-slate-100/50">
-              <button onClick={() => handleTabChange('HOME')} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-colors active:scale-95">
+        
+        {/* Global Header (Switchable Teacher) */}
+        {!selectedStudentId && (
+            <header className="bg-white/80 backdrop-blur-md px-6 py-4 sticky top-0 z-50 flex justify-between items-center animate-slide-up border-b border-slate-100/50 h-20">
+              <button 
+                onClick={() => handleTabChange('HOME')} 
+                className={`p-2.5 rounded-2xl transition-all active:scale-95 ${activeTab === 'HOME' ? 'text-indigo-600 bg-indigo-50 shadow-inner' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+              >
                   <HomeIcon size={24} strokeWidth={2} />
               </button>
-              <div className="relative group flex-1 flex flex-col items-center z-50">
+              
+              <div className="relative flex-1 flex flex-col items-center">
                   <div className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mb-0.5">Eğitmen</div>
-                  <button className="flex items-center gap-2 text-lg font-black text-slate-800 tracking-tight hover:opacity-70 transition-opacity">
-                      {state.currentTeacher}
-                      <div className="bg-indigo-50 text-indigo-600 rounded-full p-0.5">
+                  <button 
+                    onClick={() => setIsTeacherMenuOpen(!isTeacherMenuOpen)}
+                    className="flex items-center gap-2 text-lg font-black text-slate-800 tracking-tight hover:opacity-70 transition-all active:scale-95"
+                  >
+                      <span className="truncate max-w-[140px]">{state.currentTeacher || 'Seçiniz'}</span>
+                      <div className={`bg-indigo-50 text-indigo-600 rounded-full p-0.5 transition-transform duration-300 ${isTeacherMenuOpen ? 'rotate-180' : ''}`}>
                          <ChevronDown size={12} strokeWidth={4} />
                       </div>
                   </button>
-                  <div className="absolute top-full mt-4 w-64 bg-white/95 backdrop-blur-xl shadow-soft rounded-3xl py-2 hidden group-hover:block border border-white/50 ring-1 ring-black/5 animate-scale-in origin-top">
-                      {state.teachers.map(t => (
-                          <button key={t} onClick={() => actions.switchTeacher(t)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-indigo-50/50 transition-colors text-sm text-left">
-                              <span className={`font-bold text-base ${t === state.currentTeacher ? 'text-indigo-600' : 'text-slate-600'}`}>{t}</span>
-                              {t === state.currentTeacher && <Check size={18} className="text-indigo-600" strokeWidth={3} />}
-                          </button>
-                      ))}
-                  </div>
+
+                  {/* Teacher Dropdown Menu */}
+                  {isTeacherMenuOpen && (
+                      <>
+                          <div className="fixed inset-0 z-[-1]" onClick={() => setIsTeacherMenuOpen(false)}></div>
+                          <div className="absolute top-full mt-4 w-64 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] rounded-[2rem] py-3 border border-slate-100 animate-scale-in origin-top z-[60]">
+                              <div className="px-5 pb-2 mb-2 border-b border-slate-50 flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eğitmen Değiştir</span>
+                              </div>
+                              <div className="max-h-60 overflow-y-auto no-scrollbar">
+                                  {state.teachers.map(t => (
+                                      <button 
+                                          key={t} 
+                                          onClick={() => { actions.switchTeacher(t); setIsTeacherMenuOpen(false); }} 
+                                          className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors text-sm text-left"
+                                      >
+                                          <span className={`font-bold text-base truncate ${t === state.currentTeacher ? 'text-indigo-600' : 'text-slate-600'}`}>{t}</span>
+                                          {t === state.currentTeacher && (
+                                              <div className="bg-indigo-600 text-white rounded-full p-1 shadow-indigo-200 shadow-lg">
+                                                  <Check size={14} strokeWidth={4} />
+                                              </div>
+                                          )}
+                                      </button>
+                                  ))}
+                              </div>
+                              <div className="px-3 pt-2">
+                                  <button 
+                                      onClick={() => { setIsAddTeacherDialogOpen(true); setIsTeacherMenuOpen(false); }}
+                                      className="w-full flex items-center justify-center gap-2 py-3.5 bg-indigo-50 text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-widest transition-all hover:bg-indigo-600 hover:text-white active:scale-95"
+                                  >
+                                      <Plus size={16} strokeWidth={3} /> EĞİTMEN EKLE
+                                  </button>
+                              </div>
+                          </div>
+                      </>
+                  )}
               </div>
               <div className="w-11"></div>
             </header>
         )}
+
         <main className="flex-1 overflow-hidden relative bg-[#F8FAFC]">
           {renderContent()}
         </main>
-        {!selectedStudentId && activeTab !== 'HOME' && (
+
+        {!selectedStudentId && (
           <div className="absolute bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-100 pb-safe pt-2 px-6 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)] animate-slide-up">
               <nav className="flex justify-around items-center h-16">
                 <NavButton active={activeTab === 'SCHEDULE'} onClick={() => handleTabChange('SCHEDULE')} icon={CalendarRange} label="Program" />
@@ -154,6 +215,31 @@ const AppContent: React.FC = () => {
               </nav>
           </div>
         )}
+
+        {/* Add Teacher Dialog */}
+        <Dialog 
+            isOpen={isAddTeacherDialogOpen} 
+            onClose={() => setIsAddTeacherDialogOpen(false)} 
+            title="Yeni Eğitmen"
+            actions={
+                <div className="flex gap-2 w-full">
+                    <button onClick={() => setIsAddTeacherDialogOpen(false)} className="flex-1 py-3 text-slate-500 font-bold text-sm">Vazgeç</button>
+                    <button onClick={handleAddTeacher} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm">Ekle</button>
+                </div>
+            }
+        >
+            <div className="py-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">EĞİTMEN ADI</label>
+                <input 
+                    type="text" 
+                    value={newTeacherName} 
+                    onChange={(e) => setNewTeacherName(e.target.value)} 
+                    placeholder="Örn: Ayşe Yılmaz" 
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    autoFocus
+                />
+            </div>
+        </Dialog>
       </div>
     </>
   );

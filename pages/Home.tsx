@@ -241,9 +241,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-6 pt-12 pb-32 no-scrollbar">
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-6 pt-6 pb-32 no-scrollbar">
       
-      {/* 1. Clean Header */}
+      {/* 1. Header Area - Simplified Greeting */}
       <div className="flex items-center justify-between mb-8 animate-slide-up">
           <div className="flex flex-col">
              <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none">
@@ -252,8 +252,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
              <div className="flex items-center gap-2 mt-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                    {smartData.totalCount > 0 
-                    ? `PROGRAMINIZDA ${smartData.totalCount} DERS VAR` 
-                    : 'BUGÜN İÇİN PLANLI DERS YOK'}
+                    ? `BUGÜN ${smartData.totalCount} DERS VAR` 
+                    : 'BUGÜN DERSİNİZ YOK'}
                 </p>
              </div>
           </div>
@@ -455,7 +455,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                 />
              </div>
              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 block ml-1">LOGO SEÇİMİ</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 block ml-1">LOGO SEÇİMİ</label>
                 <div className="grid grid-cols-4 gap-4">
                     <button onClick={() => fileInputRef.current?.click()} className="col-span-4 py-10 flex flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-dashed border-indigo-200 text-indigo-400 bg-indigo-50/20 hover:bg-indigo-50 transition-all group">
                         <ImagePlus size={36} className="group-hover:scale-110 transition-transform" />
