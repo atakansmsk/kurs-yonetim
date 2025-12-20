@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource, WeekDay, DAYS } from '../types';
 import { useAuth } from './AuthContext';
@@ -14,26 +15,30 @@ const INITIAL_STATE: AppState = {
   students: {},
   schedule: {},
   updatedAt: new Date(0).toISOString(),
-  autoLessonProcessing: true
+  autoLessonProcessing: true,
+  processedSlots: {}
 };
 
 const THEMES: Record<string, Record<string, string>> = {
   indigo: { '50': '#eef2ff', '100': '#e0e7ff', '200': '#c7d2fe', '300': '#a5b4fc', '400': '#818cf8', '500': '#6366f1', '600': '#4f46e5', '700': '#4338ca', '800': '#3730a3', '900': '#312e81' },
   blue: { '50': '#f0f9ff', '100': '#e0f2fe', '200': '#bae6fd', '300': '#7dd3fc', '400': '#38bdf8', '500': '#0ea5e9', '600': '#0284c7', '700': '#0369a1', '800': '#075985', '900': '#0c4a6e' },
   emerald: { '50': '#ecfdf5', '100': '#d1fae5', '200': '#a7f3d0', '300': '#6ee7b7', '400': '#34d399', '500': '#10b981', '600': '#059669', '700': '#047857', '800': '#065f46', '900': '#064e3b' },
+  violet: { '50': '#f5f3ff', '100': '#ede9fe', '200': '#ddd6fe', '300': '#c4b5fd', '400': '#a78bfa', '500': '#8b5cf6', '600': '#7c3aed', '700': '#6d28d9', '800': '#5b21b6', '900': '#4c1d95' },
   rose: { '50': '#fff1f2', '100': '#ffe4e6', '200': '#fecdd3', '300': '#fda4af', '400': '#fb7185', '500': '#f43f5e', '600': '#e11d48', '700': '#be123c', '800': '#9f1239', '900': '#881337' },
   amber: { '50': '#fffbeb', '100': '#fef3c7', '200': '#fde68a', '300': '#fcd34d', '400': '#fbbf24', '500': '#f59e0b', '600': '#d97706', '700': '#b45309', '800': '#92400e', '900': '#78350f' },
   neutral: { '50': '#f8fafc', '100': '#f1f5f9', '200': '#e2e8f0', '300': '#cbd5e1', '400': '#94a3b8', '500': '#64748b', '600': '#475569', '700': '#334155', '800': '#1e293b', '900': '#0f172a' }
 };
 
-const parseCurrency = (val: string | number): number => {
-    if (typeof val === 'number') return isNaN(val) ? 0 : val;
-    if (!val) return 0;
-    let clean = val.toString().replace(/\s/g, '');
-    if (clean.includes(',')) clean = clean.replace(/\./g, '').replace(',', '.');
-    else clean = clean.replace(/\./g, '');
-    const result = parseFloat(clean);
-    return isNaN(result) ? 0 : result;
+const sanitize = (data: any): any => {
+    return JSON.parse(JSON.stringify(data, (key, value) => value === undefined ? null : value));
+};
+
+const updateCssVariables = (themeKey: string) => {
+    const theme = THEMES[themeKey] || THEMES['indigo'];
+    const root = document.documentElement;
+    Object.entries(theme).forEach(([shade, value]) => {
+        root.style.setProperty(`--c-${shade}`, value);
+    });
 };
 
 const getTodayName = (): WeekDay => {
@@ -54,26 +59,11 @@ const calculateNextLessonNumber = (history: Transaction[]): number => {
     return count + 1;
 };
 
-const timeToMinutes = (time: string) => {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
-};
-
-const minutesToTime = (minutes: number) => {
-  const h = Math.floor(minutes / 60) % 24;
-  const m = minutes % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [isLoaded, setIsLoaded] = useState(false);
   const processingRef = useRef(false);
-  
-  // SİLİNEN DERSLERİN TEKRAR EKLENMESİNİ ÖNLEMEK İÇİN (Local Guard)
-  // Format: "studentId|dateString"
-  const [deletedToday, setDeletedToday] = useState<Set<string>>(new Set());
 
   const checkAndProcessLessons = (currentState: AppState): AppState | null => {
       if (!currentState.autoLessonProcessing) return null;
@@ -83,6 +73,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       let newState = { ...currentState };
       let changesFound = false;
 
+      const processedToday = newState.processedSlots?.[dateKey] || [];
       const relevantKeys = Object.keys(newState.schedule).filter(k => k.endsWith(`|${todayName}`));
 
       relevantKeys.forEach(key => {
@@ -90,8 +81,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           slots.forEach(slot => {
               if (!slot.studentId) return;
               
-              // EĞER BU ÖĞRENCİNİN DERSİ BUGÜN MANUEL SİLİNDİYSE OTOMATİK EKLEME
-              if (deletedToday.has(`${slot.studentId}|${dateKey}`)) return;
+              const slotUniqueId = `${slot.studentId}-${slot.id}`;
+              if (processedToday.includes(slotUniqueId)) return;
 
               const [h, m] = slot.end.split(':').map(Number);
               const lessonEnd = new Date();
@@ -101,44 +92,30 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   const student = newState.students[slot.studentId];
                   if (!student || student.isActive === false) return;
 
+                  changesFound = true;
                   const history = student.history || [];
-                  const hasTx = history.some(tx => {
-                      if (!tx.isDebt) return false;
-                      const txDate = new Date(tx.date);
-                      return txDate.getDate() === now.getDate() && 
-                             txDate.getMonth() === now.getMonth() && 
-                             txDate.getFullYear() === now.getFullYear();
-                  });
+                  const nextNum = calculateNextLessonNumber(history);
+                  let note = slot.label === 'MAKEUP' ? `Telafi Dersi (Tamamlandı)` : (slot.label === 'TRIAL' ? `Deneme Dersi (Tamamlandı)` : `${nextNum}. Ders İşlendi`);
 
-                  if (!hasTx) {
-                       changesFound = true;
-                       let note = "";
-                       const nextNum = calculateNextLessonNumber(history);
-                       if (slot.label === 'MAKEUP') note = `Telafi Dersi (Tamamlandı)`;
-                       else if (slot.label === 'TRIAL') note = `Deneme Dersi (Tamamlandı)`;
-                       else note = `${nextNum}. Ders İşlendi`;
+                  const newTx: Transaction = {
+                      id: Math.random().toString(36).substr(2, 9),
+                      note, date: lessonEnd.toISOString(), isDebt: true, amount: 0
+                  };
 
-                       const newTx: Transaction = {
-                          id: Math.random().toString(36).substr(2, 9),
-                          note,
-                          date: lessonEnd.toISOString(),
-                          isDebt: true,
-                          amount: 0
-                       };
+                  const updatedProcessed = [...(newState.processedSlots?.[dateKey] || []), slotUniqueId];
 
-                       newState = {
-                           ...newState,
-                           students: {
-                               ...newState.students,
-                               [student.id]: {
-                                   ...student,
-                                   debtLessonCount: nextNum,
-                                   history: [newTx, ...history],
-                                   nextLessonNote: student.nextLessonNote || "" 
-                               }
-                           }
-                       };
-                  }
+                  newState = {
+                      ...newState,
+                      processedSlots: { ...newState.processedSlots, [dateKey]: updatedProcessed },
+                      students: {
+                          ...newState.students,
+                          [student.id]: {
+                              ...student,
+                              debtLessonCount: nextNum,
+                              history: [newTx, ...history]
+                          }
+                      }
+                  };
               }
           });
       });
@@ -154,8 +131,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             clearTimeout(timer);
             const processedState = checkAndProcessLessons(newData);
             const finalState = processedState || newData;
-            if (processedState) DataService.saveUserData(user.id, finalState).catch(console.error);
+            if (processedState) DataService.saveUserData(user.id, sanitize(finalState)).catch(console.error);
             setState(finalState);
+            updateCssVariables(finalState.themeColor);
             setIsLoaded(true);
         },
         (error) => { console.error("Sync Error", error); setIsLoaded(true); }
@@ -171,7 +149,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const processedState = checkAndProcessLessons(state);
           if (processedState) {
               setState(processedState);
-              DataService.saveUserData(user.id, processedState)
+              DataService.saveUserData(user.id, sanitize(processedState))
                   .catch(console.error)
                   .finally(() => { processingRef.current = false; });
           } else {
@@ -179,17 +157,16 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
       }, 60000);
       return () => clearInterval(interval);
-  }, [isLoaded, state, user, deletedToday]);
+  }, [isLoaded, state, user]);
 
   const updateState = (updater: (prev: AppState) => AppState) => {
       setState(current => {
           const newState = updater(current);
           newState.updatedAt = new Date().toISOString();
           if (user) {
-              // Firestore undefined hatasını önlemek için derin temizlik
-              const sanitized = JSON.parse(JSON.stringify(newState));
-              DataService.saveUserData(user.id, sanitized).catch(err => console.error("SAVE ERROR:", err));
+              DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error("SAVE ERROR:", err));
           }
+          if (current.themeColor !== newState.themeColor) updateCssVariables(newState.themeColor);
           return newState;
       });
   };
@@ -206,7 +183,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       addStudent: (name, phone, fee, registrationDate, color) => {
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
-              id, name: name.trim(), phone: phone.trim(), fee: parseCurrency(fee), 
+              id, name: name.trim(), phone: phone.trim(), fee: Number(fee) || 0, 
               registrationDate: registrationDate ? new Date(registrationDate).toISOString() : new Date().toISOString(),
               debtLessonCount: 0, makeupCredit: 0, history: [], resources: [], color: color || 'indigo', nextLessonNote: "", isActive: true
           };
@@ -216,7 +193,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updateStudent: (id, name, phone, fee, color, nextLessonNote) => updateState(s => {
           const student = s.students[id];
           if (!student) return s;
-          return { ...s, students: { ...s.students, [id]: { ...student, name: name.trim(), phone: phone.trim(), fee: parseCurrency(fee), color: color || student.color, nextLessonNote: nextLessonNote ?? student.nextLessonNote } } };
+          return { ...s, students: { ...s.students, [id]: { ...student, name: name.trim(), phone: phone.trim(), fee: Number(fee) || 0, color: color || student.color, nextLessonNote: nextLessonNote ?? student.nextLessonNote } } };
       }),
       toggleStudentStatus: (id, isActive) => updateState(s => {
           if (!s.students[id]) return s;
@@ -260,20 +237,37 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return { ...s, students: { ...s.students, [studentId]: { ...student, history: updatedHistory } } };
       }),
       deleteTransaction: (studentId, transactionId) => {
-          // Önce hangi tarihteki ders siliniyor bulalım (Otomatik eklemeyi önlemek için)
           const student = state.students[studentId];
           const tx = student?.history?.find(t => t.id === transactionId);
+          const dateKey = new Date().toISOString().split('T')[0];
+
+          // Eğer silinen şey bir dersse, otomatik sistemin geri eklemesini engellemek için deftere işle
           if (tx && tx.isDebt) {
-              const txDate = tx.date.split('T')[0];
-              setDeletedToday(prev => new Set(prev).add(`${studentId}|${txDate}`));
+              updateState(s => {
+                  const st = s.students[studentId];
+                  if (!st) return s;
+                  
+                  // İlgili slotu bulmaya çalış (en yakın eşleşen)
+                  const dayName = getTodayName();
+                  const teacherKey = Object.keys(s.schedule).find(k => k.endsWith(`|${dayName}`));
+                  const slot = teacherKey ? s.schedule[teacherKey]?.find(sl => sl.studentId === studentId) : null;
+                  
+                  const processedToday = [...(s.processedSlots?.[dateKey] || [])];
+                  if (slot) processedToday.push(`${studentId}-${slot.id}`);
+
+                  return {
+                      ...s,
+                      processedSlots: { ...s.processedSlots, [dateKey]: processedToday },
+                      students: { ...s.students, [studentId]: { ...st, history: (st.history || []).filter(t => t.id !== transactionId), debtLessonCount: Math.max(0, st.debtLessonCount - 1) } }
+                  };
+              });
+          } else {
+              updateState(s => {
+                  const st = s.students[studentId];
+                  if (!st) return s;
+                  return { ...s, students: { ...s.students, [studentId]: { ...st, history: (st.history || []).filter(t => t.id !== transactionId) } } };
+              });
           }
-          
-          updateState(s => {
-              const st = s.students[studentId];
-              if (!st) return s;
-              const filtered = (st.history || []).filter(t => t.id !== transactionId);
-              return { ...s, students: { ...s.students, [studentId]: { ...st, history: filtered, debtLessonCount: Math.max(0, st.debtLessonCount - 1) } } };
-          });
       },
       toggleAutoProcessing: () => updateState(s => ({ ...s, autoLessonProcessing: !s.autoLessonProcessing })),
       moveSlot: (fD, fS, tD, tS) => {},
@@ -287,9 +281,13 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (targetIdx > -1) {
             newSlots[targetIdx] = { ...newSlots[targetIdx], studentId, label: oldSlot?.label as any };
         } else {
-            const newSlot: LessonSlot = { id: Math.random().toString(36).substr(2, 9), start: newStart, end: minutesToTime(timeToMinutes(newStart) + 40), studentId, label: oldSlot?.label as any };
+            const h = parseInt(newStart.split(':')[0]);
+            const m = parseInt(newStart.split(':')[1]);
+            const endM = (h * 60 + m + 40);
+            const endT = `${Math.floor(endM/60).toString().padStart(2,'0')}:${(endM%60).toString().padStart(2,'0')}`;
+            const newSlot: LessonSlot = { id: Math.random().toString(36).substr(2, 9), start: newStart, end: endT, studentId, label: oldSlot?.label as any };
             newSlots.push(newSlot);
-            newSlots.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+            newSlots.sort((a, b) => a.start.localeCompare(b.start));
         }
         return { ...s, schedule: { ...s.schedule, [oldKey]: updatedOldSlots, [newKey]: newSlots } };
       }),

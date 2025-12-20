@@ -22,20 +22,20 @@ export interface Student {
   fee: number;
   registrationDate: string;
   debtLessonCount: number;
-  makeupCredit: number; // Telafi hakkı bakiyesi
+  makeupCredit: number;
   history: Transaction[];
-  resources: Resource[]; // Ödevler ve Materyaller
-  color?: string; // 'indigo' | 'rose' | 'emerald' | 'amber' | 'cyan' | 'purple'
-  nextLessonNote?: string; // "Haftaya yok" gibi geçici notlar
-  isActive?: boolean; // true: Devam Ediyor, false: Ayrıldı/Pasif
+  resources: Resource[];
+  color?: string;
+  nextLessonNote?: string;
+  isActive?: boolean;
 }
 
 export interface LessonSlot {
   id: string;
-  start: string; // HH:mm
-  end: string; // HH:mm
-  studentId: string | null; // null if empty
-  label?: 'REGULAR' | 'MAKEUP' | 'TRIAL'; // Type of the lesson
+  start: string;
+  end: string;
+  studentId: string | null;
+  label?: 'REGULAR' | 'MAKEUP' | 'TRIAL';
 }
 
 export interface User {
@@ -50,14 +50,16 @@ export const DAYS: WeekDay[] = ["Pazartesi", "Salı", "Çarşamba", "Perşembe",
 
 export interface AppState {
   schoolName: string;
-  schoolIcon: string; // 'sparkles' | 'palette' | 'music' | 'book' | 'trophy'
-  themeColor: string; // 'indigo' | 'blue' | 'emerald' | 'rose' | 'violet' | 'amber'
+  schoolIcon: string;
+  themeColor: string;
   currentTeacher: string;
   teachers: string[];
-  students: Record<string, Student>; // Keyed by ID
-  schedule: Record<string, LessonSlot[]>; // Key format: "TeacherName|DayName"
-  updatedAt: string; // ISO Timestamp for Sync Logic
-  autoLessonProcessing: boolean; // Otomatik ders işleme açık/kapalı
+  students: Record<string, Student>;
+  schedule: Record<string, LessonSlot[]>;
+  updatedAt: string;
+  autoLessonProcessing: boolean;
+  // Format: { "YYYY-MM-DD": ["studentId-slotId", ...] }
+  processedSlots?: Record<string, string[]>; 
 }
 
 export interface CourseContextType {
@@ -70,7 +72,7 @@ export interface CourseContextType {
     switchTeacher: (name: string) => void;
     addStudent: (name: string, phone: string, fee: number, registrationDate?: string, color?: string) => string;
     updateStudent: (id: string, name: string, phone: string, fee: number, color?: string, nextLessonNote?: string) => void;
-    toggleStudentStatus: (id: string, isActive: boolean) => void; // Yeni Eklendi
+    toggleStudentStatus: (id: string, isActive: boolean) => void;
     deleteStudent: (id: string) => void;
     getStudent: (id: string) => Student | undefined;
     addSlot: (day: WeekDay, start: string, end: string) => void;
