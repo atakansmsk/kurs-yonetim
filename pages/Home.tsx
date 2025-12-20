@@ -291,22 +291,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       <div className="grid grid-cols-2 gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           
           <button 
-            onClick={() => onNavigate('SCHEDULE')}
-            className="col-span-2 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-soft flex items-center justify-between group hover:border-indigo-200 transition-all active:scale-[0.99]"
-          >
-              <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-inner">
-                      <ListChecks size={28} strokeWidth={2.5} />
-                  </div>
-                  <div className="text-left">
-                      <h4 className="font-black text-lg text-slate-800 tracking-tight">Günün Listesi</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.1em]">{smartData.totalCount} Ders Saati</p>
-                  </div>
-              </div>
-              <ChevronRight size={18} strokeWidth={2.5} className="text-slate-200" />
-          </button>
-
-          <button 
             onClick={() => onNavigate('STUDENTS')}
             className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-soft flex flex-col items-start gap-5 group hover:border-emerald-200 transition-all active:scale-[0.98] relative overflow-hidden"
           >
