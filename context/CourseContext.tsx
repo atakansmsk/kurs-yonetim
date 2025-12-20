@@ -31,23 +31,46 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (!user) { setState(INITIAL_STATE); setIsLoaded(true); return; }
     
+    // ACİL DURUM: Eğer Firebase boş dönerse local storage yedeğini kullan
+    const backupData = localStorage.getItem(`kurs_data_${user.id}`) || localStorage.getItem(`kurs_data_backup_${user.id}`);
+    const localBackup = backupData ? JSON.parse(backupData) : null;
+
     const unsubscribe = DataService.subscribeToUserData(
         user.id,
         (newData) => {
-            // VERİ KURTARMA (RECOVERY):
-            // Eğer students objesi boş görünüyorsa ama newData içinde veri varsa zorla al.
-            // Eğer currentTeacher boşsa varsayılanı ata.
-            const recoveredData = { ...newData };
-            
-            if (!recoveredData.students) recoveredData.students = {};
-            if (!recoveredData.teachers || recoveredData.teachers.length === 0) recoveredData.teachers = ["Eğitmen"];
-            if (!recoveredData.currentTeacher) recoveredData.currentTeacher = recoveredData.teachers[0];
+            let finalData = { ...newData };
 
-            setState(recoveredData);
+            // 1. Veri Kaybı Koruması: Eğer gelen veri boşsa ama localde veri varsa local olanı koru
+            if ((!finalData.students || Object.keys(finalData.students).length === 0) && localBackup && Object.keys(localBackup.students || {}).length > 0) {
+                console.log("Kurtarma Modu: Yerel yedek yükleniyor...");
+                finalData = localBackup;
+            }
+
+            // 2. Eğitmen Kurtarma: Eğer eğitmen ismi uçtuysa schedule içindeki anahtarlardan bul
+            if (!finalData.currentTeacher || finalData.currentTeacher === "") {
+                const scheduleKeys = Object.keys(finalData.schedule || {});
+                if (scheduleKeys.length > 0) {
+                    finalData.currentTeacher = scheduleKeys[0].split('|')[0];
+                } else {
+                    finalData.currentTeacher = "Eğitmen";
+                }
+            }
+
+            // 3. Eksik dizileri tamamla
+            if (!finalData.teachers || finalData.teachers.length === 0) {
+                finalData.teachers = [finalData.currentTeacher];
+            }
+            if (!finalData.students) finalData.students = {};
+            if (!finalData.schedule) finalData.schedule = {};
+
+            setState(finalData);
             setIsLoaded(true);
         },
         (error) => { 
-            console.error("Sync Error", error); 
+            console.error("Senkronizasyon Hatası:", error);
+            if (localBackup) {
+                setState(localBackup);
+            }
             setIsLoaded(true); 
         }
     );
@@ -59,7 +82,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const newState = updater(current);
           newState.updatedAt = new Date().toISOString();
           if (user) {
-              DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error("SAVE ERROR:", err));
+              // Hem buluta hem yerele kaydet (Çift koruma)
+              DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error("Kayıt Hatası:", err));
+              localStorage.setItem(`kurs_data_backup_${user.id}`, JSON.stringify(newState));
           }
           return newState;
       });
@@ -136,7 +161,32 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }),
       toggleAutoProcessing: () => updateState(s => ({ ...s, autoLessonProcessing: !s.autoLessonProcessing })),
       moveSlot: (fD, fS, tD, tS) => {},
-      moveStudent: (studentId, fromDay, fromSlotId, toDay, newStart) => {},
+      moveStudent: (studentId, fromDay, fromSlotId, toDay, newStart) => updateState(s => {
+        const oldKey = `${s.currentTeacher}|${fromDay}`;
+        const newKey = `${s.currentTeacher}|${toDay}`;
+        const oldSlots = s.schedule[oldKey] || [];
+        const oldSlot = oldSlots.find(sl => sl.id === fromSlotId);
+        
+        const updatedOldSlots = oldSlots.map(slot => 
+          slot.id === fromSlotId ? { ...slot, studentId: null, label: null as any } : slot
+        );
+        
+        let newSlots = [...(s.schedule[newKey] || [])];
+        const targetIdx = newSlots.findIndex(slot => slot.start === newStart);
+        
+        if (targetIdx > -1) {
+            newSlots[targetIdx] = { ...newSlots[targetIdx], studentId, label: oldSlot?.label as any };
+        } else {
+            const h = parseInt(newStart.split(':')[0]);
+            const m = parseInt(newStart.split(':')[1]);
+            const endM = (h * 60 + m + 40);
+            const endT = `${Math.floor(endM/60).toString().padStart(2,'0')}:${(endM%60).toString().padStart(2,'0')}`;
+            const newSlot: LessonSlot = { id: Math.random().toString(36).substr(2, 9), start: newStart, end: endT, studentId, label: oldSlot?.label as any };
+            newSlots.push(newSlot);
+            newSlots.sort((a, b) => a.start.localeCompare(b.start));
+        }
+        return { ...s, schedule: { ...s.schedule, [oldKey]: updatedOldSlots, [newKey]: newSlots } };
+      }),
       swapSlots: (dA, sA, dB, sB) => {},
       addResource: (studentId, title, url, type) => updateState(s => {
           const st = s.students[studentId];
@@ -155,7 +205,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
   };
 
-  if (!isLoaded) return <div className="h-screen w-full flex items-center justify-center bg-[#F8FAFC] text-slate-400 font-bold tracking-widest uppercase text-[10px]">Veriler Yükleniyor...</div>;
+  if (!isLoaded) return <div className="h-screen w-full flex items-center justify-center bg-[#F8FAFC] text-slate-400 font-bold tracking-widest uppercase text-[10px]">Veriler Kurtarılıyor...</div>;
 
   return <CourseContext.Provider value={{ state, actions }}>{children}</CourseContext.Provider>;
 };
