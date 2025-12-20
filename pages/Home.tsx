@@ -241,21 +241,19 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-6 pt-6 pb-32 no-scrollbar">
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-6 pt-4 pb-32 no-scrollbar">
       
-      {/* 1. Header Area - Simplified Greeting */}
+      {/* 1. Greeting */}
       <div className="flex items-center justify-between mb-8 animate-slide-up">
           <div className="flex flex-col">
              <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none">
                {getGreeting()}, {user?.name.split(' ')[0]}
              </h1>
-             <div className="flex items-center gap-2 mt-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                   {smartData.totalCount > 0 
-                    ? `BUGÜN ${smartData.totalCount} DERS VAR` 
-                    : 'BUGÜN DERSİNİZ YOK'}
-                </p>
-             </div>
+             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">
+                {smartData.totalCount > 0 
+                ? `${state.currentTeacher} Programında ${smartData.totalCount} Ders Var` 
+                : 'Programınızda kayıtlı ders bulunamadı'}
+             </p>
           </div>
           <button 
             onClick={() => setIsSettingsOpen(true)} 
