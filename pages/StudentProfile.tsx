@@ -937,7 +937,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                       <div>
                           <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
                           <button onClick={() => { if (fileInputRef.current) { fileInputRef.current.value = ""; fileInputRef.current.click(); } }} className="w-full py-8 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-slate-50 hover:border-indigo-200 transition-colors">
-                              {resFile ? (<><CheckCircle2 size={24} className="text-emerald-500" /><div className="text-center"><span className="text-xs font-bold text-emerald-600 block">{resType === 'PDF' ? 'PDF Hazır' : 'Resim Hazır'}</span><span className="text-[10px] text-emerald-400 block mt-0.5 max-w-[150px] truncate mx-auto">{resFile.name}</span></div></>) : (<><UploadCloud size={24} /><span className="text-xs font-bold">Resim veya PDF Seç</span></>)}
+                              {/* Fix: Safely access 'name' on resFile by ensuring it is a File instance */}
+                              {resFile ? (<><CheckCircle2 size={24} className="text-emerald-500" /><div className="text-center"><span className="text-xs font-bold text-emerald-600 block">{resType === 'PDF' ? 'PDF Hazır' : 'Resim Hazır'}</span><span className="text-[10px] text-emerald-400 block mt-0.5 max-w-[150px] truncate mx-auto">{resFile instanceof File ? resFile.name : 'Dosya Seçildi'}</span></div></>) : (<><UploadCloud size={24} /><span className="text-xs font-bold">Resim veya PDF Seç</span></>)}
                           </button>
                       </div>
                   )

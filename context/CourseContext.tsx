@@ -80,40 +80,29 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const slots = newState.schedule[key];
           slots.forEach(slot => {
               if (!slot.studentId) return;
-              
               const slotUniqueId = `${slot.studentId}-${slot.id}`;
               if (processedToday.includes(slotUniqueId)) return;
-
               const [h, m] = slot.end.split(':').map(Number);
               const lessonEnd = new Date();
               lessonEnd.setHours(h, m, 0, 0);
-
               if (lessonEnd < now) {
                   const student = newState.students[slot.studentId];
                   if (!student || student.isActive === false) return;
-
                   changesFound = true;
                   const history = student.history || [];
                   const nextNum = calculateNextLessonNumber(history);
                   let note = slot.label === 'MAKEUP' ? `Telafi Dersi (Tamamlandı)` : (slot.label === 'TRIAL' ? `Deneme Dersi (Tamamlandı)` : `${nextNum}. Ders İşlendi`);
-
                   const newTx: Transaction = {
                       id: Math.random().toString(36).substr(2, 9),
                       note, date: lessonEnd.toISOString(), isDebt: true, amount: 0
                   };
-
                   const updatedProcessed = [...(newState.processedSlots?.[dateKey] || []), slotUniqueId];
-
                   newState = {
                       ...newState,
                       processedSlots: { ...newState.processedSlots, [dateKey]: updatedProcessed },
                       students: {
                           ...newState.students,
-                          [student.id]: {
-                              ...student,
-                              debtLessonCount: nextNum,
-                              history: [newTx, ...history]
-                          }
+                          [student.id]: { ...student, debtLessonCount: nextNum, history: [newTx, ...history] }
                       }
                   };
               }
@@ -129,9 +118,28 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         user.id,
         (newData) => {
             clearTimeout(timer);
+            // DATA RECOVERY LOGIC:
+            // If currentTeacher is missing, try to restore from history or default to first teacher
+            if (!newData.currentTeacher) {
+                const availableTeachers = newData.teachers || [];
+                if (availableTeachers.length > 0) {
+                    newData.currentTeacher = availableTeachers[0];
+                } else {
+                    // Look into schedule keys to find a teacher name used before
+                    const scheduleKeys = Object.keys(newData.schedule || {});
+                    if (scheduleKeys.length > 0) {
+                        const firstKey = scheduleKeys[0];
+                        const teacherInKey = firstKey.split('|')[0];
+                        if (teacherInKey) {
+                            newData.currentTeacher = teacherInKey;
+                            newData.teachers = [teacherInKey];
+                        }
+                    }
+                }
+            }
+
             const processedState = checkAndProcessLessons(newData);
             const finalState = processedState || newData;
-            if (processedState) DataService.saveUserData(user.id, sanitize(finalState)).catch(console.error);
             setState(finalState);
             updateCssVariables(finalState.themeColor);
             setIsLoaded(true);
@@ -140,24 +148,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
     return () => { unsubscribe(); clearTimeout(timer); };
   }, [user]);
-
-  useEffect(() => {
-      if (!isLoaded || !state.autoLessonProcessing || !user) return;
-      const interval = setInterval(() => {
-          if (processingRef.current) return;
-          processingRef.current = true;
-          const processedState = checkAndProcessLessons(state);
-          if (processedState) {
-              setState(processedState);
-              DataService.saveUserData(user.id, sanitize(processedState))
-                  .catch(console.error)
-                  .finally(() => { processingRef.current = false; });
-          } else {
-              processingRef.current = false;
-          }
-      }, 60000);
-      return () => clearInterval(interval);
-  }, [isLoaded, state, user]);
 
   const updateState = (updater: (prev: AppState) => AppState) => {
       setState(current => {
@@ -240,21 +230,15 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const student = state.students[studentId];
           const tx = student?.history?.find(t => t.id === transactionId);
           const dateKey = new Date().toISOString().split('T')[0];
-
-          // Eğer silinen şey bir dersse, otomatik sistemin geri eklemesini engellemek için deftere işle
           if (tx && tx.isDebt) {
               updateState(s => {
                   const st = s.students[studentId];
                   if (!st) return s;
-                  
-                  // İlgili slotu bulmaya çalış (en yakın eşleşen)
                   const dayName = getTodayName();
                   const teacherKey = Object.keys(s.schedule).find(k => k.endsWith(`|${dayName}`));
                   const slot = teacherKey ? s.schedule[teacherKey]?.find(sl => sl.studentId === studentId) : null;
-                  
                   const processedToday = [...(s.processedSlots?.[dateKey] || [])];
                   if (slot) processedToday.push(`${studentId}-${slot.id}`);
-
                   return {
                       ...s,
                       processedSlots: { ...s.processedSlots, [dateKey]: processedToday },

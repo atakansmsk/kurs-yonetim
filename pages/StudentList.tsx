@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
-import { Student, LessonSlot } from '../types';
-import { Trash2, Search, UserPlus, MessageSquare, Copy, Send, MessageCircle, Banknote, AlertCircle, CheckCircle2, Clock, ChevronDown, ChevronUp, AlertTriangle, Archive, RefreshCw, UserMinus } from 'lucide-react';
+import { Student } from '../types';
+import { Trash2, Search, UserPlus, MessageSquare, Archive, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface StudentListProps {
@@ -10,53 +11,23 @@ interface StudentListProps {
 
 type PaymentStatus = 'PAID' | 'PARTIAL' | 'UNPAID';
 
-const STUDENT_COLORS = [
-    { key: 'indigo', label: 'Mavi', hex: '#6366f1' },
-    { key: 'rose', label: 'Kırmızı', hex: '#f43f5e' },
-    { key: 'emerald', label: 'Yeşil', hex: '#10b981' },
-    { key: 'amber', label: 'Turuncu', hex: '#f59e0b' },
-    { key: 'cyan', label: 'Turkuaz', hex: '#06b6d4' },
-    { key: 'purple', label: 'Mor', hex: '#8b5cf6' },
-];
-
 export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const { state, actions } = useCourse();
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE');
   
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newFee, setNewFee] = useState("");
-  const [newRegDate, setNewRegDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newColor, setNewColor] = useState("indigo");
 
-  const [bulkMessage, setBulkMessage] = useState("");
-  const [bulkTarget, setBulkTarget] = useState<'ALL' | 'UNPAID'>('UNPAID');
-
-  const currentDate = new Date();
-  const currentDay = currentDate.getDate(); 
-  const currentMonth = currentDate.getMonth(); 
-  const currentYear = currentDate.getFullYear();
-  const isCriticalPeriod = currentDay >= 1 && currentDay <= 5;
-
-  // --- PROGRAMDA DERSİ OLAN ÖĞRENCİLERİ BUL ---
-  const assignedStudentIds = useMemo(() => {
-      const ids = new Set<string>();
-      // FIX: Cast Object.values to LessonSlot[][] to prevent 'unknown' type inference error on forEach
-      (Object.values(state.schedule) as LessonSlot[][]).forEach(slots => {
-          slots.forEach(slot => {
-              if (slot.studentId) ids.add(slot.studentId);
-          });
-      });
-      return ids;
-  }, [state.schedule]);
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
   const getPaymentStatus = (student: Student): PaymentStatus => {
       if (student.fee <= 0) return 'PAID';
-      const thisMonthPayments = student.history.filter(tx => {
+      const thisMonthPayments = (student.history || []).filter(tx => {
           if (tx.isDebt) return false;
           const txDate = new Date(tx.date);
           return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
@@ -68,24 +39,16 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   };
 
   const { unpaidStudents, paidStudents } = useMemo(() => {
-      let list = (Object.values(state.students) as Student[]);
+      let list = (Object.values(state.students || {}) as Student[]);
 
       if (search) {
           list = list.filter((s: Student) => s.name.toLowerCase().includes(search.toLowerCase()));
       }
 
-      // 2. Aktif/Pasif Filtresi
+      // Filter by Active/Archived only, don't hide if not in schedule
       list = list.filter((s: Student) => {
           const isActive = s.isActive !== false;
-          const isCurrentlyBrowsingActive = viewMode === 'ACTIVE';
-          
-          if (isCurrentlyBrowsingActive) {
-              // ANA LİSTEDE: Sadece aktif olan ve ders ataması olanları göster
-              return isActive && assignedStudentIds.has(s.id);
-          } else {
-              // ARŞİVDE: Pasif olanları veya aktif olsa bile ders ataması olmayanları göster
-              return !isActive || !assignedStudentIds.has(s.id);
-          }
+          return viewMode === 'ACTIVE' ? isActive : !isActive;
       });
 
       const unpaid: Student[] = [];
@@ -100,54 +63,32 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       paid.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 
       return { unpaidStudents: unpaid, paidStudents: paid };
-  }, [state.students, search, viewMode, assignedStudentIds]);
-
-  const totalActiveInPayments = unpaidStudents.length + paidStudents.length;
+  }, [state.students, search, viewMode]);
 
   const handleAddStudent = () => {
       if(newName.trim()) {
-          actions.addStudent(newName, newPhone, parseFloat(newFee) || 0, newRegDate, newColor);
+          actions.addStudent(newName, newPhone, parseFloat(newFee) || 0);
           setIsAddModalOpen(false);
           setNewName(""); setNewPhone(""); setNewFee("");
       }
   }
 
-  const getCleanNumbers = () => {
-      const targetList = bulkTarget === 'UNPAID' ? unpaidStudents : [...unpaidStudents, ...paidStudents];
-      return targetList.map(s => s.phone.replace(/[^0-9]/g, '')).filter(n => n.length >= 7);
-  };
-
   const renderStudentRow = (student: Student, isPaidList: boolean) => {
     const status = getPaymentStatus(student);
     const isInactive = student.isActive === false;
-    const hasNoLessons = !assignedStudentIds.has(student.id);
     
     let avatarBg = 'bg-slate-50 text-slate-600';
-    let badgeText = '';
-    let badgeColorClass = 'text-slate-500';
+    let badgeText = isPaidList ? 'Ödendi' : 'Ödeme Bekliyor';
+    let badgeColorClass = isPaidList ? 'text-emerald-500' : 'text-rose-500';
 
     if (isInactive) {
         avatarBg = 'bg-slate-100 text-slate-400';
         badgeText = 'Ayrıldı';
         badgeColorClass = 'text-slate-400';
-    } else if (hasNoLessons) {
-        avatarBg = 'bg-amber-50 text-amber-600';
-        badgeText = 'Programda Yok';
-        badgeColorClass = 'text-amber-500';
-    } else if (isPaidList) {
-        avatarBg = 'bg-emerald-50 text-emerald-600';
-        badgeText = 'Ödendi';
-        badgeColorClass = 'text-emerald-500';
-    } else {
-        if (status === 'PARTIAL') {
-            avatarBg = 'bg-orange-50 text-orange-600';
-            badgeText = 'Eksik Ödeme';
-            badgeColorClass = 'text-orange-500';
-        } else {
-            avatarBg = 'bg-red-50 text-red-600';
-            badgeText = isCriticalPeriod ? 'Gecikti' : 'Bekliyor';
-            badgeColorClass = isCriticalPeriod ? 'text-red-500' : 'text-amber-500';
-        }
+    } else if (status === 'PARTIAL') {
+        avatarBg = 'bg-orange-50 text-orange-600';
+        badgeText = 'Eksik Ödeme';
+        badgeColorClass = 'text-orange-500';
     }
 
     return (
@@ -180,27 +121,18 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       <div className="bg-white px-5 pt-6 pb-4 sticky top-0 z-20 shadow-sm border-b border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Ödemeler</h2>
-                <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs font-bold text-slate-400">{totalActiveInPayments} Aktif Takip</p>
-                    <button 
-                        onClick={() => setViewMode(prev => prev === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE')}
-                        className={`text-[10px] font-black px-2 py-0.5 rounded-lg border transition-all flex items-center gap-1 ${viewMode === 'ARCHIVED' ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'}`}
-                    >
-                        {viewMode === 'ACTIVE' ? <Archive size={12} /> : <RefreshCw size={12} />}
-                        {viewMode === 'ACTIVE' ? 'Arşiv / Pasif' : 'Geri Dön'}
-                    </button>
-                </div>
-            </div>
-            
-            <div className="flex gap-2">
-                <button onClick={() => setIsBulkModalOpen(true)} className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-sm">
-                    <MessageSquare size={20} />
-                </button>
-                <button onClick={() => setIsAddModalOpen(true)} className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg">
-                    <UserPlus size={20} />
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Öğrenciler</h2>
+                <button 
+                    onClick={() => setViewMode(prev => prev === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE')}
+                    className={`text-[10px] font-black px-2 py-0.5 rounded-lg border transition-all flex items-center gap-1 mt-1 ${viewMode === 'ARCHIVED' ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                >
+                    {viewMode === 'ACTIVE' ? <Archive size={12} /> : <RefreshCw size={12} />}
+                    {viewMode === 'ACTIVE' ? 'Arşivlenenler' : 'Geri Dön'}
                 </button>
             </div>
+            <button onClick={() => setIsAddModalOpen(true)} className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg">
+                <UserPlus size={20} />
+            </button>
           </div>
           
           <div className="relative">
@@ -209,8 +141,8 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
             </div>
             <input 
                 type="text" 
-                placeholder="Öğrenci ara..."
-                className="block w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                placeholder="İsim ile ara..."
+                className="block w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:outline-none transition-all"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
             />
@@ -218,52 +150,29 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-6">
-        {viewMode === 'ARCHIVED' ? (
-             <div className="space-y-2">
-                 <div className="bg-slate-100 p-3 rounded-xl text-center mb-4">
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">ARŞİVDEKİLER & PROGRAMDA OLMAYANLAR</p>
+        <div className="space-y-3">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tüm Liste ({unpaidStudents.length + paidStudents.length})</h3>
+            {unpaidStudents.map(s => renderStudentRow(s, false))}
+            {paidStudents.map(s => renderStudentRow(s, true))}
+            {unpaidStudents.length + paidStudents.length === 0 && (
+                 <div className="text-center py-20 opacity-30">
+                     <p className="font-bold text-slate-500">Öğrenci bulunamadı.</p>
                  </div>
-                 {[...unpaidStudents, ...paidStudents].length === 0 ? (
-                     <div className="text-center py-20 opacity-30">
-                         <UserMinus size={48} className="mx-auto mb-3 text-slate-400" />
-                         <p className="font-bold text-slate-500">Arşivde kimse yok.</p>
-                     </div>
-                 ) : (
-                     [...unpaidStudents, ...paidStudents].map(s => renderStudentRow(s, false))
-                 )}
-             </div>
-        ) : (
-            <>
-                <div className="space-y-3">
-                    <h3 className="text-[10px] font-black text-red-500 uppercase tracking-widest px-1">ÖDEME BEKLEYENLER ({unpaidStudents.length})</h3>
-                    {unpaidStudents.length === 0 ? (
-                        <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 border-dashed opacity-50">
-                            <CheckCircle2 size={32} className="text-emerald-500 mx-auto mb-2" />
-                            <p className="text-xs font-bold text-slate-600">Herkes ödedi, tebrikler!</p>
-                        </div>
-                    ) : unpaidStudents.map(s => renderStudentRow(s, false))}
-                </div>
-
-                <div className="space-y-3">
-                    <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">BU AY ÖDEYENLER ({paidStudents.length})</h3>
-                    {paidStudents.map(s => renderStudentRow(s, true))}
-                </div>
-            </>
-        )}
+            )}
+        </div>
       </div>
 
-      {/* Delete Dialog */}
-      <Dialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Silinsin mi?" actions={
-          <>
-            <button onClick={() => setDeleteId(null)} className="px-4 py-2 text-slate-500 font-bold text-sm">Vazgeç</button>
-            <button onClick={() => { if(deleteId) actions.deleteStudent(deleteId); setDeleteId(null); }} className="px-6 py-2 bg-red-500 text-white rounded-xl font-bold text-sm">Evet, Sil</button>
-          </>
-        }
-      >
-        <p className="text-slate-600 text-sm font-medium">Bu öğrenciyi sistemden tamamen silmek istediğinize emin misiniz? Arşivlemek için profilden Pasif yapabilirsiniz.</p>
+      <Dialog isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Öğrenci Ekle" actions={<><button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddStudent} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button></>}>
+        <div className="flex flex-col gap-3 py-2">
+            <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="İsim Soyisim" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none" />
+            <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} placeholder="Telefon" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none" />
+            <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} placeholder="Aylık Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none" />
+        </div>
       </Dialog>
-      
-      {/* Diğer Modallar (Ekleme, SMS) burada devam eder, aynı kaldılar */}
+
+      <Dialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Öğrenciyi Sil" actions={<><button onClick={() => setDeleteId(null)} className="px-4 py-2 text-slate-500 font-bold text-sm">Vazgeç</button><button onClick={() => { if(deleteId) actions.deleteStudent(deleteId); setDeleteId(null); }} className="px-6 py-2 bg-red-500 text-white rounded-xl font-bold text-sm">Sil</button></>}>
+        <p className="text-slate-600 text-sm font-medium">Bu öğrenciyi ve tüm geçmişini silmek istediğinize emin misiniz?</p>
+      </Dialog>
     </div>
   );
 };
