@@ -58,12 +58,12 @@ export interface AppState {
   schedule: Record<string, LessonSlot[]>;
   updatedAt: string;
   autoLessonProcessing: boolean;
-  // Format: { "YYYY-MM-DD": ["studentId-slotId", ...] }
   processedSlots?: Record<string, string[]>; 
 }
 
 export interface CourseContextType {
   state: AppState;
+  isRecovered: boolean;
   actions: {
     updateSchoolName: (name: string) => void;
     updateSchoolIcon: (icon: string) => void;
@@ -89,6 +89,7 @@ export interface CourseContextType {
     addResource: (studentId: string, title: string, url: string, type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE') => void;
     deleteResource: (studentId: string, resourceId: string) => void;
     clearDay: (day: WeekDay) => void;
+    forceSync: () => Promise<void>;
   };
 }
 

@@ -27,40 +27,49 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isRecovered, setIsRecovered] = useState(false);
 
   useEffect(() => {
     if (!user) { setState(INITIAL_STATE); setIsLoaded(true); return; }
     
-    // ACİL DURUM: Eğer Firebase boş dönerse local storage yedeğini kullan
-    const backupData = localStorage.getItem(`kurs_data_${user.id}`) || localStorage.getItem(`kurs_data_backup_${user.id}`);
-    const localBackup = backupData ? JSON.parse(backupData) : null;
+    const findBestBackup = () => {
+        const keys = Object.keys(localStorage).filter(k => k.includes(user.id));
+        let bestData: AppState | null = null;
+        let maxStudents = -1;
+
+        keys.forEach(k => {
+            try {
+                const d = JSON.parse(localStorage.getItem(k) || "");
+                const studentCount = Object.keys(d.students || {}).length;
+                if (studentCount > maxStudents) {
+                    maxStudents = studentCount;
+                    bestData = d;
+                }
+            } catch(e) {}
+        });
+        return bestData;
+    };
+
+    const localBest = findBestBackup();
 
     const unsubscribe = DataService.subscribeToUserData(
         user.id,
         (newData) => {
             let finalData = { ...newData };
+            const remoteStudentCount = Object.keys(finalData.students || {}).length;
+            const localStudentCount = Object.keys(localBest?.students || {}).length;
 
-            // 1. Veri Kaybı Koruması: Eğer gelen veri boşsa ama localde veri varsa local olanı koru
-            if ((!finalData.students || Object.keys(finalData.students).length === 0) && localBackup && Object.keys(localBackup.students || {}).length > 0) {
-                console.log("Kurtarma Modu: Yerel yedek yükleniyor...");
-                finalData = localBackup;
+            if (remoteStudentCount === 0 && localStudentCount > 0) {
+                console.warn("Kurtarma Devrede: Yerel yedekten yükleniyor.");
+                finalData = localBest as AppState;
+                setIsRecovered(true);
+            } else {
+                setIsRecovered(false);
             }
 
-            // 2. Eğitmen Kurtarma: Eğer eğitmen ismi uçtuysa schedule içindeki anahtarlardan bul
-            if (!finalData.currentTeacher || finalData.currentTeacher === "") {
-                const scheduleKeys = Object.keys(finalData.schedule || {});
-                if (scheduleKeys.length > 0) {
-                    finalData.currentTeacher = scheduleKeys[0].split('|')[0];
-                } else {
-                    finalData.currentTeacher = "Eğitmen";
-                }
-            }
-
-            // 3. Eksik dizileri tamamla
-            if (!finalData.teachers || finalData.teachers.length === 0) {
-                finalData.teachers = [finalData.currentTeacher];
-            }
             if (!finalData.students) finalData.students = {};
+            if (!finalData.teachers || finalData.teachers.length === 0) finalData.teachers = ["Eğitmen"];
+            if (!finalData.currentTeacher) finalData.currentTeacher = finalData.teachers[0];
             if (!finalData.schedule) finalData.schedule = {};
 
             setState(finalData);
@@ -68,8 +77,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         },
         (error) => { 
             console.error("Senkronizasyon Hatası:", error);
-            if (localBackup) {
-                setState(localBackup);
+            if (localBest) {
+                setState(localBest);
+                setIsRecovered(true);
             }
             setIsLoaded(true); 
         }
@@ -81,9 +91,16 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setState(current => {
           const newState = updater(current);
           newState.updatedAt = new Date().toISOString();
+          
+          const prevCount = Object.keys(current.students || {}).length;
+          const nextCount = Object.keys(newState.students || {}).length;
+
           if (user) {
-              // Hem buluta hem yerele kaydet (Çift koruma)
-              DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error("Kayıt Hatası:", err));
+              if (prevCount > 0 && nextCount === 0) {
+                  console.error("VERİ KAYBI ÖNLENDİ: Boş liste kaydedilmedi.");
+              } else {
+                  DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error("Cloud Save Error:", err));
+              }
               localStorage.setItem(`kurs_data_backup_${user.id}`, JSON.stringify(newState));
           }
           return newState;
@@ -166,14 +183,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newKey = `${s.currentTeacher}|${toDay}`;
         const oldSlots = s.schedule[oldKey] || [];
         const oldSlot = oldSlots.find(sl => sl.id === fromSlotId);
-        
-        const updatedOldSlots = oldSlots.map(slot => 
-          slot.id === fromSlotId ? { ...slot, studentId: null, label: null as any } : slot
-        );
-        
+        const updatedOldSlots = oldSlots.map(slot => slot.id === fromSlotId ? { ...slot, studentId: null, label: null as any } : slot);
         let newSlots = [...(s.schedule[newKey] || [])];
         const targetIdx = newSlots.findIndex(slot => slot.start === newStart);
-        
         if (targetIdx > -1) {
             newSlots[targetIdx] = { ...newSlots[targetIdx], studentId, label: oldSlot?.label as any };
         } else {
@@ -202,12 +214,18 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       clearDay: (day) => updateState(s => {
            const key = `${s.currentTeacher}|${day}`;
            return { ...s, schedule: { ...s.schedule, [key]: [] } };
-      })
+      }),
+      forceSync: async () => {
+          if (user) {
+              await DataService.saveUserData(user.id, sanitize(state));
+              setIsRecovered(false);
+          }
+      }
   };
 
-  if (!isLoaded) return <div className="h-screen w-full flex items-center justify-center bg-[#F8FAFC] text-slate-400 font-bold tracking-widest uppercase text-[10px]">Veriler Kurtarılıyor...</div>;
+  if (!isLoaded) return <div className="h-screen w-full flex items-center justify-center bg-[#F8FAFC] text-slate-400 font-bold tracking-widest uppercase text-[10px]">VERİLER KURTARILIYOR...</div>;
 
-  return <CourseContext.Provider value={{ state, actions }}>{children}</CourseContext.Provider>;
+  return <CourseContext.Provider value={{ state, isRecovered, actions }}>{children}</CourseContext.Provider>;
 };
 
 export const useCourse = () => {
