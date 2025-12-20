@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CourseProvider, useCourse } from './context/CourseContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Home } from './pages/Home';
@@ -8,6 +8,8 @@ import { WeeklySummary } from './pages/WeeklySummary';
 import { StudentList } from './pages/StudentList';
 import { StudentProfile } from './pages/StudentProfile';
 import { Login } from './pages/Login';
+import { ParentView } from './pages/ParentView';
+import { TeacherView } from './pages/TeacherView';
 import { CalendarRange, Users2, Home as HomeIcon, TrendingUp } from 'lucide-react';
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
@@ -36,22 +38,28 @@ const THEME_PALETTES: Record<string, Record<string, string>> = {
   }
 };
 
+const useThemeManager = (color?: string) => {
+  useEffect(() => {
+    const theme = color || 'indigo';
+    const palette = THEME_PALETTES[theme] || THEME_PALETTES['indigo'];
+    const root = document.documentElement;
+    Object.entries(palette).forEach(([shade, hex]) => {
+      root.style.setProperty(`--c-${shade}`, hex);
+    });
+  }, [color]);
+};
+
 const AppContent: React.FC = () => {
   const { user } = useAuth();
   const { state } = useCourse();
   const [activeTab, setActiveTab] = useState<Tab>('HOME');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
-  // DİNAMİK TEMA MOTORU
-  useEffect(() => {
-    const theme = state.themeColor || 'indigo';
-    const palette = THEME_PALETTES[theme] || THEME_PALETTES['indigo'];
-    
-    const root = document.documentElement;
-    Object.entries(palette).forEach(([shade, hex]) => {
-      root.style.setProperty(`--c-${shade}`, hex);
-    });
-  }, [state.themeColor]);
+  useThemeManager(state.themeColor);
+
+  const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const isParentView = urlParams.get('parentView') === 'true';
+  const isTeacherView = urlParams.get('teacherView') === 'true';
 
   useEffect(() => {
     const handlePopState = () => {
@@ -62,6 +70,22 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [selectedStudentId, activeTab]);
 
+  // Handle External Views First (No Login Required)
+  if (isParentView) {
+    const tId = urlParams.get('teacherId');
+    const sId = urlParams.get('studentId');
+    if (tId && sId) return <ParentView teacherId={tId} studentId={sId} />;
+  }
+
+  if (isTeacherView) {
+    const uid = urlParams.get('uid');
+    const name = urlParams.get('name');
+    if (uid && name) return <TeacherView uid={uid} teacherName={decodeURIComponent(name)} />;
+  }
+
+  // Teacher Auth Flow
+  if (!user) return <Login />;
+  
   const handleTabChange = (tab: Tab) => {
     if (tab === activeTab) return;
     if (tab !== 'HOME') window.history.pushState({ view: 'tab', id: tab }, '');
@@ -73,8 +97,6 @@ const AppContent: React.FC = () => {
     setSelectedStudentId(id);
   };
 
-  if (!user) return <Login />;
-  
   const renderContent = () => {
     if (selectedStudentId) return <StudentProfile studentId={selectedStudentId} onBack={() => window.history.back()} />;
     switch (activeTab) {
