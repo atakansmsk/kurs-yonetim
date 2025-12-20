@@ -89,7 +89,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     const totalCount = sortedSlots.length;
     const completedCount = sortedSlots.filter(s => currentMinutes > timeToMinutes(s.end)).length;
 
-    return { currentLesson, recentlyFinished, upcomingLesson, gapMinutes, totalCount, completedCount };
+    const unpaidCount = Object.values(state.students).filter((s: Student) => {
+        if (!s.isActive || s.fee <= 0) return false;
+        const thisMonthPayments = (s.history || []).filter(tx => {
+            if (tx.isDebt) return false;
+            const d = new Date(tx.date);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+        const totalPaid = thisMonthPayments.reduce((acc, curr) => acc + curr.amount, 0);
+        return totalPaid < s.fee;
+    }).length;
+
+    return { currentLesson, recentlyFinished, upcomingLesson, gapMinutes, totalCount, completedCount, unpaidCount };
   }, [state.schedule, state.students, state.currentTeacher, todayName, currentMinutes]);
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,10 +217,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                         Bugün toplam {totalCount} dersi başarıyla tamamladınız. Dinlenme zamanı!
                     </p>
                     <button 
-                        onClick={() => onNavigate('WEEKLY')}
-                        className="mt-8 px-6 py-3 bg-white text-purple-600 rounded-2xl text-xs font-black shadow-xl active:scale-95 transition-all"
+                        onClick={() => onNavigate('SCHEDULE')}
+                        className="mt-8 px-8 py-4 bg-white text-purple-700 rounded-2xl text-[11px] font-black shadow-xl active:scale-95 transition-all uppercase tracking-widest"
                     >
-                        FİNANSAL DURUMU İNCELE
+                        Günün Derslerine Göz At
                     </button>
                 </div>
             </div>
