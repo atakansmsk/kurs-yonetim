@@ -2,7 +2,31 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Pencil, ArrowRight, Sparkles, Palette, Music, BookOpen, Trophy, Activity, UserPlus, ImagePlus, Users, LogOut, Settings, RefreshCw, CheckCircle2, Zap, GraduationCap, CalendarRange, ChevronRight, ChevronLeft, LayoutGrid, Share2, Copy, AlertTriangle, CloudUpload, Loader2 } from 'lucide-react';
+import { 
+  Calendar, 
+  Pencil, 
+  Sparkles, 
+  Palette, 
+  Music, 
+  BookOpen, 
+  Trophy, 
+  Activity, 
+  UserPlus, 
+  ImagePlus, 
+  Users, 
+  LogOut, 
+  Settings, 
+  CheckCircle2, 
+  Zap, 
+  GraduationCap, 
+  CalendarRange, 
+  ChevronRight, 
+  ChevronLeft, 
+  Share2, 
+  AlertTriangle, 
+  UploadCloud, 
+  Loader2 
+} from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface HomeProps {
@@ -241,7 +265,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
             {isRecovered && (
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
                      <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <CloudUpload size={14} /> Bulut Eşitlemesi
+                        <UploadCloud size={14} /> Bulut Eşitlemesi
                      </h4>
                      <p className="text-[10px] text-amber-900 mb-3 font-medium">Verileriniz şu an sadece bu cihazda. Başka cihazdan da erişebilmek için buluta gönderin.</p>
                      <button 
