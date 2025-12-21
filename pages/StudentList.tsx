@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';
-import { Trash2, Search, UserPlus, AlertCircle, CheckCircle2, Clock, UserCheck, UserMinus, ChevronRight, TrendingUp, CreditCard } from 'lucide-react';
+import { Trash2, Search, UserPlus, AlertCircle, CheckCircle2, Clock, UserCheck, UserMinus, ChevronRight, CreditCard, Banknote, ShieldCheck } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface StudentListProps {
@@ -25,7 +25,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const currentYear = now.getFullYear();
   const monthName = now.toLocaleDateString('tr-TR', { month: 'long' });
 
-  // Advanced financial classification logic
+  // Advanced financial classification logic with "0 Fee" handling
   const { debtors, paidStudents, stats } = useMemo(() => {
       const allStudents = Object.values(state.students || {}) as Student[];
       const activeOnes = allStudents.filter(s => s.isActive !== false);
@@ -36,13 +36,14 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       let totalCollected = 0;
 
       activeOnes.forEach(student => {
-          // A student is considered "Paid" if they have at least one PAYMENT transaction this month
+          // Check if paid this month
           const hasPaidThisMonth = (student.history || []).some(tx => {
               const d = new Date(tx.date);
               return !tx.isDebt && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
           });
 
-          if (hasPaidThisMonth) {
+          // RULE: If paid this month OR fee is 0, they are "Paid"
+          if (hasPaidThisMonth || (student.fee === 0)) {
               paidList.push(student);
               totalCollected += student.fee || 0;
           } else {
@@ -70,9 +71,9 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0F172A]"> {/* Darker background for the page */}
-      {/* Header & Stats - Premium Dark Design */}
-      <div className="bg-slate-900 px-5 pt-8 pb-6 sticky top-0 z-20 shadow-xl border-b border-slate-800">
+    <div className="flex flex-col h-full bg-[#0F172A]">
+      {/* Header & Stats Section */}
+      <div className="bg-slate-900 px-5 pt-8 pb-6 sticky top-0 z-20 shadow-2xl border-b border-slate-800">
           <div className="flex items-center justify-between mb-6">
             <div>
                 <h2 className="text-2xl font-black text-white tracking-tight">Öğrenci Rehberi</h2>
@@ -90,15 +91,15 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 relative overflow-hidden backdrop-blur-sm">
-                  <span className="text-[9px] font-black text-red-400 uppercase tracking-widest block mb-1">BEKLEYEN ÖDEME</span>
+              <div className="bg-slate-800/40 p-4 rounded-2xl border border-red-500/10 relative overflow-hidden backdrop-blur-md">
+                  <span className="text-[9px] font-black text-red-400/70 uppercase tracking-widest block mb-1">BEKLEYEN ÖDEME</span>
                   <span className="text-xl font-black text-white">{stats.totalExpected.toLocaleString()} ₺</span>
-                  <UserMinus className="absolute right-[-10px] bottom-[-10px] text-red-500/10" size={56} />
+                  <UserMinus className="absolute right-[-10px] bottom-[-10px] text-red-500/5" size={64} />
               </div>
-              <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 relative overflow-hidden backdrop-blur-sm">
-                  <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest block mb-1">TAHSİL EDİLEN</span>
+              <div className="bg-slate-800/40 p-4 rounded-2xl border border-emerald-500/10 relative overflow-hidden backdrop-blur-md">
+                  <span className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest block mb-1">TAHSİL EDİLEN</span>
                   <span className="text-xl font-black text-white">{stats.totalCollected.toLocaleString()} ₺</span>
-                  <UserCheck className="absolute right-[-10px] bottom-[-10px] text-emerald-500/10" size={56} />
+                  <UserCheck className="absolute right-[-10px] bottom-[-10px] text-emerald-500/5" size={64} />
               </div>
           </div>
           
@@ -108,86 +109,84 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
             </div>
             <input 
                 type="text" 
-                placeholder="Öğrenci ismi ile ara..."
-                className="block w-full pl-11 pr-4 py-3.5 bg-slate-800/80 border border-slate-700 rounded-2xl text-sm font-bold text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all shadow-inner"
+                placeholder="İsim ile ara..."
+                className="block w-full pl-11 pr-4 py-3.5 bg-slate-800/80 border border-slate-700/50 rounded-2xl text-sm font-bold text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
-          {/* Tab Switcher - Premium Dark */}
-          <div className="flex p-1.5 bg-slate-800 rounded-2xl border border-slate-700/50">
+          {/* Premium Tab Switcher */}
+          <div className="flex p-1.5 bg-slate-800/80 rounded-2xl border border-slate-700/30">
               <button 
                 onClick={() => setActiveTab('DEBTORS')}
-                className={`flex-1 py-2.5 text-[11px] font-black rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'DEBTORS' ? 'bg-slate-700 text-red-400 shadow-md ring-1 ring-white/5' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`flex-1 py-2.5 text-[11px] font-black rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'DEBTORS' ? 'bg-slate-700 text-red-400 shadow-lg ring-1 ring-white/5' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                  <Clock size={14} /> BEKLEYENLER ({stats.countDebtors})
+                  <Clock size={14} /> BEKLEYEN ({stats.countDebtors})
               </button>
               <button 
                 onClick={() => setActiveTab('PAID')}
-                className={`flex-1 py-2.5 text-[11px] font-black rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'PAID' ? 'bg-slate-700 text-emerald-400 shadow-md ring-1 ring-white/5' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`flex-1 py-2.5 text-[11px] font-black rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'PAID' ? 'bg-slate-700 text-emerald-400 shadow-lg ring-1 ring-white/5' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                  <CheckCircle2 size={14} /> ÖDEYENLER ({stats.countPaid})
+                  <CheckCircle2 size={14} /> ÖDEYEN ({stats.countPaid})
               </button>
           </div>
       </div>
 
-      {/* List Area */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-3 pb-32 custom-scrollbar">
+      {/* List Content */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-3 pb-32 no-scrollbar">
             {(activeTab === 'DEBTORS' ? debtors : paidStudents).length === 0 ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
-                     <AlertCircle size={48} className="text-slate-600 mb-3" />
-                     <p className="font-bold text-slate-500 text-sm">Bu grupta kayıt bulunamadı.</p>
+                 <div className="flex flex-col items-center justify-center py-20 text-center opacity-20">
+                     <AlertCircle size={56} className="text-slate-400 mb-3" />
+                     <p className="font-bold text-slate-400 text-sm">Gösterilecek kayıt bulunamadı.</p>
                  </div>
             ) : (
                 (activeTab === 'DEBTORS' ? debtors : paidStudents).map(student => (
                     <div 
                         key={student.id} 
-                        className={`group bg-slate-900/50 rounded-2xl p-4 shadow-sm border flex items-center gap-4 cursor-pointer active:scale-[0.98] transition-all ${activeTab === 'DEBTORS' ? 'border-slate-800 hover:border-red-500/30' : 'border-slate-800 hover:border-emerald-500/30'}`}
+                        className={`group bg-slate-800/30 rounded-2xl p-4 border flex items-center gap-4 cursor-pointer active:scale-[0.98] transition-all ${activeTab === 'DEBTORS' ? 'border-red-500/10 hover:border-red-500/30' : 'border-emerald-500/10 hover:border-emerald-500/30'}`}
                         onClick={() => onSelect(student.id)}
                     >
-                        {/* Avatar */}
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shrink-0 border shadow-inner ${activeTab === 'DEBTORS' ? 'bg-slate-800 text-red-500 border-red-500/20' : 'bg-slate-800 text-emerald-500 border-emerald-500/20'}`}>
+                        {/* Avatar Wrapper */}
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shrink-0 shadow-inner border ${activeTab === 'DEBTORS' ? 'bg-slate-800 text-red-500 border-red-500/20' : 'bg-slate-800 text-emerald-500 border-emerald-500/20'}`}>
                             {student.name.charAt(0).toUpperCase()}
                         </div>
                         
                         <div className="flex-1 min-w-0">
                             <h4 className="font-bold text-slate-100 truncate leading-tight group-hover:text-white transition-colors">{student.name}</h4>
                             <div className="flex items-center gap-2 mt-1.5">
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 ${activeTab === 'DEBTORS' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
-                                    <CreditCard size={10} /> {student.fee} ₺
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 ${activeTab === 'DEBTORS' ? 'bg-red-500/10 text-red-400 border border-red-500/10' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10'}`}>
+                                    {student.fee === 0 ? <ShieldCheck size={10} /> : <CreditCard size={10} />}
+                                    {student.fee === 0 ? "ÜCRETSİZ" : `${student.fee} ₺`}
                                 </span>
                                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                                    {activeTab === 'DEBTORS' ? 'ÖDEME BEKLİYOR' : 'TAHSİLAT TAMAM'}
+                                    {activeTab === 'DEBTORS' ? 'BORÇLU' : 'ÖDENDİ'}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setDeleteId(student.id); }}
-                                className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-700 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                                className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-700 hover:bg-red-500/10 hover:text-red-500 transition-all"
                             >
-                                <Trash2 size={18} />
+                                <Trash2 size={16} />
                             </button>
-                            <ChevronRight size={20} className="text-slate-800 group-hover:text-slate-600 transition-colors" />
+                            <ChevronRight size={18} className="text-slate-700 group-hover:text-slate-500" />
                         </div>
                     </div>
                 ))
             )}
             
-            {/* Archive Notice */}
+            {/* Archive Notification */}
             {activeTab === 'PAID' && (Object.values(state.students || {}) as Student[]).some(s => s.isActive === false) && (
-                <div className="pt-6 pb-2 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
-                        <UserMinus size={12} className="text-slate-600" />
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic">Pasif kayıtlar arşivde gizlendi</span>
-                    </div>
+                <div className="pt-6 pb-2 text-center opacity-40">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic">Arşivlenmiş kayıtlar gizlendi</span>
                 </div>
             )}
       </div>
 
-      {/* FAB (Add Student) - Overlay for mobile feel */}
+      {/* Floating Add Button */}
       <button 
         onClick={() => setIsAddModalOpen(true)}
         className="fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-900/50 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30 ring-4 ring-[#0F172A]"
@@ -196,29 +195,17 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       </button>
 
       {/* MODALS */}
-      <Dialog isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Kayıt" actions={<button onClick={handleAddStudent} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-900/20">Kaydet</button>}>
+      <Dialog isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Kayıt" actions={<button onClick={handleAddStudent} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button>}>
         <div className="flex flex-col gap-4 py-2">
-            <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Öğrenci Adı</label>
-                <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="İsim Soyisim" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-colors" />
-            </div>
-            <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">İletişim</label>
-                <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} placeholder="Telefon (Opsiyonel)" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-colors" />
-            </div>
-            <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Aylık Ücret (₺)</label>
-                <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} placeholder="Aylık Ücret" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-colors" />
-            </div>
+            <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="İsim Soyisim" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
+            <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} placeholder="Telefon (Opsiyonel)" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
+            <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} placeholder="Aylık Ücret (₺)" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
+            <p className="text-[10px] text-slate-400 font-medium px-1 italic">* Ücreti 0 girilen öğrenciler otomatik olarak "Ödedi" listesinde görünür.</p>
         </div>
       </Dialog>
 
       <Dialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Kaydı Sil" actions={<button onClick={() => { if(deleteId) actions.deleteStudent(deleteId); setDeleteId(null); }} className="px-8 py-3 bg-red-500 text-white rounded-xl font-bold text-sm">Sil</button>}>
-        <div className="p-1">
-            <p className="text-slate-600 text-sm font-semibold leading-relaxed">
-                Bu öğrenciyi ve <span className="text-red-600 font-black">tüm ödeme/ders geçmişini</span> kalıcı olarak silmek istediğinizden emin misiniz?
-            </p>
-        </div>
+        <p className="text-slate-600 text-sm font-semibold p-1">Öğrenciyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.</p>
       </Dialog>
     </div>
   );
