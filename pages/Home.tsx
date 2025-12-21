@@ -138,6 +138,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     { key: 'violet', color: '#7c3aed' },
     { key: 'rose', color: '#e11d48' },
     { key: 'amber', color: '#d97706' },
+    { key: 'midnight', color: '#0f172a' },
+    { key: 'carbon', color: '#171717' },
     { key: 'neutral', color: '#334155' },
   ];
 
