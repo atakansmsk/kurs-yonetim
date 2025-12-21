@@ -34,10 +34,10 @@ const THEME_PALETTES: Record<string, Record<string, string>> = {
     50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03'
   },
   midnight: {
-    50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#334155', 600: '#1e293b', 700: '#0f172a', 800: '#020617', 900: '#000000', 950: '#000000'
+    50: '#f1f5f9', 100: '#e2e8f0', 200: '#94a3b8', 300: '#64748b', 400: '#475569', 500: '#1e293b', 600: '#0f172a', 700: '#020617', 800: '#000000', 900: '#000000', 950: '#000000'
   },
   carbon: {
-    50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4', 400: '#a3a3a3', 500: '#404040', 600: '#262626', 700: '#171717', 800: '#0a0a0a', 900: '#050505', 950: '#000000'
+    50: '#f5f5f5', 100: '#d4d4d4', 200: '#a3a3a3', 300: '#737373', 400: '#525252', 500: '#262626', 600: '#171717', 700: '#0a0a0a', 800: '#000000', 900: '#000000', 950: '#000000'
   },
   neutral: {
     50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4', 400: '#a3a3a3', 500: '#737373', 600: '#525252', 700: '#404040', 800: '#262626', 900: '#171717', 950: '#0a0a0a'
@@ -76,7 +76,6 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [selectedStudentId, activeTab]);
 
-  // Handle External Views First (No Login Required)
   if (isParentView) {
     const tId = urlParams.get('teacherId');
     const sId = urlParams.get('studentId');
@@ -89,7 +88,6 @@ const AppContent: React.FC = () => {
     if (uid && name) return <TeacherView uid={uid} teacherName={decodeURIComponent(name)} />;
   }
 
-  // Teacher Auth Flow
   if (!user) return <Login />;
   
   const handleTabChange = (tab: Tab) => {
@@ -116,11 +114,9 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[100dvh] w-full max-w-md bg-[#F8FAFC] shadow-2xl overflow-hidden relative mx-auto sm:rounded-[2.5rem] sm:my-4 sm:h-[calc(100dvh-2rem)] border-0 sm:border-8 border-white ring-1 ring-black/5 animate-in fade-in duration-500">
-      
       <main className="flex-1 overflow-hidden relative">
         {renderContent()}
       </main>
-
       {!selectedStudentId && (
         <div className="bg-white border-t border-slate-100 pb-safe pt-2 px-6 shadow-sm">
             <nav className="flex justify-around items-center h-16">

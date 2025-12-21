@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';
-import { Trash2, Search, UserPlus, AlertCircle, CheckCircle2, Clock, UserCheck, UserMinus, ChevronRight, CreditCard, Banknote, ShieldCheck } from 'lucide-react';
+import { Trash2, Search, UserPlus, AlertCircle, CheckCircle2, Clock, UserCheck, UserMinus, ChevronRight, CreditCard, ShieldCheck } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface StudentListProps {
@@ -25,7 +25,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   const currentYear = now.getFullYear();
   const monthName = now.toLocaleDateString('tr-TR', { month: 'long' });
 
-  // Advanced financial classification logic with "0 Fee" handling
   const { debtors, paidStudents, stats } = useMemo(() => {
       const allStudents = Object.values(state.students || {}) as Student[];
       const activeOnes = allStudents.filter(s => s.isActive !== false);
@@ -36,13 +35,11 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       let totalCollected = 0;
 
       activeOnes.forEach(student => {
-          // Check if paid this month
           const hasPaidThisMonth = (student.history || []).some(tx => {
               const d = new Date(tx.date);
               return !tx.isDebt && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
           });
 
-          // RULE: If paid this month OR fee is 0, they are "Paid"
           if (hasPaidThisMonth || (student.fee === 0)) {
               paidList.push(student);
               totalCollected += student.fee || 0;
@@ -52,7 +49,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           }
       });
 
-      // Search filter
       const filterFn = (s: Student) => s.name.toLowerCase().includes(search.toLowerCase());
       
       return {
@@ -70,9 +66,16 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       }
   };
 
+  const handleConfirmDelete = () => {
+      if (deleteId) {
+          actions.deleteStudent(deleteId);
+          setDeleteId(null);
+      }
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
-      {/* Header & Stats - Light Design */}
+      {/* Header & Stats */}
       <div className="bg-white px-5 pt-8 pb-4 sticky top-0 z-20 shadow-sm border-b border-slate-100">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -116,7 +119,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
             />
           </div>
 
-          {/* Tab Switcher */}
           <div className="flex p-1 bg-slate-100 rounded-xl">
               <button 
                 onClick={() => setActiveTab('DEBTORS')}
@@ -133,7 +135,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           </div>
       </div>
 
-      {/* List Content */}
       <div className="flex-1 overflow-y-auto p-5 space-y-3 pb-32 no-scrollbar">
             {(activeTab === 'DEBTORS' ? debtors : paidStudents).length === 0 ? (
                  <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
@@ -147,7 +148,6 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                         className={`group bg-white rounded-2xl p-4 shadow-sm border flex items-center gap-4 cursor-pointer active:scale-[0.98] transition-all ${activeTab === 'DEBTORS' ? 'border-red-50 hover:border-red-200' : 'border-emerald-50 hover:border-emerald-200'}`}
                         onClick={() => onSelect(student.id)}
                     >
-                        {/* Avatar */}
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shrink-0 ${activeTab === 'DEBTORS' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {student.name.charAt(0).toUpperCase()}
                         </div>
@@ -159,34 +159,23 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                                     {student.fee === 0 ? <ShieldCheck size={10} /> : <CreditCard size={10} />}
                                     {student.fee === 0 ? "ÜCRETSİZ" : `${student.fee} ₺`}
                                 </span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                    {activeTab === 'DEBTORS' ? 'ÖDEME BEKLİYOR' : 'ÖDENDİ'}
-                                </span>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setDeleteId(student.id); }}
-                                className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-200 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                             >
-                                <Trash2 size={16} />
+                                <Trash2 size={18} />
                             </button>
                             <ChevronRight size={18} className="text-slate-300" />
                         </div>
                     </div>
                 ))
             )}
-            
-            {/* Archive Notice */}
-            {activeTab === 'PAID' && (Object.values(state.students || {}) as Student[]).some(s => s.isActive === false) && (
-                <div className="pt-4 text-center opacity-40">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Arşivlenmiş kayıtlar gizlendi</span>
-                </div>
-            )}
       </div>
 
-      {/* Floating Add Button */}
       <button 
         onClick={() => setIsAddModalOpen(true)}
         className="fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-200 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30"
@@ -194,18 +183,19 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
         <UserPlus size={28} />
       </button>
 
-      {/* MODALS */}
       <Dialog isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Kayıt" actions={<button onClick={handleAddStudent} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button>}>
         <div className="flex flex-col gap-4 py-2">
             <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="İsim Soyisim" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
             <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} placeholder="Telefon (Opsiyonel)" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
             <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} placeholder="Aylık Ücret (₺)" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
-            <p className="text-[10px] text-slate-400 font-medium px-1 italic">* Ücreti 0 girilen öğrenciler otomatik olarak "Ödedi" listesinde görünür.</p>
         </div>
       </Dialog>
 
-      <Dialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Kaydı Sil" actions={<button onClick={() => { if(deleteId) actions.deleteStudent(deleteId); setDeleteId(null); }} className="px-8 py-3 bg-red-500 text-white rounded-xl font-bold text-sm">Sil</button>}>
-        <p className="text-slate-600 text-sm font-semibold p-1 leading-relaxed">Öğrenciyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.</p>
+      <Dialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Öğrenciyi Sil" actions={<button onClick={handleConfirmDelete} className="px-8 py-3 bg-red-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-200">Kalıcı Olarak Sil</button>}>
+        <div className="p-1">
+            <p className="text-slate-800 text-sm font-bold leading-relaxed">Bu öğrenciyi ve tüm ders programındaki kayıtlarını silmek istediğinizden emin misiniz?</p>
+            <p className="text-red-500 text-[10px] font-bold mt-2 uppercase tracking-tight">⚠️ Bu işlem geri alınamaz!</p>
+        </div>
       </Dialog>
     </div>
   );

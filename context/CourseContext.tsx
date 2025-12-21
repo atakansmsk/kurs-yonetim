@@ -65,7 +65,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const localStudentCount = Object.keys(localBest?.students || {}).length;
 
             if (remoteStudentCount === 0 && localStudentCount > 0) {
-                console.warn("Kurtarma Devrede: Yerel yedekten yükleniyor.");
                 finalData = localBest as AppState;
                 setIsRecovered(true);
             } else {
@@ -82,7 +81,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setIsLoaded(true);
         },
         (error) => { 
-            console.error("Senkronizasyon Hatası:", error);
             if (localBest) {
                 setState(localBest);
                 setIsRecovered(true);
@@ -93,7 +91,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => unsubscribe();
   }, [user]);
 
-  // --- AUTOMATIC LESSON PROCESSING ENGINE ---
   useEffect(() => {
     if (!isLoaded || !state.autoLessonProcessing || !user) return;
 
@@ -118,12 +115,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       todaysSlots.forEach(slot => {
         if (slot.studentId && !nextProcessedToday.includes(slot.id)) {
           const slotStartMinutes = timeToMinutes(slot.start);
-          
-          // If lesson time has arrived/passed
           if (currentMinutes >= slotStartMinutes) {
             const student = nextStudents[slot.studentId];
             if (student && student.isActive !== false) {
-              // Add transaction
               const txId = Math.random().toString(36).substr(2, 9);
               const isMakeup = slot.label === 'MAKEUP';
               const isTrial = slot.label === 'TRIAL';
@@ -133,7 +127,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 note: isMakeup ? 'Telafi Dersi İşlendi' : isTrial ? 'Deneme Dersi İşlendi' : 'Otomatik Ders İşlendi',
                 date: now.toISOString(),
                 isDebt: true,
-                amount: isTrial ? 0 : 0 // Fees are usually handled as 'Lesson Count' or fixed debt. Here we follow app's logic of isDebt:true
+                amount: 0
               };
 
               nextStudents[slot.studentId] = {
@@ -152,13 +146,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateState(s => ({
           ...s,
           students: nextStudents,
-          processedSlots: {
-            ...s.processedSlots,
-            [todayDateStr]: nextProcessedToday
-          }
+          processedSlots: { ...s.processedSlots, [todayDateStr]: nextProcessedToday }
         }));
       }
-    }, 30000); // Check every 30 seconds
+    }, 30000);
 
     return () => clearInterval(processInterval);
   }, [isLoaded, state.autoLessonProcessing, state.currentTeacher, state.schedule, state.processedSlots, state.students, user]);
@@ -167,15 +158,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setState(current => {
           const newState = updater(current);
           newState.updatedAt = new Date().toISOString();
-          
           const prevCount = Object.keys(current.students || {}).length;
           const nextCount = Object.keys(newState.students || {}).length;
 
           if (user) {
-              if (prevCount > 0 && nextCount === 0) {
-                  console.error("VERİ KAYBI ÖNLENDİ: Boş liste kaydedilmedi.");
+              if (prevCount > 0 && nextCount === 0 && Object.keys(current.students).length > 0) {
+                  console.error("Critical: Prevented empty data save");
               } else {
-                  DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error("Cloud Save Error:", err));
+                  DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error(err));
               }
               localStorage.setItem(`kurs_data_backup_${user.id}`, JSON.stringify(newState));
           }
@@ -212,8 +202,18 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return { ...s, students: { ...s.students, [id]: { ...s.students[id], isActive } } };
       }),
       deleteStudent: (id) => updateState(s => {
-          const { [id]: deleted, ...rest } = s.students;
-          return { ...s, students: rest };
+          // 1. Remove from students list
+          const { [id]: deleted, ...restStudents } = s.students;
+          
+          // 2. Remove from all schedule slots to prevent 'ghost' slots
+          const newSchedule = { ...s.schedule };
+          Object.keys(newSchedule).forEach(key => {
+              newSchedule[key] = (newSchedule[key] || []).map(slot => 
+                  slot.studentId === id ? { ...slot, studentId: null, label: null as any } : slot
+              );
+          });
+          
+          return { ...s, students: restStudents, schedule: newSchedule };
       }),
       getStudent: (id) => state.students[id],
       addSlot: (day, start, end) => updateState(s => {
@@ -299,13 +299,12 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
   };
 
-  if (!isLoaded) return <div className="h-screen w-full flex items-center justify-center bg-[#F8FAFC] text-slate-400 font-bold tracking-widest uppercase text-[10px]">VERİLER KURTARILIYOR...</div>;
-
+  if (!isLoaded) return <div className="h-screen w-full flex items-center justify-center bg-[#F8FAFC] text-slate-400 font-bold tracking-widest uppercase text-[10px]">YÜKLENİYOR...</div>;
   return <CourseContext.Provider value={{ state, isRecovered, actions }}>{children}</CourseContext.Provider>;
 };
 
 export const useCourse = () => {
   const context = useContext(CourseContext);
-  if (context === undefined) throw new Error('useCourse must be used within a CourseProvider');
+  if (context === undefined) throw new Error('useCourse error');
   return context;
 };
