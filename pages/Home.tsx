@@ -1,10 +1,9 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
 import { 
   Calendar, 
-  Pencil, 
+  CalendarRange,
   Sparkles, 
   Palette, 
   Music, 
@@ -12,14 +11,11 @@ import {
   Trophy, 
   Activity, 
   UserPlus, 
-  ImagePlus, 
   Users, 
   LogOut, 
   Settings, 
-  CheckCircle2, 
   Zap, 
   GraduationCap, 
-  CalendarRange, 
   ChevronRight, 
   ChevronLeft, 
   Share2, 
@@ -27,8 +23,9 @@ import {
   UploadCloud, 
   Loader2,
   Clock,
-  PlayCircle,
-  Coffee
+  Coffee,
+  LayoutDashboard,
+  Bell
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -66,7 +63,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [dayOffset, setDayOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Update clock every minute for live feed
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
@@ -146,9 +142,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       setIsSyncing(true);
       try {
           await actions.forceSync();
-          alert("Veriler başarıyla buluta kaydedildi!");
       } catch (e) {
-          alert("Hata oluştu, lütfen internetinizi kontrol edin.");
       } finally {
           setIsSyncing(false);
       }
@@ -172,7 +166,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       const baseUrl = window.location.origin + window.location.pathname;
       const url = `${baseUrl}?teacherView=true&uid=${user.id}&name=${encodeURIComponent(teacherName)}`;
       navigator.clipboard.writeText(url);
-      alert(`${teacherName} için ders programı linki kopyalandı!`);
+      alert(`Link Kopyalandı`);
   };
 
   const THEME_OPTIONS = [
@@ -190,221 +184,261 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const userName = user?.name ? user.name.split(' ')[0] : "Eğitmen";
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-5 pt-8 pb-32 no-scrollbar">
+    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-6 pt-6 pb-32 no-scrollbar scroll-smooth">
       
       {/* 0. RECOVERY WARNING */}
       {isRecovered && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-3xl animate-pulse flex items-center justify-between gap-3">
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-3xl animate-in slide-in-from-top-4 flex items-center justify-between gap-3 shadow-sm shadow-amber-100">
               <div className="flex items-center gap-2">
-                  <AlertTriangle className="text-amber-600 shrink-0" size={20} />
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                      <AlertTriangle size={16} />
+                  </div>
                   <p className="text-[11px] font-bold text-amber-900 leading-tight">Veriler yerel yedekten yüklendi.</p>
               </div>
-              <button onClick={() => setIsSettingsOpen(true)} className="px-3 py-1.5 bg-amber-600 text-white rounded-xl text-[10px] font-black shrink-0">DÜZELT</button>
+              <button onClick={() => setIsSettingsOpen(true)} className="px-4 py-2 bg-amber-600 text-white rounded-xl text-[10px] font-black shrink-0 shadow-md shadow-amber-600/20 active:scale-95 transition-transform uppercase tracking-wider">Onar</button>
           </div>
       )}
 
-      {/* 1. Header Section - V2 Style */}
-      <div className="flex items-center justify-between mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+      {/* 1. Header Section */}
+      <div className="flex items-start justify-between mb-8">
           <div className="flex flex-col">
-             <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-1">{state.schoolName}</span>
-             <h1 className="text-3xl font-black text-slate-800 tracking-tighter leading-none">Hoş Geldin, <br/><span className="text-indigo-600">{userName}</span></h1>
+             <div className="flex items-center gap-2 mb-2">
+                <div className="px-2.5 py-1 bg-white border border-slate-100 rounded-lg shadow-sm flex items-center gap-1.5">
+                    {state.schoolIcon.startsWith('data:') ? (
+                        <img src={state.schoolIcon} alt="Logo" className="w-4 h-4 object-contain" />
+                    ) : (
+                        <Sparkles size={12} className="text-indigo-500" />
+                    )}
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">{state.schoolName}</span>
+                </div>
+             </div>
+             <h1 className="text-3xl font-black text-slate-800 tracking-tight leading-[1.1]">
+                Merhaba, <span className="text-indigo-600 block">{userName}</span>
+             </h1>
           </div>
-          <button onClick={() => setIsSettingsOpen(true)} className={`p-3 rounded-[1.2rem] border shadow-soft transition-all active:scale-90 relative ${isRecovered ? 'bg-amber-100 border-amber-200 text-amber-600' : 'bg-white text-slate-400 border-slate-100'}`}>
-             <Settings size={22} />
-             {state.autoLessonProcessing && <div className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-indigo-500 rounded-full border-2 border-white"></div>}
-          </button>
+          <div className="flex gap-2">
+            <button className="p-3 bg-white border border-slate-100 text-slate-400 rounded-2xl shadow-soft hover:text-indigo-600 transition-all active:scale-90">
+                <Bell size={20} />
+            </button>
+            <button onClick={() => setIsSettingsOpen(true)} className={`p-3 rounded-2xl border shadow-soft transition-all active:scale-90 relative ${isRecovered ? 'bg-amber-100 border-amber-200 text-amber-600' : 'bg-white text-slate-400 border-slate-100'}`}>
+                <Settings size={20} />
+                {state.autoLessonProcessing && <div className="absolute top-2.5 right-2.5 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white animate-pulse"></div>}
+            </button>
+          </div>
       </div>
 
-      {/* 2. LIVE STATUS CARD (V2 MAIN FEATURE) */}
-      <div className="w-full mb-8 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-100">
-        <div className="relative group overflow-hidden bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl shadow-indigo-200/50">
-            {/* Background Effects */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/20 rounded-full blur-[50px] -mr-10 -mt-10"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-50/20 rounded-full blur-[40px] -ml-8 -mb-8"></div>
+      {/* 2. LIVE FEED CARD - Premium Glassmorphism Effect */}
+      <div className="w-full mb-8">
+        <div className="relative overflow-hidden rounded-[2.5rem] p-7 shadow-2xl shadow-indigo-200/40 min-h-[180px] bg-slate-900">
+            {/* Animated Background Gradients */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 rounded-full blur-[60px] -mr-16 -mt-16 animate-pulse"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[40px] -ml-12 -mb-12"></div>
             
-            <div className="relative z-10">
+            <div className="relative z-10 flex flex-col h-full">
                 {liveStatus.statusType === 'IN_LESSON' ? (
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/30">
-                                <PlayCircle size={14} className="text-indigo-400 animate-pulse" />
-                                <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Ders Devam Ediyor</span>
+                            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                                </span>
+                                <span className="text-[10px] font-black text-indigo-100 uppercase tracking-widest">Ders Başladı</span>
                             </div>
-                            <span className="text-xs font-bold text-slate-400">{liveStatus.currentSlot?.start} - {liveStatus.currentSlot?.end}</span>
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                                <Clock size={12} />
+                                <span>{liveStatus.currentSlot?.start}</span>
+                            </div>
                         </div>
+                        
                         <div>
-                            <h2 className="text-2xl font-black text-white tracking-tight">{state.students[liveStatus.currentSlot!.studentId!]?.name}</h2>
-                            <p className="text-indigo-300 text-xs font-bold mt-1 tracking-wide">Kalan: {liveStatus.timeLeft} dakika</p>
-                        </div>
-                        <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                            <div 
-                                className="h-full bg-gradient-to-r from-indigo-500 to-indigo-300 transition-all duration-1000 ease-out" 
-                                style={{ width: `${liveStatus.progress}%` }}
-                            ></div>
+                            <h2 className="text-2xl font-black text-white tracking-tight leading-none mb-2">{state.students[liveStatus.currentSlot!.studentId!]?.name}</h2>
+                            <div className="flex items-center gap-2">
+                                <div className="h-1.5 flex-1 bg-white/10 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
+                                        style={{ width: `${liveStatus.progress}%` }}
+                                    ></div>
+                                </div>
+                                <span className="text-[10px] font-black text-indigo-300 shrink-0">{liveStatus.timeLeft} dk kaldı</span>
+                            </div>
                         </div>
                     </div>
                 ) : liveStatus.statusType === 'BREAK' ? (
-                    <div className="flex flex-col items-center text-center py-2">
-                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-indigo-400 mb-4 shadow-inner">
+                    <div className="flex flex-col items-center justify-center text-center py-4 space-y-4">
+                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-indigo-400 shadow-inner">
                             <Clock size={28} />
                         </div>
-                        <h3 className="text-lg font-black text-white">Ders Arası</h3>
-                        <p className="text-slate-400 text-xs font-bold mt-1">Sıradaki: <span className="text-indigo-300">{state.students[liveStatus.nextSlot!.studentId!]?.name || "Boş Ders"}</span></p>
-                        <div className="mt-4 px-4 py-2 bg-indigo-600 rounded-xl text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-900/50">
-                           {liveStatus.timeLeft} DK SONRA
+                        <div className="space-y-1">
+                            <h3 className="text-xl font-black text-white tracking-tight">Ders Arası</h3>
+                            <p className="text-slate-400 text-xs font-medium">Sıradaki: <span className="text-indigo-300 font-bold">{state.students[liveStatus.nextSlot!.studentId!]?.name || "Boş Ders"}</span></p>
+                        </div>
+                        <div className="px-5 py-2.5 bg-indigo-600 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-900/50 flex items-center gap-2">
+                           <Zap size={12} fill="currentColor" /> {liveStatus.timeLeft} Dakika Sonra
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center text-center py-2">
-                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 mb-4">
+                    <div className="flex flex-col items-center justify-center text-center py-4 space-y-4">
+                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
                             <Coffee size={28} />
                         </div>
-                        <h3 className="text-lg font-black text-white">Bugünlük Bu Kadar</h3>
-                        <p className="text-slate-500 text-xs font-medium mt-1">Tüm dersler tamamlandı veya henüz başlamadı.</p>
-                        <button onClick={() => onNavigate('SCHEDULE')} className="mt-4 text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:text-white transition-colors">PROGRAMA GÖZ AT</button>
+                        <div className="space-y-1">
+                            <h3 className="text-xl font-black text-white tracking-tight">Günün Sonu</h3>
+                            <p className="text-slate-500 text-xs font-medium">Bugünlük tüm dersler tamamlandı.</p>
+                        </div>
+                        <button onClick={() => onNavigate('SCHEDULE')} className="text-indigo-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-white transition-colors border-b border-indigo-500/30 pb-1">
+                            PROGRAMI İNCELE
+                        </button>
                     </div>
                 )}
             </div>
         </div>
       </div>
 
-      {/* 3. Stats Row - V2 Clean Style */}
-      <div className="grid grid-cols-2 gap-4 mb-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-          <div className="bg-white p-5 rounded-[2rem] shadow-soft border border-slate-100 flex flex-col justify-between h-36">
-             <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><Users size={20} /></div>
+      {/* 3. DASHBOARD GRID */}
+      <div className="grid grid-cols-2 gap-4 mb-8">
+          {/* Total Students */}
+          <div className="bg-white p-6 rounded-[2.2rem] shadow-soft border border-slate-50 flex flex-col justify-between h-40 group hover:border-indigo-100 transition-all">
+             <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm shadow-indigo-100 transition-transform group-hover:scale-110"><Users size={22} /></div>
              <div>
-                <span className="text-3xl font-black text-slate-800 tracking-tighter leading-none">{currentTeacherStudentCount}</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mt-1">Öğrenciniz</span>
+                <span className="text-4xl font-black text-slate-800 tracking-tighter block leading-none">{currentTeacherStudentCount}</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mt-2 ml-0.5">Öğrenciler</span>
              </div>
           </div>
-          <div className="bg-white p-2 rounded-[2rem] shadow-soft border border-slate-100 flex items-center justify-between h-36 relative">
-             <button onClick={() => setDayOffset(prev => prev - 1)} className="h-full px-2 flex items-center justify-center text-slate-300 hover:text-indigo-600 transition-colors"><ChevronLeft size={20} /></button>
-             <div className="flex flex-col items-center flex-1">
-                 <span className="text-3xl font-black text-slate-800 tracking-tighter leading-none">{dailyStats.count}</span>
-                 <div className="text-center mt-1">
+
+          {/* Daily Schedule Navigation */}
+          <div className="bg-white p-3 rounded-[2.2rem] shadow-soft border border-slate-50 flex flex-col h-40 group hover:border-indigo-100 transition-all">
+             <div className="flex items-center justify-between mb-auto">
+                <button onClick={() => setDayOffset(prev => prev - 1)} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-90"><ChevronLeft size={18} /></button>
+                <button onClick={() => setDayOffset(prev => prev + 1)} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-90"><ChevronRight size={18} /></button>
+             </div>
+             
+             <div className="flex flex-col items-center text-center pb-3">
+                 <span className="text-4xl font-black text-slate-800 tracking-tighter leading-none">{dailyStats.count}</span>
+                 <div className="mt-2">
                      <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">{dailyStats.label}</span>
                      {dailyStats.label !== dailyStats.fullDayName && (<span className="text-[8px] font-bold text-slate-300 uppercase tracking-tight">{dailyStats.fullDayName}</span>)}
                  </div>
              </div>
-             <button onClick={() => setDayOffset(prev => prev + 1)} className="h-full px-2 flex items-center justify-center text-slate-300 hover:text-indigo-600 transition-colors"><ChevronRight size={20} /></button>
           </div>
       </div>
 
-      {/* 4. MAIN ACTION BUTTON - Premium Style */}
-      <div className="mb-8 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
-        <button onClick={() => onNavigate('SCHEDULE')} className="w-full bg-indigo-600 p-6 rounded-[2.5rem] shadow-xl shadow-indigo-100 flex items-center justify-between group active:scale-95 transition-all overflow-hidden relative">
-            {/* Glossy Overlay */}
-            <div className="absolute top-0 left-0 w-full h-1/2 bg-white/5 -skew-y-12"></div>
-            
-            <div className="flex items-center gap-5 relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform"><Calendar size={28} /></div>
-                <div className="text-left text-white">
-                    <h4 className="font-black text-xl tracking-tight leading-none">Ders Programı</h4>
-                    <p className="text-[11px] text-indigo-100/70 font-bold mt-1 uppercase tracking-wider">Haftalık Takvim</p>
+      {/* 4. MAIN NAVIGATION BUTTON - Card Style */}
+      <div className="mb-8">
+        <button 
+            onClick={() => onNavigate('SCHEDULE')} 
+            className="w-full bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-soft flex items-center justify-between group active:scale-[0.98] transition-all relative overflow-hidden"
+        >
+            <div className="flex items-center gap-5">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xl shadow-indigo-200 group-hover:rotate-6 transition-all">
+                    <CalendarRange size={32} strokeWidth={2.5} />
+                </div>
+                <div className="text-left">
+                    <h4 className="font-black text-xl text-slate-800 tracking-tight leading-none">Ders Programı</h4>
+                    <p className="text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-widest">Haftalık görünüm</p>
                 </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center relative z-10 group-hover:bg-white group-hover:text-indigo-600 transition-all"><ChevronRight size={20} /></div>
+            <div className="w-11 h-11 rounded-2xl bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                <ChevronRight size={22} />
+            </div>
         </button>
       </div>
 
-      {/* 5. Secondary Actions */}
-      <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-400">
-        <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-soft flex flex-col items-start gap-3 hover:border-indigo-200 transition-all active:scale-95">
-             <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center"><GraduationCap size={20} /></div>
-             <div className="text-left"><h4 className="font-black text-slate-800 text-sm">Eğitmenler</h4><p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Hesap Değiştir</p></div>
+      {/* 5. QUICK ACTIONS */}
+      <div className="grid grid-cols-2 gap-4">
+        <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-5 rounded-[2.2rem] border border-slate-100 shadow-soft flex flex-col items-start gap-3 hover:border-orange-100 transition-all active:scale-95 group">
+             <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center transition-transform group-hover:scale-110"><GraduationCap size={20} /></div>
+             <div className="text-left">
+                <h4 className="font-black text-slate-800 text-sm">Eğitmenler</h4>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Kadro Yönetimi</p>
+             </div>
         </button>
-         <button onClick={() => onNavigate('STUDENTS')} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-soft flex flex-col items-start gap-3 hover:border-indigo-200 transition-all active:scale-95">
-             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center"><UserPlus size={20} /></div>
-             <div className="text-left"><h4 className="font-black text-slate-800 text-sm">Kişiler</h4><p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Öğrenci Listesi</p></div>
+         <button onClick={() => onNavigate('STUDENTS')} className="bg-white p-5 rounded-[2.2rem] border border-slate-100 shadow-soft flex flex-col items-start gap-3 hover:border-emerald-100 transition-all active:scale-95 group">
+             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center transition-transform group-hover:scale-110"><LayoutDashboard size={20} /></div>
+             <div className="text-left">
+                <h4 className="font-black text-slate-800 text-sm">Finans</h4>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Gelir & Rehber</p>
+             </div>
         </button>
       </div>
 
-      {/* Teachers Modal */}
-      <Dialog isOpen={isTeachersListOpen} onClose={() => { setIsTeachersListOpen(false); setIsAddTeacherMode(false); }} title={isAddTeacherMode ? "Yeni Eğitmen" : "Eğitmenler"}
-        actions={isAddTeacherMode ? (<><button onClick={() => setIsAddTeacherMode(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl">Geri</button><button onClick={handleSaveTeacher} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-md shadow-slate-300 hover:shadow-none transition-all active:scale-95">Kaydet</button></>) : (<button onClick={() => setIsAddTeacherMode(true)} className="w-full py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200 active:scale-95"><UserPlus size={16} /> Eğitmen Ekle</button>)}>
-          {isAddTeacherMode ? (<div className="py-1"><input type="text" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:border-slate-900 outline-none" placeholder="Ad Soyad..." autoFocus /></div>) : (<div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto pr-1">{state.teachers.length === 0 ? <div className="text-center py-6 opacity-50"><p className="font-bold text-sm text-slate-400">Kayıtlı eğitmen yok.</p></div> : state.teachers.map(teacher => {const count = getStudentCountForTeacher(teacher); return (<div key={teacher} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm group hover:border-indigo-100 transition-colors"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${teacher === state.currentTeacher ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div><div><div className="font-bold text-slate-800 text-sm">{teacher}</div><div className="text-[10px] font-bold text-slate-400">{count} Öğrenci</div></div></div><div className="flex items-center gap-2"><button onClick={(e) => handleShareTeacherLink(e, teacher)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-100 transition-colors" title="Paylaşım Linkini Kopyala"><Share2 size={16} /></button>{teacher !== state.currentTeacher && (<button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-bold border border-slate-200 rounded-lg hover:border-indigo-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">Seç</button>)}</div></div>);})}</div>)}
+      {/* FOOTER - Subtle Brand Tag */}
+      <div className="mt-12 mb-6 flex items-center justify-center opacity-20">
+          <div className="h-px bg-slate-400 w-8"></div>
+          <span className="mx-3 text-[8px] font-black uppercase tracking-[0.3em] text-slate-600">Kurs Yönetim Pro</span>
+          <div className="h-px bg-slate-400 w-8"></div>
+      </div>
+
+      {/* MODALS - Refined styling */}
+      <Dialog isOpen={isTeachersListOpen} onClose={() => { setIsTeachersListOpen(false); setIsAddTeacherMode(false); }} title={isAddTeacherMode ? "Yeni Eğitmen" : "Eğitmen Kadrosu"}
+        actions={isAddTeacherMode ? (<><button onClick={() => setIsAddTeacherMode(false)} className="px-4 py-2 text-slate-500 font-bold text-sm hover:bg-slate-50 rounded-xl transition-colors">Vazgeç</button><button onClick={handleSaveTeacher} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">Kaydet</button></>) : (<button onClick={() => setIsAddTeacherMode(true)} className="w-full py-4 bg-slate-900 text-white font-black text-xs rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-widest"><UserPlus size={16} /> Yeni Eğitmen Ekle</button>)}>
+          {isAddTeacherMode ? (<div className="py-2"><input type="text" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-indigo-500 transition-all outline-none" placeholder="Eğitmen Adı Soyadı..." autoFocus /></div>) : (<div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto pr-1 no-scrollbar">{state.teachers.length === 0 ? <div className="text-center py-10 opacity-40 flex flex-col items-center gap-2"><LayoutDashboard size={32} className="text-slate-300" /><p className="font-bold text-xs text-slate-400">Kayıtlı eğitmen bulunamadı.</p></div> : state.teachers.map(teacher => {const count = getStudentCountForTeacher(teacher); return (<div key={teacher} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm hover:border-indigo-200 transition-all active:scale-[0.99]"><div className="flex items-center gap-3"><div className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-sm shadow-inner ${teacher === state.currentTeacher ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div><div><div className="font-black text-slate-800 text-sm leading-tight">{teacher}</div><div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">{count} Öğrenci</div></div></div><div className="flex items-center gap-2"><button onClick={(e) => handleShareTeacherLink(e, teacher)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-all" title="Program Linki"><Share2 size={16} /></button>{teacher !== state.currentTeacher && (<button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-4 py-2 text-[10px] font-black border border-slate-200 rounded-xl hover:border-indigo-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all uppercase tracking-wider">Seç</button>)}</div></div>);})}</div>)}
       </Dialog>
 
-      {/* Settings Modal (LOGO UPLOAD IS HERE) */}
-      <Dialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="Ayarlar">
-        <div className="py-2 flex flex-col gap-4">
-             {/* Profile Info */}
-             <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center text-lg font-bold text-slate-700">{user?.name ? user.name.charAt(0).toUpperCase() : 'E'}</div>
-                <div><h3 className="font-bold text-slate-900">{user?.name || 'Eğitmen'}</h3><p className="text-xs text-slate-500">{user?.email}</p></div>
+      <Dialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="Hesap Ayarları">
+        <div className="py-2 flex flex-col gap-6">
+             <div className="flex items-center gap-4 bg-slate-900 p-5 rounded-[2rem] border border-white/5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-xl font-black text-white shadow-inner">{user?.name ? user.name.charAt(0).toUpperCase() : 'E'}</div>
+                <div className="z-10"><h3 className="font-black text-white text-lg tracking-tight leading-tight">{user?.name || 'Eğitmen'}</h3><p className="text-xs text-slate-400 font-medium">{user?.email}</p></div>
              </div>
 
-             {/* LOGO UPLOAD (Moved here from Home) */}
-             <div className="bg-white border border-slate-100 p-4 rounded-2xl">
-                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Okul Logosu</h4>
-                 <div className="flex items-center gap-4">
-                     <div className="w-16 h-16 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden">
+             <div className="bg-white border border-slate-100 p-5 rounded-[2rem] shadow-soft">
+                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Okul Markası</h4>
+                 <div className="flex items-center gap-5">
+                     <div className="w-20 h-20 rounded-[1.5rem] bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shadow-inner group">
                         {state.schoolIcon.startsWith('data:') ? (
-                            <img src={state.schoolIcon} alt="Logo" className="w-full h-full object-contain" />
+                            <img src={state.schoolIcon} alt="Logo" className="w-full h-full object-contain p-2" />
                         ) : (
-                            <Sparkles size={24} className="text-slate-300" />
+                            <Sparkles size={32} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
                         )}
                      </div>
-                     <div className="flex flex-col gap-2">
-                         <button 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-xs border border-indigo-100"
-                        >
-                            Görsel Seç
-                        </button>
-                        <button 
-                            onClick={() => setIsLogoModalOpen(true)}
-                            className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl font-bold text-xs border border-slate-100"
-                        >
-                            İkon Seç
-                        </button>
+                     <div className="flex flex-col gap-2 flex-1">
+                         <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] shadow-lg shadow-indigo-600/20 active:scale-95 transition-transform uppercase tracking-wider">Logo Yükle</button>
+                         <button onClick={() => setIsLogoModalOpen(true)} className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-black text-[10px] active:scale-95 transition-transform uppercase tracking-wider">İkon Değiştir</button>
                      </div>
                  </div>
                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
              </div>
 
-            {/* FORCE SYNC */}
             {isRecovered && (
-                <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
-                     <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <UploadCloud size={14} /> Bulut Eşitlemesi
+                <div className="bg-amber-50 border border-amber-200 p-5 rounded-[2rem] shadow-soft shadow-amber-100">
+                     <h4 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <UploadCloud size={14} /> Veri Senkronizasyonu
                      </h4>
-                     <button 
-                        onClick={handleForceSync}
-                        disabled={isSyncing}
-                        className="w-full py-3 bg-amber-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-200 active:scale-95 transition-all"
-                     >
-                        {isSyncing ? <Loader2 className="animate-spin" size={16} /> : <><CheckCircle2 size={16} /> Şimdi Buluta Yedekle</>}
+                     <button onClick={handleForceSync} disabled={isSyncing} className="w-full py-4 bg-amber-600 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-amber-600/30 active:scale-95 transition-all uppercase tracking-widest">
+                        {isSyncing ? <Loader2 className="animate-spin" size={18} /> : <><Zap size={18} fill="currentColor" /> Buluta Yedekle</>}
                      </button>
                 </div>
             )}
 
-            <div className="bg-white border border-slate-100 p-4 rounded-2xl">
-                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Tema Rengi</h4>
-                 <div className="flex gap-3 justify-center flex-wrap">
+            <div className="bg-white border border-slate-100 p-5 rounded-[2rem] shadow-soft">
+                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Arayüz Teması</h4>
+                 <div className="grid grid-cols-5 gap-3">
                     {THEME_OPTIONS.map(theme => (
-                        <button key={theme.key} onClick={() => actions.updateThemeColor(theme.key)} className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${state.themeColor === theme.key ? 'border-slate-800 scale-110' : 'border-transparent'}`} style={{ backgroundColor: theme.color }} title={theme.key} />
+                        <button key={theme.key} onClick={() => actions.updateThemeColor(theme.key)} className={`aspect-square rounded-2xl border-4 transition-all hover:scale-110 flex items-center justify-center ${state.themeColor === theme.key ? 'border-indigo-600 scale-105' : 'border-transparent'}`} style={{ backgroundColor: theme.color }} title={theme.key}>
+                            {state.themeColor === theme.key && <div className="w-2 h-2 rounded-full bg-white shadow-md"></div>}
+                        </button>
                     ))}
                  </div>
             </div>
 
-            <button onClick={actions.toggleAutoProcessing} className={`p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 ${state.autoLessonProcessing ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
-                <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${state.autoLessonProcessing ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-400'}`}><Zap size={20} fill="currentColor" /></div>
-                    <div className="text-left"><h4 className={`font-bold text-sm ${state.autoLessonProcessing ? 'text-indigo-900' : 'text-slate-700'}`}>Otomatik Ders İşle</h4><p className="text-[10px] opacity-70 leading-tight mt-0.5">Ders günü gelen öğrencileri<br/>otomatik borçlandır.</p></div>
+            <button onClick={actions.toggleAutoProcessing} className={`p-5 rounded-[2rem] border flex items-center justify-between transition-all active:scale-[0.98] ${state.autoLessonProcessing ? 'bg-indigo-50 border-indigo-200 shadow-soft shadow-indigo-100' : 'bg-white border-slate-200 shadow-soft'}`}>
+                <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${state.autoLessonProcessing ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-400'}`}><Zap size={24} fill="currentColor" /></div>
+                    <div className="text-left"><h4 className={`font-black text-sm ${state.autoLessonProcessing ? 'text-indigo-900' : 'text-slate-700'}`}>Otomatik Takip</h4><p className="text-[10px] opacity-60 font-medium leading-tight mt-1">Gelen öğrencileri ders<br/>sonu otomatik borçlandır.</p></div>
                 </div>
-                <div className={`w-12 h-7 rounded-full p-1 transition-colors ${state.autoLessonProcessing ? 'bg-indigo-500' : 'bg-slate-200'}`}><div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${state.autoLessonProcessing ? 'translate-x-5' : 'translate-x-0'}`}></div></div>
+                <div className={`w-14 h-8 rounded-full p-1.5 transition-colors shadow-inner ${state.autoLessonProcessing ? 'bg-indigo-600' : 'bg-slate-200'}`}><div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-300 ${state.autoLessonProcessing ? 'translate-x-6' : 'translate-x-0'}`}></div></div>
             </button>
-            <button onClick={logout} className="p-4 rounded-2xl border border-red-100 bg-red-50 text-red-600 flex items-center justify-center gap-2 font-bold text-sm hover:bg-red-100 transition-colors"><LogOut size={18} /> Çıkış Yap</button>
+            <button onClick={logout} className="p-5 rounded-[2rem] border border-red-100 bg-red-50 text-red-600 flex items-center justify-center gap-3 font-black text-xs hover:bg-red-100 transition-all active:scale-95 uppercase tracking-widest"><LogOut size={20} /> Hesaptan Çıkış Yap</button>
         </div>
       </Dialog>
 
-      {/* İkon Seçme Modal (Settings içinden açılır) */}
-      <Dialog isOpen={isLogoModalOpen} onClose={() => setIsLogoModalOpen(false)} title="İkon Seç">
-        <div className="grid grid-cols-4 gap-3 p-1">
+      <Dialog isOpen={isLogoModalOpen} onClose={() => setIsLogoModalOpen(false)} title="İkon Seçimi">
+        <div className="grid grid-cols-4 gap-4 p-2">
           {Object.keys(ICONS).map((key) => {
             const Icon = ICONS[key];
-            return (<button key={key} onClick={() => { actions.updateSchoolIcon(key); setIsLogoModalOpen(false); }} className={`aspect-square flex items-center justify-center rounded-2xl border transition-all ${state.schoolIcon === key ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-100 text-slate-300 hover:border-slate-200'}`}><Icon size={24} strokeWidth={1.5} /></button>);
+            return (<button key={key} onClick={() => { actions.updateSchoolIcon(key); setIsLogoModalOpen(false); }} className={`aspect-square flex items-center justify-center rounded-[1.5rem] border-2 transition-all active:scale-90 ${state.schoolIcon === key ? 'border-indigo-600 bg-indigo-50 text-indigo-600 shadow-lg shadow-indigo-100' : 'border-slate-100 text-slate-300 hover:border-slate-200'}`}><Icon size={28} strokeWidth={2} /></button>);
           })}
         </div>
       </Dialog>
