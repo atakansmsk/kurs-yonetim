@@ -46,6 +46,7 @@ const ICONS: Record<string, React.ElementType> = {
 };
 
 const timeToMinutes = (time: string) => {
+  if (!time) return 0;
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 };
@@ -186,6 +187,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     { key: 'neutral', color: '#334155' },
   ];
 
+  const userName = user?.name ? user.name.split(' ')[0] : "Eğitmen";
+
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] overflow-y-auto px-5 pt-8 pb-32 no-scrollbar">
       
@@ -204,7 +207,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       <div className="flex items-center justify-between mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex flex-col">
              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-1">{state.schoolName}</span>
-             <h1 className="text-3xl font-black text-slate-800 tracking-tighter leading-none">Hoş Geldin, <br/><span className="text-indigo-600">{user?.name.split(' ')[0]}</span></h1>
+             <h1 className="text-3xl font-black text-slate-800 tracking-tighter leading-none">Hoş Geldin, <br/><span className="text-indigo-600">{userName}</span></h1>
           </div>
           <button onClick={() => setIsSettingsOpen(true)} className={`p-3 rounded-[1.2rem] border shadow-soft transition-all active:scale-90 relative ${isRecovered ? 'bg-amber-100 border-amber-200 text-amber-600' : 'bg-white text-slate-400 border-slate-100'}`}>
              <Settings size={22} />
@@ -216,8 +219,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       <div className="w-full mb-8 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-100">
         <div className="relative group overflow-hidden bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl shadow-indigo-200/50">
             {/* Background Effects */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-[50px] -mr-10 -mt-10"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/20 rounded-full blur-[40px] -ml-8 -mb-8"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/20 rounded-full blur-[50px] -mr-10 -mt-10"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-50/20 rounded-full blur-[40px] -ml-8 -mb-8"></div>
             
             <div className="relative z-10">
                 {liveStatus.statusType === 'IN_LESSON' ? (
@@ -327,8 +330,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         <div className="py-2 flex flex-col gap-4">
              {/* Profile Info */}
              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center text-lg font-bold text-slate-700">{user?.name.charAt(0).toUpperCase()}</div>
-                <div><h3 className="font-bold text-slate-900">{user?.name}</h3><p className="text-xs text-slate-500">{user?.email}</p></div>
+                <div className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center text-lg font-bold text-slate-700">{user?.name ? user.name.charAt(0).toUpperCase() : 'E'}</div>
+                <div><h3 className="font-bold text-slate-900">{user?.name || 'Eğitmen'}</h3><p className="text-xs text-slate-500">{user?.email}</p></div>
              </div>
 
              {/* LOGO UPLOAD (Moved here from Home) */}
