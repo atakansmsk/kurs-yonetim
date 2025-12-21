@@ -1,10 +1,9 @@
 
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Firebase proje ayarları
 const firebaseConfig = {
   apiKey: "AIzaSyAKrvZ45I2LffVzzg_q9exIZjMqhkR_3Hg",
   authDomain: "kurs-yonetim-pro.firebaseapp.com",
@@ -14,14 +13,11 @@ const firebaseConfig = {
   appId: "1:50487616288:web:36a3ad2fe7a73ce94e2d45"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Singleton initialization to prevent "Component already registered" errors
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// DATABASE INITIALIZATION
-// Using standard getFirestore to avoid "Component not registered" errors 
-// which often happen when complex cache settings conflict with CDN-loaded ESM modules.
-export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 export const storage = getStorage(app);
 
 export default app;
