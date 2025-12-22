@@ -2,7 +2,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-// Fix: Added missing Users and LogOut icon imports from lucide-react
 import { 
   UserPlus, 
   Settings, 
@@ -22,7 +21,8 @@ import {
   Calendar,
   Sparkles,
   Users,
-  LogOut
+  LogOut,
+  Mic
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -150,7 +150,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     <div className="flex flex-col h-full bg-[#FBFBFC] overflow-y-auto no-scrollbar scroll-smooth">
       
       {/* 1. REFINED HEADER */}
-      <div className="px-7 pt-10 pb-6 flex items-start justify-between">
+      <div className="px-7 pt-10 pb-4 flex items-start justify-between">
           <div className="space-y-1">
              <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 bg-indigo-50 text-indigo-500 text-[9px] font-black rounded-md uppercase tracking-wider">{todaysData.dayName}</span>
@@ -169,19 +169,38 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           </button>
       </div>
 
-      {/* 2. DYNAMIC WELCOME (Only if day hasn't started) */}
+      {/* 2. DIGITAL BILLBOARD (Günün İlk Dersi) */}
       {!todaysData.dayStarted && todaysData.firstLesson && (
-          <div className="px-7 mb-8">
-              <div className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-[2rem] p-6 flex items-center gap-5 shadow-sm">
-                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-indigo-500 shadow-md shadow-indigo-100/50 shrink-0">
-                      <Sun size={28} strokeWidth={2} className="animate-pulse" />
+          <div className="px-7 mb-8 animate-in fade-in slide-in-from-top duration-1000">
+              <div className="relative overflow-hidden bg-slate-950 rounded-3xl h-24 flex items-center shadow-2xl shadow-indigo-200/50 border border-slate-800">
+                  {/* Digital Grid Pattern */}
+                  <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #4f46e5 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
+                  
+                  {/* Left Fixed Badge */}
+                  <div className="absolute left-0 top-0 bottom-0 z-20 bg-slate-950 px-5 flex items-center border-r border-slate-800 shadow-[10px_0_15px_rgba(0,0,0,0.5)]">
+                      <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                          <Mic size={20} className="animate-pulse" />
+                      </div>
                   </div>
-                  <div className="min-w-0">
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">GÜNÜN İLK DERSİ</p>
-                      <h3 className="text-[13px] font-bold text-slate-800 leading-snug">
-                          Bugün maraton saat <span className="text-indigo-600 font-black">{todaysData.firstLesson.start}</span>'da <span className="text-indigo-600 font-black">{state.students[todaysData.firstLesson.studentId!]?.name}</span> ile başlıyor. Hazır mıyız?
-                      </h3>
+
+                  {/* Marquee Content */}
+                  <div className="flex-1 h-full flex items-center overflow-hidden relative">
+                      <div className="animate-marquee pl-[80px]">
+                          <span className="text-xl font-black text-white/90 uppercase tracking-[0.1em] flex items-center gap-12">
+                              <span>Günün İlk Dersi Saat <span className="text-indigo-400 font-black">{todaysData.firstLesson.start}</span>'da Başlıyor</span>
+                              <span className="opacity-30">•</span>
+                              <span>Öğrenci: <span className="text-indigo-400 font-black">{state.students[todaysData.firstLesson.studentId!]?.name}</span></span>
+                              <span className="opacity-30">•</span>
+                              <span>{state.schoolName} Hazırlıkları Tamamladı</span>
+                              <span className="opacity-30">•</span>
+                              <span>İyi Dersler Dileriz</span>
+                              <span className="opacity-30">•</span>
+                          </span>
+                      </div>
                   </div>
+
+                  {/* Right Fade Decor */}
+                  <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-950 to-transparent z-10"></div>
               </div>
           </div>
       )}
@@ -190,7 +209,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       <div className="px-7 mb-10">
           {todaysData.statusType === 'IN_LESSON' ? (
               <div className="bg-slate-950 rounded-[3rem] p-8 shadow-2xl shadow-indigo-950/20 flex flex-col gap-8 relative overflow-hidden animate-in fade-in zoom-in-95 duration-700">
-                  {/* Decorative mesh */}
                   <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-[80px] pointer-events-none"></div>
                   <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-violet-600/10 rounded-full blur-[60px] pointer-events-none"></div>
 
