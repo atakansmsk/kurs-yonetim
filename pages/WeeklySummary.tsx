@@ -1,7 +1,8 @@
+
 import React, { useMemo, useState } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { DAYS, WeekDay, LessonSlot } from '../types';
-import { CalendarCheck, Banknote, Clock, Star, RefreshCcw, Sparkles, User, Timer, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { CalendarCheck, Clock, Star, RefreshCcw, Sparkles, User, Timer, Eye, EyeOff, AlertTriangle, Users } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface WeeklySummaryProps {
@@ -47,10 +48,9 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
   
   // UI States
   const [gapModalData, setGapModalData] = useState<{day: WeekDay, gaps: string[]} | null>(null);
-  const [showEarnings, setShowEarnings] = useState(true);
 
-  // --- STATS & EARNINGS ---
-  const { monthlyEarnings, totalStudents, weeklyLessonCount } = useMemo(() => {
+  // --- STATS ---
+  const { totalStudents, weeklyLessonCount } = useMemo(() => {
     const uniqueStudentIds = new Set<string>();
     let lessonCount = 0;
     
@@ -66,13 +66,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
         });
     });
 
-    let earnings = 0;
-    uniqueStudentIds.forEach(id => {
-        const student = state.students[id];
-        if (student) earnings += student.fee || 0;
-    });
-
-    return { monthlyEarnings: earnings, totalStudents: uniqueStudentIds.size, weeklyLessonCount: lessonCount };
+    return { totalStudents: uniqueStudentIds.size, weeklyLessonCount: lessonCount };
   }, [state.schedule, state.currentTeacher, state.students]);
 
   const todayIndex = new Date().getDay(); 
@@ -99,9 +93,7 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
           const s = timeToMinutes(slot.start);
           const e = timeToMinutes(slot.end);
           
-          // Check gap before this slot
           if (s > currentPointer) {
-              // how many chunks
               while (currentPointer + SLOT_DURATION <= s) {
                   foundGaps.push(minutesToTime(currentPointer));
                   currentPointer += SLOT_DURATION;
@@ -110,7 +102,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
           currentPointer = Math.max(currentPointer, e);
       });
 
-      // After last slot
       while (currentPointer + SLOT_DURATION <= END_OF_DAY) {
           foundGaps.push(minutesToTime(currentPointer));
           currentPointer += SLOT_DURATION;
@@ -125,25 +116,25 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
-        {/* Header Stats */}
-        <div className="bg-white px-4 py-3 border-b border-slate-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sticky top-0 z-30 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
-            <div className="bg-emerald-50 text-emerald-700 px-3 py-2 rounded-xl flex flex-col items-start min-w-[120px] border border-emerald-100 relative overflow-hidden flex-1">
-                <div className="flex items-center gap-1 mb-0.5 z-10 w-full justify-between">
-                    <span className="text-[9px] font-black uppercase tracking-widest opacity-70">Aylık Ciro</span>
-                    <button onClick={() => setShowEarnings(!showEarnings)} className="hover:bg-emerald-100 p-1 rounded-full transition-colors -mr-1">
-                        {showEarnings ? <Eye size={10} /> : <EyeOff size={10} />}
-                    </button>
+        {/* Header Stats - Sadeleştirilmiş Özet */}
+        <div className="bg-white px-5 py-4 border-b border-slate-100 shadow-sm sticky top-0 z-30">
+            <div className="flex items-center justify-between mb-4">
+                <div>
+                    <h2 className="text-xl font-black text-slate-800">Haftalık Özet</h2>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Ders ve Öğrenci Yoğunluğu</p>
                 </div>
-                <span className="text-lg font-black tracking-tight z-10 truncate w-full">
-                    {showEarnings ? `${monthlyEarnings.toLocaleString('tr-TR')}₺` : '*** ₺'}
-                </span>
-                <Banknote className="absolute right-[-10px] bottom-[-10px] opacity-10" size={50} />
+                <div className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-2xl border border-indigo-100 flex items-center gap-3">
+                    <Users size={18} />
+                    <div>
+                        <span className="text-lg font-black block leading-none">{totalStudents}</span>
+                        <span className="text-[8px] font-bold uppercase tracking-widest opacity-70">Öğrenci</span>
+                    </div>
+                </div>
             </div>
             
-            <div className="bg-purple-50 text-purple-700 px-3 py-2 rounded-xl flex flex-col items-start min-w-[90px] border border-purple-100 relative overflow-hidden flex-1">
-                <span className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-0.5">Öğrenci</span>
-                <span className="text-lg font-black tracking-tight">{totalStudents}</span>
-                <User className="absolute right-[-10px] bottom-[-10px] opacity-10" size={50} />
+            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <Clock size={14} className="text-slate-400" />
+                <span className="text-xs font-bold text-slate-600">Bu hafta planlı toplam <span className="text-indigo-600 font-black">{weeklyLessonCount} ders</span> var.</span>
             </div>
         </div>
 
@@ -157,7 +148,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                     return (
                         <div key={day} className={`flex flex-col min-w-0 rounded-lg sm:rounded-2xl border transition-all duration-300 ${isToday ? 'bg-white border-indigo-300 shadow-md ring-1 ring-indigo-100 z-10' : 'bg-white border-slate-100 shadow-sm'}`}>
                             
-                            {/* Day Header */}
                             <button 
                                 onClick={() => handleDayClick(day)}
                                 className={`text-center py-1.5 sm:py-3 border-b rounded-t-lg sm:rounded-t-2xl transition-colors hover:bg-slate-50 ${isToday ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-slate-50'}`}
@@ -167,7 +157,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                 </span>
                             </button>
 
-                            {/* Slots */}
                             <div className="flex flex-col p-0.5 sm:p-2 gap-0.5 sm:gap-2 min-h-[60px]">
                                 {slots.length === 0 ? (
                                     <div className="flex-1 flex flex-col items-center justify-center opacity-20 gap-1 py-2">
@@ -188,7 +177,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                             cardClass = COLOR_MAP[color] || COLOR_MAP['indigo'];
                                             timeClass = TIME_COLOR_MAP[color] || TIME_COLOR_MAP['indigo'];
                                             
-                                            // Öncelik Notta
                                             if (student.nextLessonNote) {
                                                 badge = <div className="text-red-500"><AlertTriangle size={8} fill="currentColor" /></div>;
                                             } else {
@@ -209,18 +197,10 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
                                                 onClick={() => onOpenStudentProfile(slot.studentId!)}
                                                 className={`relative flex flex-col items-center sm:items-stretch gap-0.5 sm:gap-1.5 p-1 sm:p-2.5 rounded sm:rounded-xl border shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer ${cardClass}`}
                                             >
-                                                {/* Desktop Header / Mobile Indicator */}
                                                 <div className="flex items-center justify-center sm:justify-between w-full">
                                                     <div className={`px-1 py-0.5 rounded text-[7px] sm:text-[10px] font-black leading-none ${timeClass}`}>
                                                         {slot.start}
                                                     </div>
-                                                    
-                                                    {/* Desktop/Tablet Icons */}
-                                                    {student?.nextLessonNote && (
-                                                       <span className="hidden sm:block text-[8px] text-red-600 bg-white/80 px-1 rounded font-bold">!</span>
-                                                    )}
-                                                    
-                                                    {/* Mobile Dots */}
                                                     {badge}
                                                 </div>
 
@@ -238,7 +218,6 @@ export const WeeklySummary: React.FC<WeeklySummaryProps> = ({ onOpenStudentProfi
             </div>
         </div>
 
-        {/* Gap Modal */}
         <Dialog 
             isOpen={!!gapModalData} 
             onClose={() => setGapModalData(null)} 

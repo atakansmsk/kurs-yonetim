@@ -10,7 +10,7 @@ import { StudentProfile } from './pages/StudentProfile';
 import { Login } from './pages/Login';
 import { ParentView } from './pages/ParentView';
 import { TeacherView } from './pages/TeacherView';
-import { CalendarRange, Users2, Home as HomeIcon, TrendingUp } from 'lucide-react';
+import { CalendarRange, Users2, Home as HomeIcon, TrendingUp, LayoutGrid } from 'lucide-react';
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
 
@@ -122,7 +122,7 @@ const AppContent: React.FC = () => {
             <nav className="flex justify-around items-center h-16">
               <NavButton active={activeTab === 'HOME'} onClick={() => handleTabChange('HOME')} icon={HomeIcon} label="Ana Sayfa" />
               <NavButton active={activeTab === 'SCHEDULE'} onClick={() => handleTabChange('SCHEDULE')} icon={CalendarRange} label="Program" />
-              <NavButton active={activeTab === 'WEEKLY'} onClick={() => handleTabChange('WEEKLY')} icon={TrendingUp} label="Finans" />
+              <NavButton active={activeTab === 'WEEKLY'} onClick={() => handleTabChange('WEEKLY')} icon={LayoutGrid} label="Özet" />
               <NavButton active={activeTab === 'STUDENTS'} onClick={() => handleTabChange('STUDENTS')} icon={Users2} label="Kişiler" />
             </nav>
         </div>
