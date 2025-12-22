@@ -97,7 +97,9 @@ export const DataService = {
         return;
     }
     try {
-      await setDoc(doc(db, "schools", userId), data, { merge: true });
+      // DİKKAT: merge: true KALDIRILDI. 
+      // Bu sayede silinen bir anahtar (öğrenci) veritabanında da üzerine yazılırken silinir.
+      await setDoc(doc(db, "schools", userId), data); 
     } catch (e) {
       console.error("Cloud save error:", e);
       // Hata durumunda local storage'a yedekle (Offline desteği)
@@ -183,7 +185,6 @@ export const FileService = {
             try {
                 if (onProgress) onProgress(50);
                 
-                // Blob'u Base64'e çevirip saklayabiliriz veya IndexedDB kullanabiliriz.
                 // IndexedDB daha güvenli ve büyük dosyaları destekler.
                 const db = await openDB();
                 const tx = db.transaction(IDB_CONFIG.store, 'readwrite');

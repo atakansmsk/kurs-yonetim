@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { Student } from '../types';
-import { Trash2, Search, UserPlus, AlertCircle, CheckCircle2, Clock, UserCheck, UserMinus, ChevronRight, CreditCard, ShieldCheck } from 'lucide-react';
+import { Trash2, Search, UserPlus, AlertCircle, CheckCircle2, Clock, UserCheck, UserMinus, ChevronRight, CreditCard, Users, Filter } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface StudentListProps {
@@ -27,14 +26,14 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
   const { debtors, paidStudents, stats } = useMemo(() => {
       const allStudents = Object.values(state.students || {}) as Student[];
-      const activeOnes = allStudents.filter(s => s.isActive !== false);
+      const visibleStudents = allStudents.filter(s => s.isActive !== false);
 
       let debtorsList: Student[] = [];
       let paidList: Student[] = [];
       let totalExpected = 0;
       let totalCollected = 0;
 
-      activeOnes.forEach(student => {
+      visibleStudents.forEach(student => {
           const hasPaidThisMonth = (student.history || []).some(tx => {
               const d = new Date(tx.date);
               return !tx.isDebt && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
@@ -75,126 +74,152 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
-      {/* Header & Stats */}
-      <div className="bg-white px-5 pt-8 pb-4 sticky top-0 z-20 shadow-sm border-b border-slate-100">
+      {/* Header Section */}
+      <div className="bg-white/80 backdrop-blur-lg px-6 pt-8 pb-4 sticky top-0 z-30 border-b border-slate-100">
           <div className="flex items-center justify-between mb-6">
             <div>
                 <h2 className="text-2xl font-black text-slate-800 tracking-tight">Öğrenci Rehberi</h2>
                 <div className="flex items-center gap-1.5 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{monthName} Ayı Takibi</p>
+                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{monthName} Ayı Takibi</span>
                 </div>
             </div>
             <button 
                 onClick={() => setIsAddModalOpen(true)} 
-                className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+                className="flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl shadow-slate-200 active:scale-95 transition-all group"
             >
-                <UserPlus size={24} />
+                <UserPlus size={18} className="group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-black uppercase tracking-wider">Yeni Kayıt</span>
             </button>
           </div>
 
+          {/* Quick Stats Panel */}
           <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-red-50 p-3.5 rounded-2xl border border-red-100 relative overflow-hidden">
-                  <span className="text-[9px] font-black text-red-400 uppercase tracking-widest block mb-1">BEKLEYEN</span>
-                  <span className="text-lg font-black text-red-700">{stats.totalExpected.toLocaleString()} ₺</span>
-                  <UserMinus className="absolute right-[-8px] bottom-[-8px] text-red-200 opacity-30" size={48} />
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-[-10px] right-[-10px] opacity-5 group-hover:scale-110 transition-transform">
+                      <UserMinus size={64} />
+                  </div>
+                  <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest block mb-1">BEKLEYEN ({stats.countDebtors})</span>
+                  <span className="text-xl font-black text-slate-800">{stats.totalExpected.toLocaleString()} ₺</span>
               </div>
-              <div className="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-100 relative overflow-hidden">
-                  <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest block mb-1">TAHSİLAT</span>
-                  <span className="text-lg font-black text-emerald-700">{stats.totalCollected.toLocaleString()} ₺</span>
-                  <UserCheck className="absolute right-[-8px] bottom-[-8px] text-emerald-200 opacity-30" size={48} />
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-[-10px] right-[-10px] opacity-5 group-hover:scale-110 transition-transform">
+                      <UserCheck size={64} />
+                  </div>
+                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-1">TAHSİLAT ({stats.countPaid})</span>
+                  <span className="text-xl font-black text-slate-800">{stats.totalCollected.toLocaleString()} ₺</span>
               </div>
           </div>
           
-          <div className="relative mb-4">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+          {/* Search Input */}
+          <div className="relative mb-5 group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                 <Search size={18} />
             </div>
             <input 
                 type="text" 
-                placeholder="İsim ile ara..."
-                className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:bg-white transition-all"
+                placeholder="Öğrenci adı ile ara..."
+                className="block w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-inner"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
-          <div className="flex p-1 bg-slate-100 rounded-xl">
+          {/* Tabs */}
+          <div className="flex p-1 bg-slate-100 rounded-2xl">
               <button 
                 onClick={() => setActiveTab('DEBTORS')}
-                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'DEBTORS' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-400'}`}
+                className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-widest ${activeTab === 'DEBTORS' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}
               >
-                  <Clock size={14} /> Bekleyen ({stats.countDebtors})
+                  <Clock size={14} className={activeTab === 'DEBTORS' ? 'text-rose-500' : ''} /> Bekleyen
               </button>
               <button 
                 onClick={() => setActiveTab('PAID')}
-                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'PAID' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                className={`flex-1 py-2.5 text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-widest ${activeTab === 'PAID' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}
               >
-                  <CheckCircle2 size={14} /> Ödeyen ({stats.countPaid})
+                  <CheckCircle2 size={14} className={activeTab === 'PAID' ? 'text-emerald-500' : ''} /> Ödeyen
               </button>
           </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-3 pb-32 no-scrollbar">
+      {/* Student List */}
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-32 space-y-3 no-scrollbar">
             {(activeTab === 'DEBTORS' ? debtors : paidStudents).length === 0 ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
-                     <AlertCircle size={48} className="text-slate-300 mb-3" />
-                     <p className="font-bold text-slate-400 text-sm">Gösterilecek kayıt bulunamadı.</p>
+                 <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95">
+                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
+                        <Users size={32} />
+                     </div>
+                     <p className="font-bold text-slate-400 text-sm">Öğrenci bulunamadı.</p>
+                     <p className="text-[10px] text-slate-300 uppercase tracking-widest mt-1">Arama teriminizi kontrol edin.</p>
                  </div>
             ) : (
                 (activeTab === 'DEBTORS' ? debtors : paidStudents).map(student => (
                     <div 
                         key={student.id} 
-                        className={`group bg-white rounded-2xl p-4 shadow-sm border flex items-center gap-4 cursor-pointer active:scale-[0.98] transition-all ${activeTab === 'DEBTORS' ? 'border-red-50 hover:border-red-200' : 'border-emerald-50 hover:border-emerald-200'}`}
+                        className="bg-white rounded-[1.75rem] p-4 shadow-sm border border-slate-100 flex items-center gap-4 cursor-pointer active:scale-[0.98] hover:border-indigo-200 transition-all animate-in slide-in-from-bottom-2"
                         onClick={() => onSelect(student.id)}
                     >
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shrink-0 ${activeTab === 'DEBTORS' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {/* Avatar */}
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner ${activeTab === 'DEBTORS' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {student.name.charAt(0).toUpperCase()}
                         </div>
                         
+                        {/* Info */}
                         <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-slate-800 truncate leading-tight">{student.name}</h4>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 ${activeTab === 'DEBTORS' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                    {student.fee === 0 ? <ShieldCheck size={10} /> : <CreditCard size={10} />}
-                                    {student.fee === 0 ? "ÜCRETSİZ" : `${student.fee} ₺`}
+                            <h4 className="font-black text-slate-800 truncate text-[15px] tracking-tight leading-none mb-1.5">{student.name}</h4>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-100">
+                                    {student.fee.toLocaleString()} ₺
                                 </span>
+                                {student.phone && (
+                                    <span className="text-[10px] font-bold text-slate-300 truncate">
+                                        • {student.phone}
+                                    </span>
+                                )}
                             </div>
                         </div>
 
+                        {/* Actions */}
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setDeleteId(student.id); }}
-                                className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all"
                             >
                                 <Trash2 size={18} />
                             </button>
-                            <ChevronRight size={18} className="text-slate-300" />
+                            <div className="text-slate-300">
+                                <ChevronRight size={20} />
+                            </div>
                         </div>
                     </div>
                 ))
             )}
       </div>
 
-      <button 
-        onClick={() => setIsAddModalOpen(true)}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-200 flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30"
-      >
-        <UserPlus size={28} />
-      </button>
-
-      <Dialog isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Kayıt" actions={<button onClick={handleAddStudent} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm">Kaydet</button>}>
+      {/* MODALS */}
+      <Dialog isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Yeni Öğrenci" actions={<button onClick={handleAddStudent} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 active:scale-95 transition-all">Kaydı Tamamla</button>}>
         <div className="flex flex-col gap-4 py-2">
-            <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="İsim Soyisim" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
-            <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} placeholder="Telefon (Opsiyonel)" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
-            <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} placeholder="Aylık Ücret (₺)" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
+            <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">İsim Soyisim</label>
+                <input type="text" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Örn: Ali Yılmaz" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all" />
+            </div>
+            <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefon</label>
+                <input type="tel" value={newPhone} onChange={e=>setNewPhone(e.target.value)} placeholder="05..." className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all" />
+            </div>
+            <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Aylık Ücret (₺)</label>
+                <input type="number" value={newFee} onChange={e=>setNewFee(e.target.value)} placeholder="1500" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-500 transition-all" />
+            </div>
         </div>
       </Dialog>
 
-      <Dialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Öğrenciyi Sil" actions={<button onClick={handleConfirmDelete} className="px-8 py-3 bg-red-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-200">Kalıcı Olarak Sil</button>}>
-        <div className="p-1">
-            <p className="text-slate-800 text-sm font-bold leading-relaxed">Bu öğrenciyi ve tüm ders programındaki kayıtlarını silmek istediğinizden emin misiniz?</p>
-            <p className="text-red-500 text-[10px] font-bold mt-2 uppercase tracking-tight">⚠️ Bu işlem geri alınamaz!</p>
+      <Dialog isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Öğrenciyi Sil" actions={<button onClick={handleConfirmDelete} className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-100 active:scale-95 transition-all">Kesin Olarak Sil</button>}>
+        <div className="py-2">
+            <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={32} />
+            </div>
+            <p className="text-slate-800 text-sm font-bold text-center leading-relaxed">Bu öğrenciyi ve tüm program kayıtlarını silmek istediğinizden emin misiniz?</p>
+            <p className="text-rose-500 text-[10px] font-black mt-3 text-center uppercase tracking-widest">BU İŞLEM GERİ ALINAMAZ</p>
         </div>
       </Dialog>
     </div>

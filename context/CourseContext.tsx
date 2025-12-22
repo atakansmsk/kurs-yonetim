@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource, WeekDay, DAYS } from '../types';
 import { useAuth } from './AuthContext';
@@ -33,9 +32,15 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isRecovered, setIsRecovered] = useState(false);
+  const isFirstSync = useRef(true);
 
   useEffect(() => {
-    if (!user) { setState(INITIAL_STATE); setIsLoaded(true); return; }
+    if (!user) { 
+      setState(INITIAL_STATE); 
+      setIsLoaded(true); 
+      isFirstSync.current = true;
+      return; 
+    }
     
     const findBestBackup = () => {
         const keys = Object.keys(localStorage).filter(k => k.includes(user.id));
@@ -61,16 +66,22 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         user.id,
         (newData) => {
             let finalData = { ...newData };
-            const remoteStudentCount = Object.keys(finalData.students || {}).length;
-            const localStudentCount = Object.keys(localBest?.students || {}).length;
+            
+            // Sadece ilk yüklemede bulut boşsa ve yerel yedek varsa kurtarma yap
+            if (isFirstSync.current) {
+                const remoteStudentCount = Object.keys(finalData.students || {}).length;
+                const localStudentCount = Object.keys(localBest?.students || {}).length;
 
-            if (remoteStudentCount === 0 && localStudentCount > 0) {
-                finalData = localBest as AppState;
-                setIsRecovered(true);
+                if (remoteStudentCount === 0 && localStudentCount > 0) {
+                    finalData = localBest as AppState;
+                    setIsRecovered(true);
+                }
+                isFirstSync.current = false;
             } else {
                 setIsRecovered(false);
             }
 
+            // Veri yapısı kontrolü
             if (!finalData.students) finalData.students = {};
             if (!finalData.teachers || finalData.teachers.length === 0) finalData.teachers = ["Eğitmen"];
             if (!finalData.currentTeacher) finalData.currentTeacher = finalData.teachers[0];
@@ -81,7 +92,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setIsLoaded(true);
         },
         (error) => { 
-            if (localBest) {
+            if (localBest && isFirstSync.current) {
                 setState(localBest);
                 setIsRecovered(true);
             }
@@ -158,15 +169,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setState(current => {
           const newState = updater(current);
           newState.updatedAt = new Date().toISOString();
-          const prevCount = Object.keys(current.students || {}).length;
-          const nextCount = Object.keys(newState.students || {}).length;
 
           if (user) {
-              if (prevCount > 0 && nextCount === 0 && Object.keys(current.students).length > 0) {
-                  console.error("Critical: Prevented empty data save");
-              } else {
-                  DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error(err));
-              }
+              // Veritabanına kaydet
+              DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error(err));
+              // Yerel yedekle
               localStorage.setItem(`kurs_data_backup_${user.id}`, JSON.stringify(newState));
           }
           return newState;
@@ -202,10 +209,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return { ...s, students: { ...s.students, [id]: { ...s.students[id], isActive } } };
       }),
       deleteStudent: (id) => updateState(s => {
-          // 1. Remove from students list
+          // 1. Öğrenci listesinden sil
           const { [id]: deleted, ...restStudents } = s.students;
           
-          // 2. Remove from all schedule slots to prevent 'ghost' slots
+          // 2. Programdaki tüm saatlerden bu öğrenciyi temizle
           const newSchedule = { ...s.schedule };
           Object.keys(newSchedule).forEach(key => {
               newSchedule[key] = (newSchedule[key] || []).map(slot => 
