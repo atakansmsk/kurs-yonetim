@@ -19,7 +19,10 @@ import {
   Forward,
   ImageIcon,
   TrendingUp,
-  LayoutGrid
+  LayoutGrid,
+  Sun,
+  Flame,
+  Calendar
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -43,7 +46,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [newTeacherName, setNewTeacherName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [dayOffset, setDayOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -51,18 +53,22 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const liveStatus = useMemo(() => {
-    const jsDayToAppKey: Record<number, string> = {
-        0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
-    };
+  const jsDayToAppKey: Record<number, string> = {
+      0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
+  };
+
+  const todaysData = useMemo(() => {
     const dayName = jsDayToAppKey[currentTime.getDay()];
     const key = `${state.currentTeacher}|${dayName}`;
-    const todaysSlots = (state.schedule[key] || []).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    const slots = (state.schedule[key] || []).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    const activeLessons = slots.filter(s => s.studentId);
     
     const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+    const currentSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && timeToMinutes(s.end) > currentMins);
+    const nextSlot = slots.find(s => timeToMinutes(s.start) > currentMins && s.studentId);
     
-    const currentSlot = todaysSlots.find(s => timeToMinutes(s.start) <= currentMins && timeToMinutes(s.end) > currentMins);
-    const nextSlot = todaysSlots.find(s => timeToMinutes(s.start) > currentMins && s.id !== currentSlot?.id);
+    const firstLesson = activeLessons[0];
+    const dayStarted = activeLessons.length > 0 && currentMins >= timeToMinutes(activeLessons[0].start);
 
     let statusType: 'IN_LESSON' | 'BREAK' | 'IDLE' = 'IDLE';
     let timeLeft = 0;
@@ -84,37 +90,19 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         timeLeft = timeToMinutes(nextSlot.start) - currentMins;
     }
 
-    return { statusType, currentSlot, nextSlot, timeLeft, progress, gapToNext };
-  }, [state.schedule, state.currentTeacher, currentTime]);
-
-  const dailyStats = useMemo(() => {
-    const jsDayToAppKey: Record<number, string> = {
-        0: "Pazar", 1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cmt"
+    return { 
+        statusType, 
+        currentSlot, 
+        nextSlot, 
+        timeLeft, 
+        progress, 
+        gapToNext, 
+        firstLesson, 
+        dayStarted, 
+        lessonCount: activeLessons.length,
+        dayName
     };
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + dayOffset);
-    const dayIndex = targetDate.getDay();
-    const appDayKey = jsDayToAppKey[dayIndex];
-    const key = `${state.currentTeacher}|${appDayKey}`;
-    const count = (state.schedule[key] || []).filter(s => s.studentId).length;
-    let label = appDayKey;
-    if (dayOffset === 0) label = "Bugün";
-    else if (dayOffset === 1) label = "Yarın";
-    else if (dayOffset === -1) label = "Dün";
-    return { count, label, fullDayName: appDayKey };
-  }, [state.schedule, state.currentTeacher, dayOffset]);
-  
-  const currentTeacherStudentCount = useMemo(() => {
-    const uniqueStudents = new Set<string>();
-    Object.keys(state.schedule).forEach(key => {
-        if (key.startsWith(`${state.currentTeacher}|`)) {
-            state.schedule[key].forEach(slot => {
-                if (slot.studentId) uniqueStudents.add(slot.studentId);
-            });
-        }
-    });
-    return uniqueStudents.size;
-  }, [state.schedule, state.currentTeacher]);
+  }, [state.schedule, state.currentTeacher, currentTime]);
 
   const handleSaveTeacher = () => {
     if (newTeacherName.trim()) {
@@ -165,9 +153,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       <div className="px-6 pt-8 pb-4">
           <div className="flex items-center justify-between">
               <div className="flex flex-col">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">EĞİTMEN PORTALI</span>
-                 <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-                    Merhaba, <span className="text-indigo-600">{userName}</span>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{todaysData.dayName.toUpperCase()}, {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}</span>
+                 <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none">
+                    Merhaba, <span className="text-indigo-600">{userName} 👋</span>
                  </h1>
               </div>
               <button 
@@ -180,11 +168,27 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           </div>
       </div>
 
-      {/* PRIMARY: CANLI AKIŞ (The Stage) */}
+      {/* GÜNLÜK KARŞILAMA / İLK DERS BİLGİSİ */}
+      {!todaysData.dayStarted && todaysData.firstLesson && (
+          <div className="px-6 mb-6">
+              <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-5 flex items-center gap-4 animate-in slide-in-from-left duration-700">
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-50 shrink-0">
+                      <Sun size={24} strokeWidth={2.5} className="animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">GÜNÜN BAŞLANGICI</p>
+                      <h3 className="text-sm font-bold text-indigo-900 leading-tight">
+                          Bugün ilk dersiniz saat <span className="text-indigo-600 font-black">{todaysData.firstLesson.start}</span>'da <span className="text-indigo-600 font-black">{state.students[todaysData.firstLesson.studentId!]?.name}</span> ile başlıyor.
+                      </h3>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* PRIMARY: CANLI AKIŞ */}
       <div className="px-6 mb-8">
-          {liveStatus.statusType === 'IN_LESSON' ? (
+          {todaysData.statusType === 'IN_LESSON' ? (
               <div className="bg-slate-900 rounded-[2.5rem] p-7 shadow-2xl shadow-indigo-200/50 flex flex-col gap-6 relative overflow-hidden border border-white/5 animate-in fade-in zoom-in-95 duration-700">
-                  {/* Glass Decor */}
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
                   <div className="flex items-center justify-between">
@@ -196,14 +200,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                         <span className="text-xs font-black text-indigo-300 uppercase tracking-[0.25em]">AKTİF DERS</span>
                       </div>
                       <div className="bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-md">
-                        <span className="text-[10px] font-bold text-indigo-200">{liveStatus.currentSlot?.start} - {liveStatus.currentSlot?.end}</span>
+                        <span className="text-[10px] font-bold text-indigo-200">{todaysData.currentSlot?.start} - {todaysData.currentSlot?.end}</span>
                       </div>
                   </div>
                   
                   <div className="flex items-end justify-between gap-4">
                       <div className="flex-1 min-w-0">
                           <h2 className="text-3xl font-black text-white truncate tracking-tighter leading-tight">
-                              {state.students[liveStatus.currentSlot!.studentId!]?.name}
+                              {state.students[todaysData.currentSlot!.studentId!]?.name}
                           </h2>
                           <div className="flex items-center gap-2 mt-2">
                              <TrendingUp size={14} className="text-indigo-400" />
@@ -211,14 +215,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                           </div>
                       </div>
                       <div className="text-right shrink-0">
-                          <div className="text-4xl font-black text-indigo-400 leading-none tracking-tighter">{liveStatus.timeLeft}</div>
+                          <div className="text-4xl font-black text-indigo-400 leading-none tracking-tighter">{todaysData.timeLeft}</div>
                           <div className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest">DK KALDI</div>
                       </div>
                   </div>
 
                   <div className="space-y-3">
                       <div className="h-2.5 bg-white/5 rounded-full overflow-hidden p-[1.5px]">
-                          <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(79,70,229,0.5)]" style={{ width: `${liveStatus.progress}%` }}></div>
+                          <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(79,70,229,0.5)]" style={{ width: `${todaysData.progress}%` }}></div>
                       </div>
                   </div>
 
@@ -228,44 +232,44 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                            <div>
                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-0.5">SIRADAKİ</span>
                                <span className="text-xs font-bold text-indigo-100">
-                                   {liveStatus.nextSlot ? (state.students[liveStatus.nextSlot.studentId!]?.name || "Boş Saat") : "Gün Sonu"}
+                                   {todaysData.nextSlot ? (state.students[todaysData.nextSlot.studentId!]?.name || "Boş Saat") : "Gün Sonu"}
                                </span>
                            </div>
                        </div>
-                       {liveStatus.gapToNext > 0 && (
+                       {todaysData.gapToNext > 0 && (
                             <div className="bg-amber-500/10 text-amber-500 px-3 py-2 rounded-2xl border border-amber-500/20 flex items-center gap-2">
                                 <Clock size={12} strokeWidth={2.5} />
-                                <span className="text-[10px] font-black tracking-tight">{liveStatus.gapToNext} DK ARA</span>
+                                <span className="text-[10px] font-black tracking-tight">{todaysData.gapToNext} DK ARA</span>
                             </div>
                        )}
                   </div>
               </div>
-          ) : liveStatus.statusType === 'BREAK' ? (
+          ) : todaysData.statusType === 'BREAK' ? (
               <div className="bg-white border border-slate-100 rounded-[2.5rem] p-7 shadow-xl shadow-slate-200/50 flex flex-col gap-5 animate-in slide-in-from-top-4 duration-500 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
                   <div className="flex items-center justify-between relative z-10">
                       <div className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-2xl flex items-center gap-2.5">
-                          <Coffee size={16} strokeWidth={2.5} />
-                          <span className="text-[11px] font-black uppercase tracking-[0.2em]">DERS ARASI</span>
+                          <Coffee size={18} strokeWidth={2.5} className="animate-bounce" />
+                          <span className="text-[11px] font-black uppercase tracking-[0.2em]">ARA VERİLİYOR</span>
                       </div>
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Mola Modu</span>
+                      <span className="text-xl">☕</span>
                   </div>
                   
                   <div className="flex items-end justify-between relative z-10">
                       <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">BEKLENEN ÖĞRENCİ</p>
-                          <h2 className="text-2xl font-black text-slate-800 tracking-tight">{state.students[liveStatus.nextSlot!.studentId!]?.name || "Boş Ders"}</h2>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">SIRADAKİ ÖĞRENCİ</p>
+                          <h2 className="text-2xl font-black text-slate-800 tracking-tight">{state.students[todaysData.nextSlot!.studentId!]?.name || "Boş Ders"}</h2>
                       </div>
                       <div className="text-right">
-                          <p className="text-3xl font-black text-indigo-600 leading-none tracking-tighter">{liveStatus.timeLeft}</p>
+                          <p className="text-3xl font-black text-indigo-600 leading-none tracking-tighter">{todaysData.timeLeft}</p>
                           <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-widest">DK SONRA</p>
                       </div>
                   </div>
                   
                   <div className="flex items-center gap-3 p-4 bg-slate-50/80 rounded-2xl border border-slate-100 relative z-10 backdrop-blur-sm">
                       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-500 shadow-sm border border-slate-100"><Clock size={20} /></div>
-                      <span className="text-xs font-bold text-slate-600 tracking-tight leading-relaxed">Bir sonraki ders saat <span className="text-indigo-600 font-black">{liveStatus.nextSlot?.start}</span>'da başlayacak.</span>
+                      <span className="text-xs font-bold text-slate-600 tracking-tight leading-relaxed">Hazırlık için vaktiniz var. Ders saat <span className="text-indigo-600 font-black">{todaysData.nextSlot?.start}</span>'da.</span>
                   </div>
               </div>
           ) : (
@@ -279,29 +283,29 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           )}
       </div>
 
-      {/* SECONDARY: DASHBOARD WIDGETS (Sayılar İnce Şerit Halinde) */}
-      <div className="px-6 grid grid-cols-2 gap-3 mb-8">
-          <button 
-            onClick={() => onNavigate('STUDENTS')}
-            className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-[1.75rem] shadow-sm active:scale-95 transition-all group"
-          >
-              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                  <Users size={20} strokeWidth={2.5} />
+      {/* DAILY INSIGHT BAR */}
+      <div className="px-6 mb-8">
+          <div className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                      <Flame size={22} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                      <h4 className="text-sm font-black text-slate-800 leading-none">Günlük Yoğunluk</h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Bugün Toplam <span className="text-orange-600">{todaysData.lessonCount} Ders</span> Planlandı</p>
+                  </div>
               </div>
-              <div className="min-w-0">
-                  <span className="text-lg font-black text-slate-800 block leading-none">{currentTeacherStudentCount}</span>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5 block">ÖĞRENCİ</span>
-              </div>
-          </button>
-          
-          <div className="p-1.5 bg-white border border-slate-100 rounded-[1.75rem] shadow-sm flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                  <button onClick={() => setDayOffset(prev => prev - 1)} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:bg-slate-50 active:scale-90"><ChevronLeft size={18} /></button>
-                  <button onClick={() => setDayOffset(prev => prev + 1)} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:bg-slate-50 active:scale-90"><ChevronRight size={18} /></button>
-              </div>
-              <div className="text-center pb-2">
-                  <span className="text-lg font-black text-slate-800 block leading-none">{dailyStats.count}</span>
-                  <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mt-1.5 block">{dailyStats.label}</span>
+              <div className="flex items-center -space-x-2">
+                  {[...Array(Math.min(todaysData.lessonCount, 3))].map((_, i) => (
+                      <div key={i} className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center">
+                          <Users size={12} className="text-slate-400" />
+                      </div>
+                  ))}
+                  {todaysData.lessonCount > 3 && (
+                      <div className="w-7 h-7 rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white">
+                          +{todaysData.lessonCount - 3}
+                      </div>
+                  )}
               </div>
           </div>
       </div>
@@ -326,7 +330,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm flex items-center gap-4 active:scale-95 transition-all group">
-                 <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all shadow-sm"><GraduationCap size={20} strokeWidth={2.5} /></div>
+                 <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-sm"><GraduationCap size={20} strokeWidth={2.5} /></div>
                  <span className="font-black text-slate-800 text-[11px] uppercase tracking-[0.1em]">KADRO</span>
             </button>
             <button onClick={() => onNavigate('WEEKLY')} className="bg-white p-5 rounded-[1.75rem] border border-slate-100 shadow-sm flex items-center gap-4 active:scale-95 transition-all group">
@@ -342,7 +346,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           <span className="text-[9px] font-black tracking-[0.5em] text-slate-400 uppercase">KURS YÖNETİM PRO v1.0</span>
       </div>
 
-      {/* MODALS (Değişmedi) */}
+      {/* MODALS */}
       <Dialog isOpen={isTeachersListOpen} onClose={() => { setIsTeachersListOpen(false); setIsAddTeacherMode(false); }} title={isAddTeacherMode ? "Eğitmen Ekle" : "Kadro"}
         actions={isAddTeacherMode ? (<><button onClick={() => setIsAddTeacherMode(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleSaveTeacher} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md">Ekle</button></>) : (<button onClick={() => setIsAddTeacherMode(true)} className="w-full py-4 bg-slate-900 text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all uppercase tracking-widest"><UserPlus size={16} /> Yeni Eğitmen</button>)}>
           {isAddTeacherMode ? (<div className="py-2"><input type="text" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-indigo-500 transition-all outline-none" placeholder="Ad Soyad..." autoFocus /></div>) : (<div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto no-scrollbar">{state.teachers.length === 0 ? <p className="text-center py-6 text-slate-400 font-bold text-xs">Eğitmen bulunamadı.</p> : state.teachers.map(teacher => (<div key={teacher} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${teacher === state.currentTeacher ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div><div><div className="font-black text-slate-800 text-sm">{teacher}</div><div className="text-[10px] font-bold text-slate-400 mt-0.5">Eğitmen</div></div></div><div className="flex items-center gap-2"><button onClick={(e) => handleShareTeacherLink(e, teacher)} className="p-2 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-colors"><Share2 size={16} /></button>{teacher !== state.currentTeacher && (<button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-black border border-slate-200 rounded-lg hover:border-indigo-600 transition-all uppercase tracking-wider">Seç</button>)}</div></div>))}</div>)}
