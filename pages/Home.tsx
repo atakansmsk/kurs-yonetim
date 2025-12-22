@@ -22,7 +22,7 @@ import {
   Sparkles,
   Users,
   LogOut,
-  Mic
+  Info
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -172,28 +172,28 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* 2. DIGITAL BILLBOARD (Günün İlk Dersi) */}
       {!todaysData.dayStarted && todaysData.firstLesson && (
           <div className="px-7 mb-8 animate-in fade-in slide-in-from-top duration-1000">
-              <div className="relative overflow-hidden bg-slate-950 rounded-3xl h-24 flex items-center shadow-2xl shadow-indigo-200/50 border border-slate-800">
+              <div className="relative overflow-hidden bg-slate-950 rounded-3xl h-20 flex items-center shadow-2xl shadow-indigo-200/50 border border-slate-800">
                   {/* Digital Grid Pattern */}
                   <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #4f46e5 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
                   
-                  {/* Left Fixed Badge */}
-                  <div className="absolute left-0 top-0 bottom-0 z-20 bg-slate-950 px-5 flex items-center border-r border-slate-800 shadow-[10px_0_15px_rgba(0,0,0,0.5)]">
-                      <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                          <Mic size={20} className="animate-pulse" />
+                  {/* Left Fixed Indicator (No Icon as requested) */}
+                  <div className="absolute left-0 top-0 bottom-0 z-20 bg-slate-950 px-4 flex items-center border-r border-slate-800 shadow-[10px_0_15px_rgba(0,0,0,0.5)]">
+                      <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                          <Sparkles size={16} className="animate-pulse" />
                       </div>
                   </div>
 
                   {/* Marquee Content */}
                   <div className="flex-1 h-full flex items-center overflow-hidden relative">
-                      <div className="animate-marquee pl-[80px]">
-                          <span className="text-xl font-black text-white/90 uppercase tracking-[0.1em] flex items-center gap-12">
+                      <div className="animate-marquee pl-[64px]">
+                          <span className="text-lg font-black text-white/90 uppercase tracking-[0.15em] flex items-center gap-12">
                               <span>Günün İlk Dersi Saat <span className="text-indigo-400 font-black">{todaysData.firstLesson.start}</span>'da Başlıyor</span>
                               <span className="opacity-30">•</span>
                               <span>Öğrenci: <span className="text-indigo-400 font-black">{state.students[todaysData.firstLesson.studentId!]?.name}</span></span>
                               <span className="opacity-30">•</span>
-                              <span>{state.schoolName} Hazırlıkları Tamamladı</span>
+                              <span className="text-indigo-400">Artı Sanat Dans ve Müzik Kursu</span>
                               <span className="opacity-30">•</span>
-                              <span>İyi Dersler Dileriz</span>
+                              <span>Keyifli Bir Eğitim Günü Dileriz</span>
                               <span className="opacity-30">•</span>
                           </span>
                       </div>
