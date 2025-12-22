@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +23,9 @@ import {
   LayoutDashboard,
   Bell,
   CalendarDays,
-  Forward
+  Forward,
+  User,
+  ImageIcon
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -54,7 +57,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [isAddTeacherMode, setIsAddTeacherMode] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState("");
-  const [isSyncing, setIsSyncing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [dayOffset, setDayOffset] = useState(0);
@@ -76,7 +78,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
     
     const currentSlot = todaysSlots.find(s => timeToMinutes(s.start) <= currentMins && timeToMinutes(s.end) > currentMins);
-    // currentSlot bittikten sonraki ilk slotu bul (aradaki boşluklar dahil)
     const nextSlot = todaysSlots.find(s => timeToMinutes(s.start) > currentMins && s.id !== currentSlot?.id);
 
     let statusType: 'IN_LESSON' | 'BREAK' | 'IDLE' = 'IDLE';
@@ -158,6 +159,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       if (!user) return;
       const baseUrl = window.location.origin + window.location.pathname;
       const url = `${baseUrl}?teacherView=true&uid=${user.id}&name=${encodeURIComponent(teacherName)}`;
+      // Fix: Use navigator.clipboard.writeText instead of the non-existent navigator.clipboard.text property.
       navigator.clipboard.writeText(url);
       alert(`Link Kopyalandı`);
   };
@@ -220,7 +222,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                       <div className="h-full bg-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${liveStatus.progress}%` }}></div>
                   </div>
 
-                  {/* NEXT PREVIEW PANEL - Sorduğunuz Özellik Burada */}
                   <div className="mt-1 pt-3 border-t border-white/5 flex items-center justify-between">
                        <div className="flex items-center gap-2">
                            <Forward size={12} className="text-slate-500" />
@@ -273,7 +274,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
       {/* 3. GRID SYSTEM */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-          {/* Quick Nav: Students */}
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-32 group active:scale-[0.98] transition-all" onClick={() => onNavigate('STUDENTS')}>
              <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><Users size={18} /></div>
              <div>
@@ -282,7 +282,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
              </div>
           </div>
 
-          {/* Quick Nav: Daily Navigation */}
           <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-32">
              <div className="flex items-center justify-between mb-auto">
                 <button onClick={() => setDayOffset(prev => prev - 1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-50 active:scale-90"><ChevronLeft size={16} /></button>
@@ -295,7 +294,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           </div>
       </div>
 
-      {/* 4. MAIN ACTION: SCHEDULE */}
       <button 
           onClick={() => onNavigate('SCHEDULE')} 
           className="w-full bg-slate-900 p-5 rounded-2xl shadow-lg shadow-slate-200 flex items-center justify-between group active:scale-[0.99] transition-all mb-3"
@@ -312,15 +310,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           <ChevronRight size={18} className="text-slate-600 group-hover:translate-x-1 transition-transform" />
       </button>
 
-      {/* 5. SMALLER ACTIONS */}
       <div className="grid grid-cols-2 gap-3 mb-8">
         <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-all">
              <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center"><GraduationCap size={16} /></div>
              <span className="font-black text-slate-800 text-[11px] uppercase tracking-wider">Kadro</span>
         </button>
-        <button onClick={() => onNavigate('STUDENTS')} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-all">
+        <button onClick={() => onNavigate('WEEKLY')} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-all">
              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center"><LayoutDashboard size={16} /></div>
-             <span className="font-black text-slate-800 text-[11px] uppercase tracking-wider">Finans</span>
+             <span className="font-black text-slate-800 text-[11px] uppercase tracking-wider">Özet</span>
         </button>
       </div>
 
@@ -330,42 +327,92 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           {isAddTeacherMode ? (<div className="py-2"><input type="text" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-indigo-500 transition-all outline-none" placeholder="Ad Soyad..." autoFocus /></div>) : (<div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto no-scrollbar">{state.teachers.length === 0 ? <p className="text-center py-6 text-slate-400 font-bold text-xs">Eğitmen bulunamadı.</p> : state.teachers.map(teacher => {const count = getStudentCountForTeacher(teacher); return (<div key={teacher} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${teacher === state.currentTeacher ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div><div><div className="font-black text-slate-800 text-sm">{teacher}</div><div className="text-[10px] font-bold text-slate-400 mt-0.5">{count} Öğrenci</div></div></div><div className="flex items-center gap-2"><button onClick={(e) => handleShareTeacherLink(e, teacher)} className="p-2 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-colors"><Share2 size={16} /></button>{teacher !== state.currentTeacher && (<button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-black border border-slate-200 rounded-lg hover:border-indigo-600 transition-all uppercase tracking-wider">Seç</button>)}</div></div>);})}</div>)}
       </Dialog>
 
+      {/* COMPACT SETTINGS MODAL */}
       <Dialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="Ayarlar">
-        <div className="py-2 flex flex-col gap-6">
-             <div className="flex items-center gap-4 bg-slate-900 p-5 rounded-2xl border border-white/5 relative overflow-hidden">
-                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-lg font-black text-white">{user?.name ? user.name.charAt(0).toUpperCase() : 'E'}</div>
-                <div className="z-10"><h3 className="font-black text-white text-base tracking-tight">{user?.name || 'Eğitmen'}</h3><p className="text-[10px] text-slate-400 font-medium">{user?.email}</p></div>
+        <div className="flex flex-col gap-5 max-h-[70vh] overflow-y-auto no-scrollbar py-1">
+             
+             {/* Account List Item */}
+             <div className="flex items-center gap-3 p-1">
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm font-black text-slate-500">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : 'E'}
+                </div>
+                <div className="flex-1">
+                    <h3 className="font-black text-slate-800 text-[13px] leading-none mb-1">{user?.name || 'Eğitmen'}</h3>
+                    <p className="text-[10px] text-slate-400 font-medium">{user?.email}</p>
+                </div>
              </div>
 
-             <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm">
-                 <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Okul Bilgileri</h4>
-                 <div className="space-y-4">
-                     <div>
-                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Okul Adı</label>
-                         <input type="text" value={state.schoolName} onChange={(e) => actions.updateSchoolName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500 transition-all" />
+             {/* Section: School Info */}
+             <div className="space-y-3">
+                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Okul Yapılandırması</h4>
+                 
+                 <div className="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm space-y-3">
+                     <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center shrink-0">
+                            <GraduationCap size={16} />
+                         </div>
+                         <input 
+                            type="text" 
+                            value={state.schoolName} 
+                            onChange={(e) => actions.updateSchoolName(e.target.value)} 
+                            className="flex-1 bg-transparent border-none font-bold text-slate-800 text-xs outline-none focus:text-indigo-600 transition-colors" 
+                            placeholder="Okul Adı..."
+                         />
                      </div>
-                     <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-black text-[10px] active:scale-95 transition-all uppercase tracking-widest">Logo/İkon Değiştir</button>
+                     <div className="h-px bg-slate-50"></div>
+                     <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center gap-3 group">
+                         <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 group-hover:text-indigo-600 transition-colors">
+                            <ImageIcon size={16} />
+                         </div>
+                         <span className="text-xs font-bold text-slate-500 group-hover:text-indigo-600 transition-colors">Logo/İkon Değiştir</span>
+                     </button>
                  </div>
                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
              </div>
 
-            <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm">
-                 <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Uygulama Teması</h4>
-                 <div className="grid grid-cols-5 gap-2.5">
-                    {THEME_OPTIONS.map(theme => (
-                        <button key={theme.key} onClick={() => actions.updateThemeColor(theme.key)} className={`aspect-square rounded-lg border-2 transition-all ${state.themeColor === theme.key ? 'border-indigo-600 scale-105 shadow-md' : 'border-transparent'}`} style={{ backgroundColor: theme.color }} />
-                    ))}
-                 </div>
-            </div>
+             {/* Section: App Features */}
+             <div className="space-y-3">
+                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Özellikler</h4>
+                 
+                 <button onClick={actions.toggleAutoProcessing} className="w-full flex items-center justify-between bg-white border border-slate-100 p-3 rounded-2xl shadow-sm active:scale-[0.98] transition-all">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${state.autoLessonProcessing ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'}`}>
+                            <Zap size={16} fill={state.autoLessonProcessing ? "currentColor" : "none"} />
+                        </div>
+                        <span className={`font-bold text-xs ${state.autoLessonProcessing ? 'text-slate-800' : 'text-slate-500'}`}>Otomatik Borçlandır</span>
+                    </div>
+                    <div className={`w-9 h-5 rounded-full p-1 transition-colors ${state.autoLessonProcessing ? 'bg-indigo-600' : 'bg-slate-200'}`}>
+                        <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-300 ${state.autoLessonProcessing ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                    </div>
+                 </button>
+             </div>
 
-            <button onClick={actions.toggleAutoProcessing} className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${state.autoLessonProcessing ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
-                <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${state.autoLessonProcessing ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}><Zap size={18} fill="currentColor" /></div>
-                    <div className="text-left"><h4 className={`font-black text-[11px] ${state.autoLessonProcessing ? 'text-indigo-900' : 'text-slate-700'} uppercase tracking-wider`}>Otomatik Borçlandır</h4></div>
-                </div>
-                <div className={`w-11 h-6 rounded-full p-1 transition-colors ${state.autoLessonProcessing ? 'bg-indigo-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-300 ${state.autoLessonProcessing ? 'translate-x-5' : 'translate-x-0'}`}></div></div>
-            </button>
-            <button onClick={logout} className="p-4 rounded-2xl border border-red-100 bg-red-50 text-red-600 flex items-center justify-center gap-3 font-black text-[11px] active:scale-95 transition-all uppercase tracking-[0.2em]"><LogOut size={16} /> Güvenli Çıkış</button>
+             {/* Section: Appearance */}
+             <div className="space-y-3">
+                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Görünüm</h4>
+                 <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm">
+                    <div className="grid grid-cols-5 gap-2">
+                        {THEME_OPTIONS.map(theme => (
+                            <button 
+                                key={theme.key} 
+                                onClick={() => actions.updateThemeColor(theme.key)} 
+                                className={`aspect-square rounded-full border-2 transition-all ${state.themeColor === theme.key ? 'border-slate-800 scale-110 shadow-sm' : 'border-transparent opacity-60'}`} 
+                                style={{ backgroundColor: theme.color }} 
+                            />
+                        ))}
+                    </div>
+                 </div>
+             </div>
+
+             {/* Logout Button */}
+             <div className="pt-2">
+                 <button 
+                    onClick={logout} 
+                    className="w-full py-3.5 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest"
+                 >
+                    <LogOut size={16} /> Oturumu Kapat
+                 </button>
+             </div>
         </div>
       </Dialog>
     </div>
