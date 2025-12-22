@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppState, CourseContextType, LessonSlot, Student, Transaction, Resource, WeekDay, DAYS } from '../types';
 import { useAuth } from './AuthContext';
@@ -115,42 +116,46 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
       const currentDayName = jsDayToAppKey[now.getDay()];
       
-      const teacherKey = `${state.currentTeacher}|${currentDayName}`;
-      const todaysSlots = state.schedule[teacherKey] || [];
       const processedToday = state.processedSlots?.[todayDateStr] || [];
 
       let hasChanges = false;
       let nextProcessedToday = [...processedToday];
       let nextStudents = { ...state.students };
 
-      todaysSlots.forEach(slot => {
-        if (slot.studentId && !nextProcessedToday.includes(slot.id)) {
-          const slotStartMinutes = timeToMinutes(slot.start);
-          if (currentMinutes >= slotStartMinutes) {
-            const student = nextStudents[slot.studentId];
-            if (student && student.isActive !== false) {
-              const txId = Math.random().toString(36).substr(2, 9);
-              const isMakeup = slot.label === 'MAKEUP';
-              const isTrial = slot.label === 'TRIAL';
-              
-              const newTx: Transaction = {
-                id: txId,
-                note: isMakeup ? 'Telafi Dersi İşlendi' : isTrial ? 'Deneme Dersi İşlendi' : 'Otomatik Ders İşlendi',
-                date: now.toISOString(),
-                isDebt: true,
-                amount: 0
-              };
+      // Tüm eğitmenlerin bugünkü programını kontrol et
+      state.teachers.forEach(teacher => {
+        const teacherKey = `${teacher}|${currentDayName}`;
+        const teacherSlots = state.schedule[teacherKey] || [];
 
-              nextStudents[slot.studentId] = {
-                ...student,
-                history: [newTx, ...(student.history || [])]
-              };
-              
-              nextProcessedToday.push(slot.id);
-              hasChanges = true;
+        teacherSlots.forEach(slot => {
+          if (slot.studentId && !nextProcessedToday.includes(slot.id)) {
+            const slotStartMinutes = timeToMinutes(slot.start);
+            if (currentMinutes >= slotStartMinutes) {
+              const student = nextStudents[slot.studentId];
+              if (student && student.isActive !== false) {
+                const txId = Math.random().toString(36).substr(2, 9);
+                const isMakeup = slot.label === 'MAKEUP';
+                const isTrial = slot.label === 'TRIAL';
+                
+                const newTx: Transaction = {
+                  id: txId,
+                  note: isMakeup ? 'Telafi Dersi İşlendi' : isTrial ? 'Deneme Dersi İşlendi' : 'Otomatik Ders İşlendi',
+                  date: now.toISOString(),
+                  isDebt: true,
+                  amount: 0
+                };
+
+                nextStudents[slot.studentId] = {
+                  ...student,
+                  history: [newTx, ...(student.history || [])]
+                };
+                
+                nextProcessedToday.push(slot.id);
+                hasChanges = true;
+              }
             }
           }
-        }
+        });
       });
 
       if (hasChanges) {
@@ -163,7 +168,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, 30000);
 
     return () => clearInterval(processInterval);
-  }, [isLoaded, state.autoLessonProcessing, state.currentTeacher, state.schedule, state.processedSlots, state.students, user]);
+  }, [isLoaded, state.autoLessonProcessing, state.teachers, state.schedule, state.processedSlots, state.students, user]);
 
   const updateState = (updater: (prev: AppState) => AppState) => {
       setState(current => {
