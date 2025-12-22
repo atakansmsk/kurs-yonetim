@@ -21,7 +21,8 @@ import {
   Coffee,
   LayoutDashboard,
   Bell,
-  CalendarDays
+  CalendarDays,
+  Forward
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -75,11 +76,13 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
     
     const currentSlot = todaysSlots.find(s => timeToMinutes(s.start) <= currentMins && timeToMinutes(s.end) > currentMins);
-    const nextSlot = todaysSlots.find(s => timeToMinutes(s.start) > currentMins);
+    // currentSlot bittikten sonraki ilk slotu bul (aradaki boşluklar dahil)
+    const nextSlot = todaysSlots.find(s => timeToMinutes(s.start) > currentMins && s.id !== currentSlot?.id);
 
     let statusType: 'IN_LESSON' | 'BREAK' | 'IDLE' = 'IDLE';
     let timeLeft = 0;
     let progress = 0;
+    let gapToNext = 0;
 
     if (currentSlot && currentSlot.studentId) {
         statusType = 'IN_LESSON';
@@ -87,12 +90,16 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         const end = timeToMinutes(currentSlot.end);
         timeLeft = end - currentMins;
         progress = ((currentMins - start) / (end - start)) * 100;
+
+        if (nextSlot) {
+            gapToNext = timeToMinutes(nextSlot.start) - end;
+        }
     } else if (nextSlot) {
         statusType = 'BREAK';
         timeLeft = timeToMinutes(nextSlot.start) - currentMins;
     }
 
-    return { statusType, currentSlot, nextSlot, timeLeft, progress };
+    return { statusType, currentSlot, nextSlot, timeLeft, progress, gapToNext };
   }, [state.schedule, state.currentTeacher, currentTime]);
 
   const dailyStats = useMemo(() => {
@@ -203,12 +210,43 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                       </div>
                       <span className="text-[10px] font-bold text-slate-500">{liveStatus.currentSlot?.start} - {liveStatus.currentSlot?.end}</span>
                   </div>
+                  
                   <div className="flex items-center justify-between gap-4">
                       <h2 className="text-lg font-black text-white truncate">{state.students[liveStatus.currentSlot!.studentId!]?.name}</h2>
                       <span className="text-[10px] font-black text-indigo-400 shrink-0">{liveStatus.timeLeft} dk kaldı</span>
                   </div>
+
                   <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                       <div className="h-full bg-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${liveStatus.progress}%` }}></div>
+                  </div>
+
+                  {/* NEXT PREVIEW PANEL - Sorduğunuz Özellik Burada */}
+                  <div className="mt-1 pt-3 border-t border-white/5 flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                           <Forward size={12} className="text-slate-500" />
+                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sıradaki</span>
+                       </div>
+                       <div className="text-right">
+                           {liveStatus.nextSlot ? (
+                               <div className="flex items-center gap-2">
+                                   <span className="text-[10px] font-bold text-indigo-300">
+                                       {liveStatus.nextSlot.studentId ? state.students[liveStatus.nextSlot.studentId]?.name : "Boş Saat"}
+                                   </span>
+                                   {liveStatus.gapToNext > 0 && (
+                                       <span className="text-[9px] font-black bg-white/5 text-slate-400 px-1.5 py-0.5 rounded">
+                                           {liveStatus.gapToNext} dk ara
+                                       </span>
+                                   )}
+                                   {liveStatus.gapToNext === 0 && (
+                                        <span className="text-[9px] font-black bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded">
+                                            Peş peşe
+                                        </span>
+                                   )}
+                               </div>
+                           ) : (
+                               <span className="text-[10px] font-bold text-slate-600">Başka ders yok</span>
+                           )}
+                       </div>
                   </div>
               </div>
           ) : liveStatus.statusType === 'BREAK' ? (
