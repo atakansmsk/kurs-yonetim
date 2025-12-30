@@ -79,6 +79,7 @@ export interface CourseContextType {
     deleteSlot: (day: WeekDay, slotId: string) => void;
     bookSlot: (day: WeekDay, slotId: string, studentId: string, label?: 'REGULAR' | 'MAKEUP' | 'TRIAL') => void;
     cancelSlot: (day: WeekDay, slotId: string) => void;
+    extendSlot: (day: WeekDay, slotId: string, minutes: number) => void;
     addTransaction: (studentId: string, type: 'LESSON' | 'PAYMENT', customDate?: string, amount?: number) => void;
     updateTransaction: (studentId: string, transactionId: string, note: string, customDate?: string) => void;
     deleteTransaction: (studentId: string, transactionId: string) => void;

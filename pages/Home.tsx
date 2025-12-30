@@ -2,6 +2,8 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
+/* Import WeekDay type from types */
+import { WeekDay } from '../types';
 import { 
   UserPlus, 
   Settings, 
@@ -12,7 +14,7 @@ import {
   Clock,
   Coffee,
   CalendarDays,
-  Forward,
+  Forward, 
   ImageIcon,
   TrendingUp,
   LayoutGrid,
@@ -24,7 +26,8 @@ import {
   LogOut,
   Info,
   Minimize2,
-  Monitor
+  Monitor,
+  Timer
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -183,7 +186,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                         <div class="w-2 h-2 bg-indigo-400 rounded-full" style="box-shadow: 0 0 10px #818cf8; animation: pulse 2s infinite;"></div>
                         <span class="text-[10px] font-black text-indigo-300 tracking-[0.3em] uppercase">CANLI DERS</span>
                     </div>
-                    <span class="text-[10px] font-black text-white/40 tracking-tighter">${cSlot?.start} — ${cSlot?.end}</span>
+                    <div class="flex items-center gap-2">
+                      <button id="extend-btn" class="bg-white/10 hover:bg-white/20 text-white text-[9px] font-black px-2 py-1 rounded-md border border-white/10 transition-all">+10 DK EKLE</button>
+                      <span class="text-[10px] font-black text-white/40 tracking-tighter">${cSlot?.start} — ${cSlot?.end}</span>
+                    </div>
                 </div>
 
                 <div class="flex items-end justify-between gap-4 relative z-10">
@@ -208,6 +214,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                 @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
               </style>
             `;
+            // Add click event for extend button in PiP
+            const btn = container.querySelector('#extend-btn');
+            if (btn) {
+              btn.addEventListener('click', () => {
+                actions.extendSlot(jsDayToAppKey[now.getDay()] as WeekDay, cSlot!.id, 10);
+                updatePipUI();
+              });
+            }
         } else {
             container.innerHTML = `
               <div class="w-full h-full p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
@@ -326,16 +340,20 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                       </div>
                       <div className="flex gap-2">
                         <button 
+                            onClick={() => actions.extendSlot(todaysData.dayName as WeekDay, todaysData.currentSlot!.id, 10)}
+                            className="bg-indigo-500/20 hover:bg-indigo-500/30 backdrop-blur-xl px-3 py-2 rounded-xl border border-indigo-500/20 text-indigo-100 transition-all flex items-center gap-2 group"
+                            title="Dersi 10 Dakika Uzat"
+                        >
+                            <Timer size={16} />
+                            <span className="text-[10px] font-black uppercase tracking-tight">+10 DK EKLE</span>
+                        </button>
+                        <button 
                             onClick={openDesktopWidget}
                             className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/5 text-indigo-200 transition-all flex items-center gap-2 group"
                             title="Masaüstü Widget Yap"
                         >
                             <Monitor size={16} />
-                            <span className="text-[9px] font-black hidden group-hover:inline">MASAÜSTÜNE AL</span>
                         </button>
-                        <div className="bg-white/5 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/5">
-                            <span className="text-xs font-black text-indigo-100 tracking-tighter">{todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
-                        </div>
                       </div>
                   </div>
                   
@@ -371,12 +389,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                                </span>
                            </div>
                        </div>
-                       {todaysData.gapToNext > 0 && (
-                            <div className="bg-amber-500/10 text-amber-500 px-4 py-2.5 rounded-[1.25rem] border border-amber-500/10 flex items-center gap-2.5">
-                                <Clock size={14} strokeWidth={2.5} />
-                                <span className="text-xs font-black tracking-tight">{todaysData.gapToNext} DK ARA</span>
-                            </div>
-                       )}
+                       <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
+                            <span className="text-xs font-black text-indigo-100 tracking-tighter">{todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
+                        </div>
                   </div>
               </div>
           ) : (

@@ -28,6 +28,12 @@ const timeToMinutes = (time: string) => {
   return h * 60 + m;
 };
 
+const minutesToTime = (minutes: number) => {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
 export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -68,7 +74,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         (newData) => {
             let finalData = { ...newData };
             
-            // Sadece ilk yüklemede bulut boşsa ve yerel yedek varsa kurtarma yap
             if (isFirstSync.current) {
                 const remoteStudentCount = Object.keys(finalData.students || {}).length;
                 const localStudentCount = Object.keys(localBest?.students || {}).length;
@@ -82,7 +87,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 setIsRecovered(false);
             }
 
-            // Veri yapısı kontrolü
             if (!finalData.students) finalData.students = {};
             if (!finalData.teachers || finalData.teachers.length === 0) finalData.teachers = ["Eğitmen"];
             if (!finalData.currentTeacher) finalData.currentTeacher = finalData.teachers[0];
@@ -122,7 +126,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       let nextProcessedToday = [...processedToday];
       let nextStudents = { ...state.students };
 
-      // Tüm eğitmenlerin bugünkü programını kontrol et
       state.teachers.forEach(teacher => {
         const teacherKey = `${teacher}|${currentDayName}`;
         const teacherSlots = state.schedule[teacherKey] || [];
@@ -176,9 +179,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           newState.updatedAt = new Date().toISOString();
 
           if (user) {
-              // Veritabanına kaydet
               DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error(err));
-              // Yerel yedekle
               localStorage.setItem(`kurs_data_backup_${user.id}`, JSON.stringify(newState));
           }
           return newState;
@@ -214,17 +215,13 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return { ...s, students: { ...s.students, [id]: { ...s.students[id], isActive } } };
       }),
       deleteStudent: (id) => updateState(s => {
-          // 1. Öğrenci listesinden sil
           const { [id]: deleted, ...restStudents } = s.students;
-          
-          // 2. Programdaki tüm saatlerden bu öğrenciyi temizle
           const newSchedule = { ...s.schedule };
           Object.keys(newSchedule).forEach(key => {
               newSchedule[key] = (newSchedule[key] || []).map(slot => 
                   slot.studentId === id ? { ...slot, studentId: null, label: null as any } : slot
               );
           });
-          
           return { ...s, students: restStudents, schedule: newSchedule };
       }),
       getStudent: (id) => state.students[id],
@@ -244,6 +241,18 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       cancelSlot: (day, slotId) => updateState(s => {
           const key = `${s.currentTeacher}|${day}`;
           return { ...s, schedule: { ...s.schedule, [key]: (s.schedule[key] || []).map(slot => slot.id === slotId ? { ...slot, studentId: null, label: null as any } : slot) } };
+      }),
+      extendSlot: (day, slotId, minutes) => updateState(s => {
+        const key = `${s.currentTeacher}|${day}`;
+        return { 
+          ...s, 
+          schedule: { 
+            ...s.schedule, 
+            [key]: (s.schedule[key] || []).map(slot => 
+              slot.id === slotId ? { ...slot, end: minutesToTime(timeToMinutes(slot.end) + minutes) } : slot
+            ) 
+          } 
+        };
       }),
       addTransaction: (studentId, type, customDate, amount) => updateState(s => {
           const student = s.students[studentId];
