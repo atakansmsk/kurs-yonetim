@@ -24,6 +24,7 @@ const sanitize = (data: any): any => {
 };
 
 const timeToMinutes = (time: string) => {
+  if (!time) return 0;
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 };
