@@ -22,12 +22,15 @@ import {
   Sparkles,
   Users,
   LogOut,
-  Info
+  Info,
+  Minimize2
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
 interface HomeProps {
   onNavigate: (tab: 'SCHEDULE' | 'STUDENTS' | 'WEEKLY') => void;
+  onToggleWidget?: () => void;
+  isWidgetMode?: boolean;
 }
 
 const timeToMinutes = (time: string) => {
@@ -36,7 +39,7 @@ const timeToMinutes = (time: string) => {
   return h * 60 + m;
 };
 
-export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
+export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidgetMode }) => {
   const { state, actions, isRecovered } = useCourse();
   const { logout, user } = useAuth();
   
@@ -146,6 +149,56 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
   const userName = user?.name ? user.name.split(' ')[0] : "Eğitmen";
 
+  // WIDGET MODE UI
+  if (isWidgetMode) {
+      return (
+          <div className="h-full flex flex-col justify-center items-center px-4">
+              {todaysData.statusType === 'IN_LESSON' ? (
+                  <div className="w-full bg-slate-900/50 backdrop-blur-xl rounded-[2rem] p-6 border border-white/5 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-500">
+                      <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping"></div>
+                            <span className="text-[10px] font-black text-indigo-300 tracking-widest">CANLI</span>
+                         </div>
+                         <span className="text-[10px] font-black text-slate-500">{todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
+                      </div>
+                      
+                      <div className="flex items-end justify-between gap-4">
+                          <h2 className="text-2xl font-black text-white truncate tracking-tighter leading-tight flex-1">
+                              {state.students[todaysData.currentSlot!.studentId!]?.name}
+                          </h2>
+                          <div className="text-right">
+                              <div className="text-3xl font-black text-white leading-none tracking-tighter">{todaysData.timeLeft}</div>
+                              <div className="text-[8px] font-black text-slate-500 mt-1 uppercase">DK</div>
+                          </div>
+                      </div>
+
+                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                          <div className="h-full bg-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${todaysData.progress}%` }}></div>
+                      </div>
+                      
+                      {todaysData.nextSlot && (
+                          <div className="pt-2 flex items-center justify-between border-t border-white/5">
+                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ: {state.students[todaysData.nextSlot.studentId!]?.name.split(' ')[0]}</span>
+                              {todaysData.gapToNext > 0 && <span className="text-[9px] font-black text-amber-500">{todaysData.gapToNext} DK ARA</span>}
+                          </div>
+                      )}
+                  </div>
+              ) : (
+                  <div className="w-full bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/5 text-center flex flex-col items-center gap-3 animate-in fade-in duration-500">
+                      <Coffee size={32} className="text-slate-600 mb-2" />
+                      <h2 className="text-lg font-black text-white/80">Ders Arası</h2>
+                      {todaysData.nextSlot ? (
+                          <p className="text-xs font-bold text-slate-500">Sonraki: <span className="text-indigo-400">{state.students[todaysData.nextSlot.studentId!]?.name.split(' ')[0]}</span></p>
+                      ) : (
+                          <p className="text-xs font-bold text-slate-500">Bugünlük Bitti</p>
+                      )}
+                  </div>
+              )}
+          </div>
+      );
+  }
+
   return (
     <div className="flex flex-col h-full bg-[#FBFBFC] overflow-y-auto no-scrollbar scroll-smooth">
       
@@ -219,8 +272,17 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                         </div>
                         <span className="text-[11px] font-black text-indigo-300 uppercase tracking-[0.3em]">CANLI DERS</span>
                       </div>
-                      <div className="bg-white/5 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/5">
-                        <span className="text-xs font-black text-indigo-100 tracking-tighter">{todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
+                      <div className="flex gap-2">
+                        <button 
+                            onClick={onToggleWidget}
+                            className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/5 text-indigo-200 transition-all"
+                            title="Widget Modu"
+                        >
+                            <Minimize2 size={16} />
+                        </button>
+                        <div className="bg-white/5 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/5">
+                            <span className="text-xs font-black text-indigo-100 tracking-tighter">{todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
+                        </div>
                       </div>
                   </div>
                   
@@ -273,6 +335,13 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                           <Coffee size={20} strokeWidth={2.5} className="animate-bounce" />
                           <span className="text-xs font-black uppercase tracking-[0.2em]">DERS ARASI ☕</span>
                       </div>
+                      <button 
+                            onClick={onToggleWidget}
+                            className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400 transition-all"
+                            title="Widget Modu"
+                        >
+                            <Minimize2 size={16} />
+                        </button>
                   </div>
                   
                   <div className="flex items-end justify-between relative z-10">

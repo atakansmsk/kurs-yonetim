@@ -10,7 +10,7 @@ import { StudentProfile } from './pages/StudentProfile';
 import { Login } from './pages/Login';
 import { ParentView } from './pages/ParentView';
 import { TeacherView } from './pages/TeacherView';
-import { CalendarRange, Users2, Home as HomeIcon, TrendingUp, LayoutGrid } from 'lucide-react';
+import { CalendarRange, Users2, Home as HomeIcon, TrendingUp, LayoutGrid, Maximize2 } from 'lucide-react';
 
 type Tab = 'HOME' | 'SCHEDULE' | 'WEEKLY' | 'STUDENTS';
 
@@ -60,6 +60,7 @@ const AppContent: React.FC = () => {
   const { state } = useCourse();
   const [activeTab, setActiveTab] = useState<Tab>('HOME');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [isWidgetMode, setIsWidgetMode] = useState(false);
 
   useThemeManager(state.themeColor);
 
@@ -69,12 +70,13 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     const handlePopState = () => {
+      if (isWidgetMode) { setIsWidgetMode(false); return; }
       if (selectedStudentId) { setSelectedStudentId(null); return; }
       if (activeTab !== 'HOME') { setActiveTab('HOME'); return; }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedStudentId, activeTab]);
+  }, [selectedStudentId, activeTab, isWidgetMode]);
 
   if (isParentView) {
     const tId = urlParams.get('teacherId');
@@ -101,16 +103,37 @@ const AppContent: React.FC = () => {
     setSelectedStudentId(id);
   };
 
+  const toggleWidgetMode = () => {
+    if (!isWidgetMode) window.history.pushState({ view: 'widget' }, '');
+    setIsWidgetMode(!isWidgetMode);
+  };
+
   const renderContent = () => {
     if (selectedStudentId) return <StudentProfile studentId={selectedStudentId} onBack={() => window.history.back()} />;
     switch (activeTab) {
-      case 'HOME': return <Home onNavigate={(t) => handleTabChange(t)} />;
+      case 'HOME': return <Home onNavigate={(t) => handleTabChange(t)} onToggleWidget={toggleWidgetMode} isWidgetMode={isWidgetMode} />;
       case 'SCHEDULE': return <DailySchedule onOpenStudentProfile={handleOpenProfile} />;
       case 'WEEKLY': return <WeeklySummary onOpenStudentProfile={handleOpenProfile} />;
       case 'STUDENTS': return <StudentList onSelect={handleOpenProfile} />;
-      default: return <Home onNavigate={(t) => handleTabChange(t)} />;
+      default: return <Home onNavigate={(t) => handleTabChange(t)} onToggleWidget={toggleWidgetMode} isWidgetMode={isWidgetMode} />;
     }
   };
+
+  if (isWidgetMode) {
+    return (
+      <div className="flex flex-col h-screen w-full bg-slate-950 p-2 animate-in fade-in duration-300">
+          <div className="flex-1 overflow-hidden relative">
+              <Home onNavigate={() => {}} onToggleWidget={toggleWidgetMode} isWidgetMode={true} />
+          </div>
+          <button 
+            onClick={toggleWidgetMode}
+            className="absolute top-4 right-4 z-50 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white/50 hover:text-white transition-all shadow-xl backdrop-blur-md border border-white/5"
+          >
+              <Maximize2 size={16} />
+          </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[100dvh] w-full max-w-md bg-[#F8FAFC] shadow-2xl overflow-hidden relative mx-auto sm:rounded-[2.5rem] sm:my-4 sm:h-[calc(100dvh-2rem)] border-0 sm:border-8 border-white ring-1 ring-black/5 animate-in fade-in duration-500">
