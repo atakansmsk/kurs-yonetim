@@ -53,7 +53,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 10000);
     return () => clearInterval(timer);
   }, []);
 
@@ -106,9 +106,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         lessonCount: activeLessons.length,
         dayName
     };
-  }, [state.schedule, state.currentTeacher, currentTime]);
+  }, [state.schedule, state.currentTeacher, currentTime, state.students]);
 
-  // MASAÜSTÜ WIDGET (PIP) MANTIĞI
+  // MASAÜSTÜ WIDGET (PIP) MANTIĞI - TASARIM GÜNCELLENDİ
   const openDesktopWidget = async () => {
     if (!('documentPictureInPicture' in window)) {
       alert("Tarayıcınız masaüstü widget özelliğini desteklemiyor. Lütfen Chrome veya Edge kullanın.");
@@ -118,19 +118,24 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
     try {
       // @ts-ignore
       const pipWindow = await window.documentPictureInPicture.requestWindow({
-        width: 320,
-        height: 180,
+        width: 360,
+        height: 240,
       });
 
-      // CSS stillerini kopyala
+      // Stilleri kopyala ve font ekle
+      const fontLink = pipWindow.document.createElement('link');
+      fontLink.rel = 'stylesheet';
+      fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap';
+      pipWindow.document.head.appendChild(fontLink);
+
       [...document.styleSheets].forEach((styleSheet) => {
         try {
           const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
-          const style = document.createElement('style');
+          const style = pipWindow.document.createElement('style');
           style.textContent = cssRules;
           pipWindow.document.head.appendChild(style);
         } catch (e) {
-          const link = document.createElement('link');
+          const link = pipWindow.document.createElement('link');
           if (styleSheet.href) {
             link.rel = 'stylesheet';
             link.href = styleSheet.href;
@@ -139,47 +144,95 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         }
       });
 
-      // Widget içeriğini oluştur
       const container = pipWindow.document.createElement('div');
       container.id = 'pip-root';
       pipWindow.document.body.append(container);
+      pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex items-center justify-center font-sans";
 
-      // Tailwind sınıfları için body stilini ayarla
-      pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex items-center justify-center";
-
-      // İçeriği güncellemek için bir fonksiyon
+      // HTML Şablonunu Oluştur (Birebir Uygulama Tasarımı)
       const updatePipUI = () => {
-        const studentName = todaysData.currentSlot ? (state.students[todaysData.currentSlot.studentId!]?.name || "Ders") : "Mola";
-        const timeText = todaysData.statusType === 'IN_LESSON' ? `${todaysData.timeLeft}` : "Mola";
-        const subText = todaysData.statusType === 'IN_LESSON' ? "DK KALDI" : "Sıradaki Bekleniyor";
-        const barWidth = todaysData.statusType === 'IN_LESSON' ? todaysData.progress : 0;
+        // En güncel veriyi hesapla
+        const now = new Date();
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+        const dayName = jsDayToAppKey[now.getDay()];
+        const key = `${state.currentTeacher}|${dayName}`;
+        const slots = (state.schedule[key] || []).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+        const cSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && timeToMinutes(s.end) > currentMins);
+        const nSlot = slots.find(s => timeToMinutes(s.start) > currentMins && s.studentId);
+        
+        let sType: 'IN_LESSON' | 'BREAK' | 'IDLE' = 'IDLE';
+        let tLeft = 0;
+        let prog = 0;
+        if (cSlot && cSlot.studentId) {
+            sType = 'IN_LESSON';
+            tLeft = timeToMinutes(cSlot.end) - currentMins;
+            prog = ((currentMins - timeToMinutes(cSlot.start)) / (timeToMinutes(cSlot.end) - timeToMinutes(cSlot.start))) * 100;
+        } else if (nSlot) {
+            sType = 'BREAK';
+            tLeft = timeToMinutes(nSlot.start) - currentMins;
+        }
 
-        container.innerHTML = `
-          <div class="w-full p-4 flex flex-col gap-3 font-sans">
-            <div class="flex items-center justify-between">
-              <span class="text-[9px] font-black text-indigo-400 tracking-[0.2em] uppercase">CANLI TAKİP</span>
-              <span class="text-[10px] font-bold text-slate-500">${new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}</span>
-            </div>
-            <div class="flex items-end justify-between gap-3">
-              <h2 class="text-xl font-black text-white truncate flex-1 tracking-tight">${studentName}</h2>
-              <div class="text-right shrink-0">
-                <div class="text-3xl font-black text-white leading-none tracking-tighter">${timeText}</div>
-                <div class="text-[8px] font-black text-slate-500 uppercase mt-1">${subText}</div>
+        const studentName = (cSlot && cSlot.studentId) ? (state.students[cSlot.studentId]?.name || "Öğrenci") : "Mola";
+        const nextName = (nSlot && nSlot.studentId) ? (state.students[nSlot.studentId]?.name.split(' ')[0] || "Ders") : "Gün Sonu";
+
+        if (sType === 'IN_LESSON') {
+            container.innerHTML = `
+              <div class="w-full h-full p-6 flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute -top-20 -right-20 w-48 h-48 bg-indigo-600/20 rounded-full blur-[50px] pointer-events-none"></div>
+                <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-violet-600/10 rounded-full blur-[40px] pointer-events-none"></div>
+
+                <div class="flex items-center justify-between relative z-10">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-indigo-400 rounded-full" style="box-shadow: 0 0 10px #818cf8; animation: pulse 2s infinite;"></div>
+                        <span class="text-[10px] font-black text-indigo-300 tracking-[0.3em] uppercase">CANLI DERS</span>
+                    </div>
+                    <span class="text-[10px] font-black text-white/40 tracking-tighter">${cSlot?.start} — ${cSlot?.end}</span>
+                </div>
+
+                <div class="flex items-end justify-between gap-4 relative z-10">
+                    <h2 class="text-3xl font-black text-white truncate flex-1 tracking-tighter leading-none">${studentName}</h2>
+                    <div class="text-right shrink-0">
+                        <div class="text-5xl font-black text-white leading-none tracking-tighter">${tLeft}</div>
+                        <div class="text-[9px] font-black text-slate-500 uppercase mt-1 tracking-widest">DK</div>
+                    </div>
+                </div>
+
+                <div class="space-y-4 relative z-10">
+                    <div class="h-2 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
+                        <div class="h-full bg-gradient-to-r from-indigo-500 to-indigo-300 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
+                    </div>
+                    <div class="flex items-center justify-between border-t border-white/5 pt-3">
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ: ${nextName}</span>
+                        <span class="text-[9px] font-bold text-indigo-400">${now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'})}</span>
+                    </div>
+                </div>
               </div>
-            </div>
-            <div class="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <div class="h-full bg-indigo-500 rounded-full transition-all duration-1000" style="width: ${barWidth}%"></div>
-            </div>
-          </div>
-        `;
+              <style>
+                @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+              </style>
+            `;
+        } else {
+            container.innerHTML = `
+              <div class="w-full h-full p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-slate-950"></div>
+                <div class="relative z-10 flex flex-col items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5 mb-2">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-black text-white/90 tracking-tight">Ders Arası</h2>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-2">SIRADAKİ: <span class="text-indigo-400">${nextName}</span></p>
+                    </div>
+                    ${tLeft > 0 ? `<div class="mt-2 text-2xl font-black text-white/40 tracking-tighter">${tLeft} DK KALDI</div>` : ''}
+                </div>
+              </div>
+            `;
+        }
       };
 
       updatePipUI();
       const pipInterval = setInterval(updatePipUI, 10000);
-
-      pipWindow.addEventListener('pagehide', () => {
-        clearInterval(pipInterval);
-      });
+      pipWindow.addEventListener('pagehide', () => clearInterval(pipInterval));
 
     } catch (err) {
       console.error("PiP error:", err);
@@ -251,36 +304,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
           </button>
       </div>
 
-      {/* 2. DIGITAL BILLBOARD */}
-      {!todaysData.dayStarted && todaysData.firstLesson && (
-          <div className="px-7 mb-8 animate-in fade-in slide-in-from-top duration-1000">
-              <div className="relative overflow-hidden bg-slate-950 rounded-3xl h-20 flex items-center shadow-2xl shadow-indigo-200/50 border border-slate-800">
-                  <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #4f46e5 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
-                  <div className="absolute left-0 top-0 bottom-0 z-20 bg-slate-950 px-4 flex items-center border-r border-slate-800 shadow-[10px_0_15px_rgba(0,0,0,0.5)]">
-                      <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                          <Sparkles size={16} className="animate-pulse" />
-                      </div>
-                  </div>
-                  <div className="flex-1 h-full flex items-center overflow-hidden relative">
-                      <div className="animate-marquee pl-[64px]">
-                          <span className="text-lg font-black text-white/90 uppercase tracking-[0.15em] flex items-center gap-12">
-                              <span>Günün İlk Dersi Saat <span className="text-indigo-400 font-black">{todaysData.firstLesson.start}</span>'da Başlıyor</span>
-                              <span className="opacity-30">•</span>
-                              <span>Öğrenci: <span className="text-indigo-400 font-black">{state.students[todaysData.firstLesson.studentId!]?.name}</span></span>
-                              <span className="opacity-30">•</span>
-                              <span className="text-indigo-400">Artı Sanat Dans ve Müzik Kursu</span>
-                              <span className="opacity-30">•</span>
-                              <span>Keyifli Bir Eğitim Günü Dileriz</span>
-                              <span className="opacity-30">•</span>
-                          </span>
-                      </div>
-                  </div>
-                  <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-950 to-transparent z-10"></div>
-              </div>
-          </div>
-      )}
-
-      {/* 3. HERO: LIVE STATUS */}
+      {/* 2. HERO: LIVE STATUS */}
       <div className="px-7 mb-10">
           {todaysData.statusType === 'IN_LESSON' ? (
               <div className="bg-slate-950 rounded-[3rem] p-8 shadow-2xl shadow-indigo-950/20 flex flex-col gap-8 relative overflow-hidden animate-in fade-in zoom-in-95 duration-700">
@@ -349,7 +373,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                        )}
                   </div>
               </div>
-          ) : todaysData.statusType === 'BREAK' ? (
+          ) : (
               <div className="bg-white border border-slate-100 rounded-[3rem] p-8 shadow-xl shadow-slate-200/40 flex flex-col gap-7 animate-in slide-in-from-top-4 duration-500 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-50/50 rounded-full blur-[60px] pointer-events-none"></div>
 
@@ -370,27 +394,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                   <div className="flex items-end justify-between relative z-10">
                       <div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">GELECEK ÖĞRENCİ</p>
-                          <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-none">{state.students[todaysData.nextSlot!.studentId!]?.name || "Boş Ders"}</h2>
+                          <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-none">
+                              {todaysData.nextSlot ? (state.students[todaysData.nextSlot.studentId!]?.name || "Boş Ders") : "Gün Sonu"}
+                          </h2>
                       </div>
                       <div className="text-right">
                           <p className="text-4xl font-black text-indigo-600 leading-none tracking-tighter">{todaysData.timeLeft}</p>
                           <p className="text-[10px] font-black text-slate-400 mt-3 uppercase tracking-widest">DK SONRA</p>
                       </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 p-5 bg-slate-50/50 rounded-[1.75rem] border border-slate-100 relative z-10 backdrop-blur-sm">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-500 shadow-sm border border-slate-50"><Clock size={24} /></div>
-                      <p className="text-sm font-bold text-slate-600 tracking-tight leading-relaxed flex-1">
-                        Kısa bir mola! Bir sonraki ders <span className="text-indigo-600 font-black">{todaysData.nextSlot?.start}</span>'da başlayacak.
-                      </p>
-                  </div>
-              </div>
-          ) : (
-              <div className="bg-slate-50 border border-slate-100 border-dashed rounded-[3rem] p-14 flex flex-col items-center gap-6 opacity-80 animate-in fade-in duration-1000">
-                  <div className="w-24 h-24 bg-white rounded-[2rem] shadow-sm flex items-center justify-center text-slate-300 border border-slate-50"><Coffee size={44} /></div>
-                  <div className="text-center space-y-3">
-                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] block">MESAİ BİTTİ</span>
-                    <span className="text-xs font-bold text-slate-400 block max-w-[200px] leading-relaxed mx-auto">Bugün için planlanan derslerin tamamı işlendi. Yarın görüşmek üzere!</span>
                   </div>
               </div>
           )}
@@ -407,18 +418,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                       <h4 className="text-[15px] font-black text-slate-900 leading-none">Bugünün Özeti</h4>
                       <p className="text-xs font-bold text-slate-400 mt-2">Toplam <span className="text-orange-600 font-black">{todaysData.lessonCount} Seans</span> Var</p>
                   </div>
-              </div>
-              <div className="flex items-center -space-x-3">
-                  {[...Array(Math.min(todaysData.lessonCount, 3))].map((_, i) => (
-                      <div key={i} className="w-9 h-9 rounded-full bg-slate-100 border-[3px] border-white flex items-center justify-center overflow-hidden">
-                          <Users size={16} className="text-slate-400" />
-                      </div>
-                  ))}
-                  {todaysData.lessonCount > 3 && (
-                      <div className="w-9 h-9 rounded-full bg-indigo-600 border-[3px] border-white flex items-center justify-center text-[11px] font-black text-white shadow-sm">
-                          +{todaysData.lessonCount - 3}
-                      </div>
-                  )}
               </div>
           </div>
       </div>
@@ -440,23 +439,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
               </div>
               <ChevronRight size={22} className="text-slate-700 group-hover:translate-x-1.5 transition-transform" />
           </button>
-
-          <div className="grid grid-cols-2 gap-4">
-            <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 active:scale-95 transition-all group">
-                 <div className="w-11 h-11 rounded-[1.15rem] bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-sm"><GraduationCap size={22} strokeWidth={2} /></div>
-                 <span className="font-black text-slate-900 text-[11px] uppercase tracking-widest">KADRO</span>
-            </button>
-            <button onClick={() => onNavigate('WEEKLY')} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 active:scale-95 transition-all group">
-                 <div className="w-11 h-11 rounded-[1.15rem] bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"><LayoutGrid size={22} strokeWidth={2} /></div>
-                 <span className="font-black text-slate-900 text-[11px] uppercase tracking-widest">ÖZET</span>
-            </button>
-          </div>
-      </div>
-
-      {/* FOOTER */}
-      <div className="px-7 text-center opacity-25 pb-36">
-          <div className="w-full h-px bg-slate-200 mb-8"></div>
-          <span className="text-[9px] font-black tracking-[0.6em] text-slate-400 uppercase">KURS YÖNETİM PRO</span>
       </div>
 
       {/* MODALS */}
@@ -473,35 +455,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                     <h3 className="font-black text-slate-800 text-[13px] leading-none mb-1">{user?.name || 'Eğitmen'}</h3>
                     <p className="text-[10px] text-slate-400 font-medium">{user?.email}</p>
                 </div>
-             </div>
-             <div className="space-y-3">
-                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Okul Yapılandırması</h4>
-                 <div className="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm space-y-3">
-                     <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center shrink-0"><GraduationCap size={16} /></div>
-                         <input type="text" value={state.schoolName} onChange={(e) => actions.updateSchoolName(e.target.value)} className="flex-1 bg-transparent border-none font-bold text-slate-800 text-xs outline-none focus:text-indigo-600 transition-colors" placeholder="Okul Adı..." />
-                     </div>
-                     <div className="h-px bg-slate-50"></div>
-                     <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center gap-3 group">
-                         <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 group-hover:text-indigo-600 transition-colors"><ImageIcon size={16} /></div>
-                         <span className="text-xs font-bold text-slate-500 group-hover:text-indigo-600 transition-colors">Logo Değiştir</span>
-                     </button>
-                 </div>
-                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
-             </div>
-             <div className="space-y-3">
-                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Özellikler</h4>
-                 <button onClick={actions.toggleAutoProcessing} className="w-full flex items-center justify-between bg-white border border-slate-100 p-3 rounded-2xl shadow-sm active:scale-[0.98] transition-all">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${state.autoLessonProcessing ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'}`}><Zap size={16} fill={state.autoLessonProcessing ? "currentColor" : "none"} /></div>
-                        <span className={`font-bold text-xs ${state.autoLessonProcessing ? 'text-slate-800' : 'text-slate-500'}`}>Otomatik Borçlandır</span>
-                    </div>
-                    <div className={`w-9 h-5 rounded-full p-1 transition-colors ${state.autoLessonProcessing ? 'bg-indigo-600' : 'bg-slate-200'}`}><div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-300 ${state.autoLessonProcessing ? 'translate-x-4' : 'translate-x-0'}`}></div></div>
-                 </button>
-             </div>
-             <div className="space-y-3">
-                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Görünüm</h4>
-                 <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-sm"><div className="grid grid-cols-5 gap-2">{THEME_OPTIONS.map(theme => (<button key={theme.key} onClick={() => actions.updateThemeColor(theme.key)} className={`aspect-square rounded-full border-2 transition-all ${state.themeColor === theme.key ? 'border-slate-800 scale-110 shadow-sm' : 'border-transparent opacity-60'}`} style={{ backgroundColor: theme.color }} />))}</div></div>
              </div>
              <div className="pt-2">
                  <button onClick={actions.forceSync} className="w-full mb-2 py-3 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest">Buluta Zorla Senkron Et</button>
