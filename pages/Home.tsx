@@ -108,7 +108,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
     };
   }, [state.schedule, state.currentTeacher, currentTime, state.students]);
 
-  // MASAÜSTÜ WIDGET (PIP) MANTIĞI - TASARIM GÜNCELLENDİ
+  // MASAÜSTÜ WIDGET (PIP) MANTIĞI
   const openDesktopWidget = async () => {
     if (!('documentPictureInPicture' in window)) {
       alert("Tarayıcınız masaüstü widget özelliğini desteklemiyor. Lütfen Chrome veya Edge kullanın.");
@@ -122,7 +122,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         height: 240,
       });
 
-      // Stilleri kopyala ve font ekle
       const fontLink = pipWindow.document.createElement('link');
       fontLink.rel = 'stylesheet';
       fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap';
@@ -149,9 +148,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       pipWindow.document.body.append(container);
       pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex items-center justify-center font-sans";
 
-      // HTML Şablonunu Oluştur (Birebir Uygulama Tasarımı)
       const updatePipUI = () => {
-        // En güncel veriyi hesapla
         const now = new Date();
         const currentMins = now.getHours() * 60 + now.getMinutes();
         const dayName = jsDayToAppKey[now.getDay()];
@@ -294,6 +291,15 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
                 Merhaba, <span className="text-indigo-600">{userName}</span>
              </h1>
+             {/* EĞİTMEN SEÇİCİ ETİKETİ */}
+             <button 
+                onClick={() => setIsTeachersListOpen(true)}
+                className="mt-2 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm flex items-center gap-2 group active:scale-95 transition-all"
+             >
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{state.currentTeacher}</span>
+                <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
+             </button>
           </div>
           <button 
             onClick={() => setIsSettingsOpen(true)} 
@@ -439,6 +445,17 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
               </div>
               <ChevronRight size={22} className="text-slate-700 group-hover:translate-x-1.5 transition-transform" />
           </button>
+
+          <div className="grid grid-cols-2 gap-4">
+            <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4 active:scale-95 transition-all group">
+                 <div className="w-11 h-11 rounded-[1.15rem] bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm"><GraduationCap size={22} strokeWidth={2} /></div>
+                 <span className="font-black text-slate-900 text-[11px] uppercase tracking-widest">KADRO</span>
+            </button>
+            <button onClick={() => onNavigate('WEEKLY')} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4 active:scale-95 transition-all group">
+                 <div className="w-11 h-11 rounded-[1.15rem] bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm"><LayoutGrid size={22} strokeWidth={2} /></div>
+                 <span className="font-black text-slate-900 text-[11px] uppercase tracking-widest">ÖZET</span>
+            </button>
+          </div>
       </div>
 
       {/* MODALS */}
