@@ -23,7 +23,8 @@ import {
   Users,
   LogOut,
   Info,
-  Minimize2
+  Minimize2,
+  Monitor
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -107,6 +108,84 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
     };
   }, [state.schedule, state.currentTeacher, currentTime]);
 
+  // MASAÜSTÜ WIDGET (PIP) MANTIĞI
+  const openDesktopWidget = async () => {
+    if (!('documentPictureInPicture' in window)) {
+      alert("Tarayıcınız masaüstü widget özelliğini desteklemiyor. Lütfen Chrome veya Edge kullanın.");
+      return;
+    }
+
+    try {
+      // @ts-ignore
+      const pipWindow = await window.documentPictureInPicture.requestWindow({
+        width: 320,
+        height: 180,
+      });
+
+      // CSS stillerini kopyala
+      [...document.styleSheets].forEach((styleSheet) => {
+        try {
+          const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
+          const style = document.createElement('style');
+          style.textContent = cssRules;
+          pipWindow.document.head.appendChild(style);
+        } catch (e) {
+          const link = document.createElement('link');
+          if (styleSheet.href) {
+            link.rel = 'stylesheet';
+            link.href = styleSheet.href;
+            pipWindow.document.head.appendChild(link);
+          }
+        }
+      });
+
+      // Widget içeriğini oluştur
+      const container = pipWindow.document.createElement('div');
+      container.id = 'pip-root';
+      pipWindow.document.body.append(container);
+
+      // Tailwind sınıfları için body stilini ayarla
+      pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex items-center justify-center";
+
+      // İçeriği güncellemek için bir fonksiyon
+      const updatePipUI = () => {
+        const studentName = todaysData.currentSlot ? (state.students[todaysData.currentSlot.studentId!]?.name || "Ders") : "Mola";
+        const timeText = todaysData.statusType === 'IN_LESSON' ? `${todaysData.timeLeft}` : "Mola";
+        const subText = todaysData.statusType === 'IN_LESSON' ? "DK KALDI" : "Sıradaki Bekleniyor";
+        const barWidth = todaysData.statusType === 'IN_LESSON' ? todaysData.progress : 0;
+
+        container.innerHTML = `
+          <div class="w-full p-4 flex flex-col gap-3 font-sans">
+            <div class="flex items-center justify-between">
+              <span class="text-[9px] font-black text-indigo-400 tracking-[0.2em] uppercase">CANLI TAKİP</span>
+              <span class="text-[10px] font-bold text-slate-500">${new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}</span>
+            </div>
+            <div class="flex items-end justify-between gap-3">
+              <h2 class="text-xl font-black text-white truncate flex-1 tracking-tight">${studentName}</h2>
+              <div class="text-right shrink-0">
+                <div class="text-3xl font-black text-white leading-none tracking-tighter">${timeText}</div>
+                <div class="text-[8px] font-black text-slate-500 uppercase mt-1">${subText}</div>
+              </div>
+            </div>
+            <div class="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div class="h-full bg-indigo-500 rounded-full transition-all duration-1000" style="width: ${barWidth}%"></div>
+            </div>
+          </div>
+        `;
+      };
+
+      updatePipUI();
+      const pipInterval = setInterval(updatePipUI, 10000);
+
+      pipWindow.addEventListener('pagehide', () => {
+        clearInterval(pipInterval);
+      });
+
+    } catch (err) {
+      console.error("PiP error:", err);
+    }
+  };
+
   const handleSaveTeacher = () => {
     if (newTeacherName.trim()) {
       actions.addTeacher(newTeacherName.trim());
@@ -149,56 +228,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
   const userName = user?.name ? user.name.split(' ')[0] : "Eğitmen";
 
-  // WIDGET MODE UI
-  if (isWidgetMode) {
-      return (
-          <div className="h-full flex flex-col justify-center items-center px-4">
-              {todaysData.statusType === 'IN_LESSON' ? (
-                  <div className="w-full bg-slate-900/50 backdrop-blur-xl rounded-[2rem] p-6 border border-white/5 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95 duration-500">
-                      <div className="flex items-center justify-between">
-                         <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping"></div>
-                            <span className="text-[10px] font-black text-indigo-300 tracking-widest">CANLI</span>
-                         </div>
-                         <span className="text-[10px] font-black text-slate-500">{todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
-                      </div>
-                      
-                      <div className="flex items-end justify-between gap-4">
-                          <h2 className="text-2xl font-black text-white truncate tracking-tighter leading-tight flex-1">
-                              {state.students[todaysData.currentSlot!.studentId!]?.name}
-                          </h2>
-                          <div className="text-right">
-                              <div className="text-3xl font-black text-white leading-none tracking-tighter">{todaysData.timeLeft}</div>
-                              <div className="text-[8px] font-black text-slate-500 mt-1 uppercase">DK</div>
-                          </div>
-                      </div>
-
-                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                          <div className="h-full bg-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${todaysData.progress}%` }}></div>
-                      </div>
-                      
-                      {todaysData.nextSlot && (
-                          <div className="pt-2 flex items-center justify-between border-t border-white/5">
-                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ: {state.students[todaysData.nextSlot.studentId!]?.name.split(' ')[0]}</span>
-                              {todaysData.gapToNext > 0 && <span className="text-[9px] font-black text-amber-500">{todaysData.gapToNext} DK ARA</span>}
-                          </div>
-                      )}
-                  </div>
-              ) : (
-                  <div className="w-full bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-8 border border-white/5 text-center flex flex-col items-center gap-3 animate-in fade-in duration-500">
-                      <Coffee size={32} className="text-slate-600 mb-2" />
-                      <h2 className="text-lg font-black text-white/80">Ders Arası</h2>
-                      {todaysData.nextSlot ? (
-                          <p className="text-xs font-bold text-slate-500">Sonraki: <span className="text-indigo-400">{state.students[todaysData.nextSlot.studentId!]?.name.split(' ')[0]}</span></p>
-                      ) : (
-                          <p className="text-xs font-bold text-slate-500">Bugünlük Bitti</p>
-                      )}
-                  </div>
-              )}
-          </div>
-      );
-  }
-
   return (
     <div className="flex flex-col h-full bg-[#FBFBFC] overflow-y-auto no-scrollbar scroll-smooth">
       
@@ -222,21 +251,16 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
           </button>
       </div>
 
-      {/* 2. DIGITAL BILLBOARD (Günün İlk Dersi) */}
+      {/* 2. DIGITAL BILLBOARD */}
       {!todaysData.dayStarted && todaysData.firstLesson && (
           <div className="px-7 mb-8 animate-in fade-in slide-in-from-top duration-1000">
               <div className="relative overflow-hidden bg-slate-950 rounded-3xl h-20 flex items-center shadow-2xl shadow-indigo-200/50 border border-slate-800">
-                  {/* Digital Grid Pattern */}
                   <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #4f46e5 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
-                  
-                  {/* Left Fixed Indicator (No Icon as requested) */}
                   <div className="absolute left-0 top-0 bottom-0 z-20 bg-slate-950 px-4 flex items-center border-r border-slate-800 shadow-[10px_0_15px_rgba(0,0,0,0.5)]">
                       <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
                           <Sparkles size={16} className="animate-pulse" />
                       </div>
                   </div>
-
-                  {/* Marquee Content */}
                   <div className="flex-1 h-full flex items-center overflow-hidden relative">
                       <div className="animate-marquee pl-[64px]">
                           <span className="text-lg font-black text-white/90 uppercase tracking-[0.15em] flex items-center gap-12">
@@ -251,8 +275,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                           </span>
                       </div>
                   </div>
-
-                  {/* Right Fade Decor */}
                   <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-950 to-transparent z-10"></div>
               </div>
           </div>
@@ -274,11 +296,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                       </div>
                       <div className="flex gap-2">
                         <button 
-                            onClick={onToggleWidget}
-                            className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/5 text-indigo-200 transition-all"
-                            title="Widget Modu"
+                            onClick={openDesktopWidget}
+                            className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/5 text-indigo-200 transition-all flex items-center gap-2 group"
+                            title="Masaüstü Widget Yap"
                         >
-                            <Minimize2 size={16} />
+                            <Monitor size={16} />
+                            <span className="text-[9px] font-black hidden group-hover:inline">MASAÜSTÜNE AL</span>
                         </button>
                         <div className="bg-white/5 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/5">
                             <span className="text-xs font-black text-indigo-100 tracking-tighter">{todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
@@ -336,11 +359,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                           <span className="text-xs font-black uppercase tracking-[0.2em]">DERS ARASI ☕</span>
                       </div>
                       <button 
-                            onClick={onToggleWidget}
-                            className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400 transition-all"
-                            title="Widget Modu"
+                            onClick={openDesktopWidget}
+                            className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400 transition-all flex items-center gap-2 group"
                         >
-                            <Minimize2 size={16} />
+                            <Monitor size={16} />
+                            <span className="text-[9px] font-black hidden group-hover:inline">MASAÜSTÜNE AL</span>
                         </button>
                   </div>
                   
@@ -360,8 +383,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                       <p className="text-sm font-bold text-slate-600 tracking-tight leading-relaxed flex-1">
                         Kısa bir mola! Bir sonraki ders <span className="text-indigo-600 font-black">{todaysData.nextSlot?.start}</span>'da başlayacak.
                       </p>
+                  </div>
               </div>
-          </div>
           ) : (
               <div className="bg-slate-50 border border-slate-100 border-dashed rounded-[3rem] p-14 flex flex-col items-center gap-6 opacity-80 animate-in fade-in duration-1000">
                   <div className="w-24 h-24 bg-white rounded-[2rem] shadow-sm flex items-center justify-center text-slate-300 border border-slate-50"><Coffee size={44} /></div>
@@ -373,7 +396,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
           )}
       </div>
 
-      {/* 4. REFINED DASHBOARD PILL */}
+      {/* 4. DASHBOARD PILL */}
       <div className="px-7 mb-10">
           <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-5">
@@ -400,7 +423,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
           </div>
       </div>
 
-      {/* 5. QUICK ACTIONS: REFINED GRID */}
+      {/* 5. QUICK ACTIONS */}
       <div className="px-7 space-y-4 mb-14">
           <button 
               onClick={() => onNavigate('SCHEDULE')} 
@@ -430,7 +453,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
           </div>
       </div>
 
-      {/* FOOTER DECOR */}
+      {/* FOOTER */}
       <div className="px-7 text-center opacity-25 pb-36">
           <div className="w-full h-px bg-slate-200 mb-8"></div>
           <span className="text-[9px] font-black tracking-[0.6em] text-slate-400 uppercase">KURS YÖNETİM PRO</span>
