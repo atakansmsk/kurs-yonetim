@@ -27,7 +27,10 @@ import {
   Info,
   Minimize2,
   Monitor,
-  Timer
+  Timer,
+  Plus,
+  Minus,
+  RotateCcw
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -186,9 +189,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                         <div class="w-2 h-2 bg-indigo-400 rounded-full" style="box-shadow: 0 0 10px #818cf8; animation: pulse 2s infinite;"></div>
                         <span class="text-[10px] font-black text-indigo-300 tracking-[0.3em] uppercase">CANLI DERS</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                      <button id="extend-btn" class="bg-white/10 hover:bg-white/20 text-white text-[9px] font-black px-2 py-1 rounded-md border border-white/10 transition-all">+10 DK EKLE</button>
-                      <span class="text-[10px] font-black text-white/40 tracking-tighter">${cSlot?.start} — ${cSlot?.end}</span>
+                    <div class="flex items-center gap-1.5">
+                      <button id="minus-btn" class="bg-white/10 hover:bg-white/20 text-white p-1 rounded-md border border-white/10 transition-all"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                      <button id="extend-btn" class="bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-100 text-[10px] font-black px-2 py-1 rounded-md border border-indigo-500/20 transition-all">+10 DK</button>
                     </div>
                 </div>
 
@@ -206,7 +209,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                     </div>
                     <div class="flex items-center justify-between border-t border-white/5 pt-3">
                         <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ: ${nextName}</span>
-                        <span class="text-[9px] font-bold text-indigo-400">${now.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'})}</span>
+                        <span class="text-[9px] font-bold text-indigo-400">${cSlot?.start} - ${cSlot?.end}</span>
                     </div>
                 </div>
               </div>
@@ -214,11 +217,19 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                 @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
               </style>
             `;
-            // Add click event for extend button in PiP
-            const btn = container.querySelector('#extend-btn');
-            if (btn) {
-              btn.addEventListener('click', () => {
+            
+            // Event listeners for PiP buttons
+            const extendBtn = container.querySelector('#extend-btn');
+            if (extendBtn) {
+              extendBtn.addEventListener('click', () => {
                 actions.extendSlot(jsDayToAppKey[now.getDay()] as WeekDay, cSlot!.id, 10);
+                updatePipUI();
+              });
+            }
+            const minusBtn = container.querySelector('#minus-btn');
+            if (minusBtn) {
+              minusBtn.addEventListener('click', () => {
+                actions.extendSlot(jsDayToAppKey[now.getDay()] as WeekDay, cSlot!.id, -10);
                 updatePipUI();
               });
             }
@@ -278,18 +289,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       alert(`Link Kopyalandı`);
   };
 
-  const THEME_OPTIONS = [
-    { key: 'indigo', color: '#4f46e5' },
-    { key: 'blue', color: '#0284c7' },
-    { key: 'emerald', color: '#059669' },
-    { key: 'violet', color: '#7c3aed' },
-    { key: 'rose', color: '#e11d48' },
-    { key: 'amber', color: '#d97706' },
-    { key: 'midnight', color: '#0f172a' },
-    { key: 'carbon', color: '#171717' },
-    { key: 'neutral', color: '#334155' },
-  ];
-
   const userName = user?.name ? user.name.split(' ')[0] : "Eğitmen";
 
   return (
@@ -305,7 +304,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
                 Merhaba, <span className="text-indigo-600">{userName}</span>
              </h1>
-             {/* EĞİTMEN SEÇİCİ ETİKETİ */}
              <button 
                 onClick={() => setIsTeachersListOpen(true)}
                 className="mt-2 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm flex items-center gap-2 group active:scale-95 transition-all"
@@ -339,18 +337,28 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                         <span className="text-[11px] font-black text-indigo-300 uppercase tracking-[0.3em]">CANLI DERS</span>
                       </div>
                       <div className="flex gap-2">
-                        <button 
-                            onClick={() => actions.extendSlot(todaysData.dayName as WeekDay, todaysData.currentSlot!.id, 10)}
-                            className="bg-indigo-500/20 hover:bg-indigo-500/30 backdrop-blur-xl px-3 py-2 rounded-xl border border-indigo-500/20 text-indigo-100 transition-all flex items-center gap-2 group"
-                            title="Dersi 10 Dakika Uzat"
-                        >
-                            <Timer size={16} />
-                            <span className="text-[10px] font-black uppercase tracking-tight">+10 DK EKLE</span>
-                        </button>
+                        {/* SÜRE YÖNETİMİ: +10 ve -10 BUTONLARI */}
+                        <div className="bg-white/5 backdrop-blur-xl p-1 rounded-2xl border border-white/5 flex items-center gap-1">
+                            <button 
+                                onClick={() => actions.extendSlot(todaysData.dayName as WeekDay, todaysData.currentSlot!.id, -10)}
+                                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors"
+                                title="10 Dakika Geri Al"
+                            >
+                                <Minus size={14} strokeWidth={3} />
+                            </button>
+                            <button 
+                                onClick={() => actions.extendSlot(todaysData.dayName as WeekDay, todaysData.currentSlot!.id, 10)}
+                                className="px-3 h-8 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-tight shadow-lg shadow-indigo-600/20 flex items-center gap-1.5 transition-all active:scale-95"
+                                title="10 Dakika Uzat"
+                            >
+                                <Timer size={14} />
+                                +10 DK
+                            </button>
+                        </div>
                         <button 
                             onClick={openDesktopWidget}
-                            className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/5 text-indigo-200 transition-all flex items-center gap-2 group"
-                            title="Masaüstü Widget Yap"
+                            className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/5 text-indigo-200 transition-all flex items-center"
+                            title="Masaüstü Widget"
                         >
                             <Monitor size={16} />
                         </button>
@@ -405,10 +413,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                       </div>
                       <button 
                             onClick={openDesktopWidget}
-                            className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400 transition-all flex items-center gap-2 group"
+                            className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400 transition-all flex items-center"
                         >
                             <Monitor size={16} />
-                            <span className="text-[9px] font-black hidden group-hover:inline">MASAÜSTÜNE AL</span>
                         </button>
                   </div>
                   
