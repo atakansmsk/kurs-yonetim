@@ -90,7 +90,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
     if (currentSlot && currentSlot.studentId) {
         statusType = 'IN_LESSON';
         const start = timeToMinutes(currentSlot.start);
-        // Bitiş süresine bonus dakikayı ekliyoruz
         const endWithBonus = timeToMinutes(currentSlot.end) + bonusMinutes;
         timeLeft = endWithBonus - currentMins;
         progress = Math.min(((currentMins - start) / (endWithBonus - start)) * 100, 100);
@@ -99,7 +98,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
             gapToNext = timeToMinutes(nextSlot.start) - endWithBonus;
         }
     } else {
-        // Ders bittiyse veya mola varsa bonusu sıfırla (isteğe bağlı, ama temizlik iyidir)
         if (bonusMinutes !== 0) {
             setTimeout(() => setBonusMinutes(0), 100);
         }
@@ -132,24 +130,33 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
     try {
       // @ts-ignore
-      const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 360, height: 240 });
+      const pipWindow = await window.documentPictureInPicture.requestWindow({
+        width: 360,
+        height: 240,
+      });
 
-      // CSS ve Fontları PiP penceresine aktar
+      // Fontları ve Stilleri kopyala
       [...document.styleSheets].forEach((styleSheet) => {
         try {
           const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
           const style = pipWindow.document.createElement('style');
           style.textContent = cssRules;
           pipWindow.document.head.appendChild(style);
-        } catch (e) {}
+        } catch (e) {
+          if (styleSheet.href) {
+            const link = pipWindow.document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = styleSheet.href;
+            pipWindow.document.head.appendChild(link);
+          }
+        }
       });
 
       const container = pipWindow.document.createElement('div');
       container.id = 'pip-root';
       pipWindow.document.body.append(container);
-      pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex items-center justify-center font-sans";
+      pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex flex-col font-sans selection:bg-indigo-500/30";
 
-      // Global bir değişken olarak bonus süreyi PiP'e taşıyalım (Basitlik için HTML içinde yöneteceğiz)
       let localBonus = bonusMinutes;
 
       const updatePipUI = () => {
@@ -175,49 +182,64 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
             tLeft = timeToMinutes(nSlot.start) - currentMins;
         }
 
-        const studentName = (cSlot && cSlot.studentId) ? (state.students[cSlot.studentId]?.name || "Öğrenci") : "Mola";
+        const studentName = (cSlot && cSlot.studentId) ? (state.students[cSlot.studentId]?.name || "Öğrenci") : "Ders Arası";
+        const nextName = (nSlot && nSlot.studentId) ? (state.students[nSlot.studentId]?.name.split(' ')[0] || "Ders") : "Gün Sonu";
 
         if (sType === 'IN_LESSON') {
             container.innerHTML = `
-              <div class="w-full h-full p-6 flex flex-col justify-between relative overflow-hidden">
-                <div class="absolute -top-20 -right-20 w-48 h-48 bg-indigo-600/20 rounded-full blur-[50px] pointer-events-none"></div>
-                
+              <div class="w-full h-full p-6 flex flex-col justify-between relative overflow-hidden bg-slate-950">
+                <div class="absolute -top-24 -right-24 w-56 h-56 bg-indigo-600/10 rounded-full blur-[60px] pointer-events-none"></div>
+                <div class="absolute -bottom-24 -left-24 w-40 h-40 bg-violet-600/5 rounded-full blur-[50px] pointer-events-none"></div>
+
                 <div class="flex items-center justify-between relative z-10">
                     <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
-                        <span class="text-[10px] font-black text-indigo-300 tracking-widest uppercase">CANLI TAKİP</span>
+                        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse shadow-[0_0_8px_#818cf8]"></div>
+                        <span class="text-[10px] font-black text-indigo-300 tracking-[0.2em] uppercase">CANLI DERS</span>
                     </div>
-                    <div class="flex gap-1.5">
-                      <button id="pip-reset" class="bg-white/5 hover:bg-white/10 text-white p-1 rounded-md border border-white/10 transition-all"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></button>
-                      <button id="pip-add" class="bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-100 text-[10px] font-black px-2 py-1 rounded-md border border-indigo-500/20 transition-all">+10 DK</button>
+                    <div class="flex items-center gap-1.5">
+                      <button id="pip-reset" class="bg-white/5 hover:bg-white/10 text-white p-1.5 rounded-lg border border-white/10 transition-all active:scale-90" title="Sıfırla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></button>
+                      <div class="flex bg-white/5 rounded-lg border border-white/5 p-0.5">
+                        <button id="pip-minus" class="px-2 py-1 text-slate-400 hover:text-white transition-colors active:scale-90"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                        <button id="pip-add" class="px-2 py-1 bg-indigo-600/80 text-white text-[9px] font-black rounded-md transition-all hover:bg-indigo-600 active:scale-95 shadow-lg shadow-indigo-600/20">+10 DK</button>
+                      </div>
                     </div>
                 </div>
 
-                <div class="flex items-end justify-between relative z-10">
-                    <h2 class="text-3xl font-black text-white truncate flex-1 tracking-tighter leading-none">${studentName}</h2>
+                <div class="flex items-end justify-between relative z-10 my-1">
+                    <h2 class="text-[28px] font-black text-white truncate flex-1 tracking-tighter leading-none">${studentName}</h2>
                     <div class="text-right shrink-0">
                         <div class="text-5xl font-black text-white leading-none tracking-tighter">${tLeft}</div>
-                        <div class="text-[9px] font-black text-slate-500 uppercase mt-1">DK</div>
+                        <div class="text-[9px] font-black text-slate-500 uppercase mt-1 tracking-widest">DK</div>
                     </div>
                 </div>
 
                 <div class="space-y-4 relative z-10">
-                    <div class="h-2 bg-white/5 rounded-full overflow-hidden p-0.5">
-                        <div class="h-full bg-indigo-500 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
+                    <div class="h-1.5 bg-white/5 rounded-full overflow-hidden p-0 border border-white/5">
+                        <div class="h-full bg-gradient-to-r from-indigo-500 to-indigo-300 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
                     </div>
                     <div class="flex items-center justify-between border-t border-white/5 pt-3">
-                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">PROGRAM: ${cSlot?.start} - ${cSlot?.end}</span>
-                        ${localBonus > 0 ? `<span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">+${localBonus} DK EK SÜRE</span>` : ''}
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">SONRA: ${nextName}</span>
+                        <div class="flex items-center gap-2">
+                          <span class="text-[9px] font-bold text-indigo-400/80">${cSlot?.start} — ${cSlot?.end}</span>
+                          ${localBonus > 0 ? `<span class="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 text-[8px] font-black rounded uppercase">+${localBonus} DK</span>` : ''}
+                        </div>
                     </div>
                 </div>
               </div>
             `;
             
-            // PiP Buton Dinleyicileri
+            // PiP Kontrolleri
             container.querySelector('#pip-add')?.addEventListener('click', () => {
               localBonus += 10;
               setBonusMinutes(prev => prev + 10);
               updatePipUI();
+            });
+            container.querySelector('#pip-minus')?.addEventListener('click', () => {
+              if(localBonus >= 10) {
+                  localBonus -= 10;
+                  setBonusMinutes(prev => Math.max(0, prev - 10));
+                  updatePipUI();
+              }
             });
             container.querySelector('#pip-reset')?.addEventListener('click', () => {
               localBonus = 0;
@@ -225,7 +247,21 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
               updatePipUI();
             });
         } else {
-            container.innerHTML = `<div class="text-white text-xs font-bold">Ders Arası...</div>`;
+            container.innerHTML = `
+              <div class="w-full h-full p-8 flex flex-col items-center justify-center text-center bg-slate-950 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-slate-950"></div>
+                <div class="relative z-10 flex flex-col items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5 mb-1">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-black text-white/90 tracking-tight">Ders Arası</h2>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-2">SIRADAKİ: <span class="text-indigo-400">${nextName}</span></p>
+                    </div>
+                    ${tLeft > 0 ? `<div class="mt-2 text-2xl font-black text-white/30 tracking-tighter">${tLeft} DK KALDI</div>` : ''}
+                </div>
+              </div>
+            `;
         }
       };
 
@@ -235,6 +271,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
     } catch (err) {
       console.error("PiP error:", err);
+      alert("Pencere açılırken bir hata oluştu.");
     }
   };
 
