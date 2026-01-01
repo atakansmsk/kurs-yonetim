@@ -54,7 +54,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
   const [isAddTeacherMode, setIsAddTeacherMode] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // GEÇİCİ EK SÜRE (Programı bozmaz, sadece sayacı etkiler)
+  const [bonusMinutes, setBonusMinutes] = useState(0);
 
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -74,7 +76,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
     const activeLessons = slots.filter(s => s.studentId);
     
     const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
-    const currentSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && timeToMinutes(s.end) > currentMins);
+    const currentSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && (timeToMinutes(s.end) + bonusMinutes) > currentMins);
     const nextSlot = slots.find(s => timeToMinutes(s.start) > currentMins && s.studentId);
     
     const firstLesson = activeLessons[0];
@@ -88,16 +90,23 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
     if (currentSlot && currentSlot.studentId) {
         statusType = 'IN_LESSON';
         const start = timeToMinutes(currentSlot.start);
-        const end = timeToMinutes(currentSlot.end);
-        timeLeft = end - currentMins;
-        progress = ((currentMins - start) / (end - start)) * 100;
+        // Bitiş süresine bonus dakikayı ekliyoruz
+        const endWithBonus = timeToMinutes(currentSlot.end) + bonusMinutes;
+        timeLeft = endWithBonus - currentMins;
+        progress = Math.min(((currentMins - start) / (endWithBonus - start)) * 100, 100);
 
         if (nextSlot) {
-            gapToNext = timeToMinutes(nextSlot.start) - end;
+            gapToNext = timeToMinutes(nextSlot.start) - endWithBonus;
         }
-    } else if (nextSlot) {
-        statusType = 'BREAK';
-        timeLeft = timeToMinutes(nextSlot.start) - currentMins;
+    } else {
+        // Ders bittiyse veya mola varsa bonusu sıfırla (isteğe bağlı, ama temizlik iyidir)
+        if (bonusMinutes !== 0) {
+            setTimeout(() => setBonusMinutes(0), 100);
+        }
+        if (nextSlot) {
+            statusType = 'BREAK';
+            timeLeft = timeToMinutes(nextSlot.start) - currentMins;
+        }
     }
 
     return { 
@@ -112,41 +121,27 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         lessonCount: activeLessons.length,
         dayName
     };
-  }, [state.schedule, state.currentTeacher, currentTime, state.students]);
+  }, [state.schedule, state.currentTeacher, currentTime, state.students, bonusMinutes]);
 
   // MASAÜSTÜ WIDGET (PIP) MANTIĞI
   const openDesktopWidget = async () => {
     if (!('documentPictureInPicture' in window)) {
-      alert("Tarayıcınız masaüstü widget özelliğini desteklemiyor. Lütfen Chrome veya Edge kullanın.");
+      alert("Tarayıcınız masaüstü widget özelliğini desteklemiyor.");
       return;
     }
 
     try {
       // @ts-ignore
-      const pipWindow = await window.documentPictureInPicture.requestWindow({
-        width: 360,
-        height: 240,
-      });
+      const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 360, height: 240 });
 
-      const fontLink = pipWindow.document.createElement('link');
-      fontLink.rel = 'stylesheet';
-      fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap';
-      pipWindow.document.head.appendChild(fontLink);
-
+      // CSS ve Fontları PiP penceresine aktar
       [...document.styleSheets].forEach((styleSheet) => {
         try {
           const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
           const style = pipWindow.document.createElement('style');
           style.textContent = cssRules;
           pipWindow.document.head.appendChild(style);
-        } catch (e) {
-          const link = pipWindow.document.createElement('link');
-          if (styleSheet.href) {
-            link.rel = 'stylesheet';
-            link.href = styleSheet.href;
-            pipWindow.document.head.appendChild(link);
-          }
-        }
+        } catch (e) {}
       });
 
       const container = pipWindow.document.createElement('div');
@@ -154,101 +149,83 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       pipWindow.document.body.append(container);
       pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex items-center justify-center font-sans";
 
+      // Global bir değişken olarak bonus süreyi PiP'e taşıyalım (Basitlik için HTML içinde yöneteceğiz)
+      let localBonus = bonusMinutes;
+
       const updatePipUI = () => {
         const now = new Date();
         const currentMins = now.getHours() * 60 + now.getMinutes();
         const dayName = jsDayToAppKey[now.getDay()];
         const key = `${state.currentTeacher}|${dayName}`;
         const slots = (state.schedule[key] || []).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-        const cSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && timeToMinutes(s.end) > currentMins);
+        const cSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && (timeToMinutes(s.end) + localBonus) > currentMins);
         const nSlot = slots.find(s => timeToMinutes(s.start) > currentMins && s.studentId);
         
         let sType: 'IN_LESSON' | 'BREAK' | 'IDLE' = 'IDLE';
         let tLeft = 0;
         let prog = 0;
+        
         if (cSlot && cSlot.studentId) {
             sType = 'IN_LESSON';
-            tLeft = timeToMinutes(cSlot.end) - currentMins;
-            prog = ((currentMins - timeToMinutes(cSlot.start)) / (timeToMinutes(cSlot.end) - timeToMinutes(cSlot.start))) * 100;
+            const endWithB = timeToMinutes(cSlot.end) + localBonus;
+            tLeft = endWithB - currentMins;
+            prog = Math.min(((currentMins - timeToMinutes(cSlot.start)) / (endWithB - timeToMinutes(cSlot.start))) * 100, 100);
         } else if (nSlot) {
             sType = 'BREAK';
             tLeft = timeToMinutes(nSlot.start) - currentMins;
         }
 
         const studentName = (cSlot && cSlot.studentId) ? (state.students[cSlot.studentId]?.name || "Öğrenci") : "Mola";
-        const nextName = (nSlot && nSlot.studentId) ? (state.students[nSlot.studentId]?.name.split(' ')[0] || "Ders") : "Gün Sonu";
 
         if (sType === 'IN_LESSON') {
             container.innerHTML = `
               <div class="w-full h-full p-6 flex flex-col justify-between relative overflow-hidden">
                 <div class="absolute -top-20 -right-20 w-48 h-48 bg-indigo-600/20 rounded-full blur-[50px] pointer-events-none"></div>
-                <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-violet-600/10 rounded-full blur-[40px] pointer-events-none"></div>
-
+                
                 <div class="flex items-center justify-between relative z-10">
                     <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full" style="box-shadow: 0 0 10px #818cf8; animation: pulse 2s infinite;"></div>
-                        <span class="text-[10px] font-black text-indigo-300 tracking-[0.3em] uppercase">CANLI DERS</span>
+                        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></div>
+                        <span class="text-[10px] font-black text-indigo-300 tracking-widest uppercase">CANLI TAKİP</span>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                      <button id="minus-btn" class="bg-white/10 hover:bg-white/20 text-white p-1 rounded-md border border-white/10 transition-all"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-                      <button id="extend-btn" class="bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-100 text-[10px] font-black px-2 py-1 rounded-md border border-indigo-500/20 transition-all">+10 DK</button>
+                    <div class="flex gap-1.5">
+                      <button id="pip-reset" class="bg-white/5 hover:bg-white/10 text-white p-1 rounded-md border border-white/10 transition-all"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></button>
+                      <button id="pip-add" class="bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-100 text-[10px] font-black px-2 py-1 rounded-md border border-indigo-500/20 transition-all">+10 DK</button>
                     </div>
                 </div>
 
-                <div class="flex items-end justify-between gap-4 relative z-10">
+                <div class="flex items-end justify-between relative z-10">
                     <h2 class="text-3xl font-black text-white truncate flex-1 tracking-tighter leading-none">${studentName}</h2>
                     <div class="text-right shrink-0">
                         <div class="text-5xl font-black text-white leading-none tracking-tighter">${tLeft}</div>
-                        <div class="text-[9px] font-black text-slate-500 uppercase mt-1 tracking-widest">DK</div>
+                        <div class="text-[9px] font-black text-slate-500 uppercase mt-1">DK</div>
                     </div>
                 </div>
 
                 <div class="space-y-4 relative z-10">
-                    <div class="h-2 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
-                        <div class="h-full bg-gradient-to-r from-indigo-500 to-indigo-300 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
+                    <div class="h-2 bg-white/5 rounded-full overflow-hidden p-0.5">
+                        <div class="h-full bg-indigo-500 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
                     </div>
                     <div class="flex items-center justify-between border-t border-white/5 pt-3">
-                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ: ${nextName}</span>
-                        <span class="text-[9px] font-bold text-indigo-400">${cSlot?.start} - ${cSlot?.end}</span>
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">PROGRAM: ${cSlot?.start} - ${cSlot?.end}</span>
+                        ${localBonus > 0 ? `<span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">+${localBonus} DK EK SÜRE</span>` : ''}
                     </div>
                 </div>
               </div>
-              <style>
-                @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
-              </style>
             `;
             
-            // Event listeners for PiP buttons
-            const extendBtn = container.querySelector('#extend-btn');
-            if (extendBtn) {
-              extendBtn.addEventListener('click', () => {
-                actions.extendSlot(jsDayToAppKey[now.getDay()] as WeekDay, cSlot!.id, 10);
-                updatePipUI();
-              });
-            }
-            const minusBtn = container.querySelector('#minus-btn');
-            if (minusBtn) {
-              minusBtn.addEventListener('click', () => {
-                actions.extendSlot(jsDayToAppKey[now.getDay()] as WeekDay, cSlot!.id, -10);
-                updatePipUI();
-              });
-            }
+            // PiP Buton Dinleyicileri
+            container.querySelector('#pip-add')?.addEventListener('click', () => {
+              localBonus += 10;
+              setBonusMinutes(prev => prev + 10);
+              updatePipUI();
+            });
+            container.querySelector('#pip-reset')?.addEventListener('click', () => {
+              localBonus = 0;
+              setBonusMinutes(0);
+              updatePipUI();
+            });
         } else {
-            container.innerHTML = `
-              <div class="w-full h-full p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
-                <div class="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-slate-950"></div>
-                <div class="relative z-10 flex flex-col items-center gap-4">
-                    <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5 mb-2">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-black text-white/90 tracking-tight">Ders Arası</h2>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-2">SIRADAKİ: <span class="text-indigo-400">${nextName}</span></p>
-                    </div>
-                    ${tLeft > 0 ? `<div class="mt-2 text-2xl font-black text-white/40 tracking-tighter">${tLeft} DK KALDI</div>` : ''}
-                </div>
-              </div>
-            `;
+            container.innerHTML = `<div class="text-white text-xs font-bold">Ders Arası...</div>`;
         }
       };
 
@@ -266,17 +243,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       actions.addTeacher(newTeacherName.trim());
       setNewTeacherName("");
       setIsAddTeacherMode(false);
-    }
-  };
-
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        actions.updateSchoolIcon(reader.result as string);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -304,6 +270,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
                 Merhaba, <span className="text-indigo-600">{userName}</span>
              </h1>
+             {/* EĞİTMEN SEÇİCİ */}
              <button 
                 onClick={() => setIsTeachersListOpen(true)}
                 className="mt-2 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm flex items-center gap-2 group active:scale-95 transition-all"
@@ -325,9 +292,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       {/* 2. HERO: LIVE STATUS */}
       <div className="px-7 mb-10">
           {todaysData.statusType === 'IN_LESSON' ? (
-              <div className="bg-slate-950 rounded-[3rem] p-8 shadow-2xl shadow-indigo-950/20 flex flex-col gap-8 relative overflow-hidden animate-in fade-in zoom-in-95 duration-700">
+              <div className="bg-slate-950 rounded-[3rem] p-8 shadow-2xl shadow-indigo-950/20 flex flex-col gap-8 relative overflow-hidden animate-in fade-in duration-700">
                   <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-[80px] pointer-events-none"></div>
-                  <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-violet-600/10 rounded-full blur-[60px] pointer-events-none"></div>
 
                   <div className="flex items-center justify-between relative z-10">
                       <div className="flex items-center gap-3">
@@ -337,19 +303,21 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                         <span className="text-[11px] font-black text-indigo-300 uppercase tracking-[0.3em]">CANLI DERS</span>
                       </div>
                       <div className="flex gap-2">
-                        {/* SÜRE YÖNETİMİ: +10 ve -10 BUTONLARI */}
+                        {/* GEÇİCİ SÜRE YÖNETİMİ */}
                         <div className="bg-white/5 backdrop-blur-xl p-1 rounded-2xl border border-white/5 flex items-center gap-1">
+                            {bonusMinutes > 0 && (
+                                <button 
+                                    onClick={() => setBonusMinutes(0)}
+                                    className="w-8 h-8 rounded-xl bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center text-red-300 transition-colors"
+                                    title="Ek Süreyi Sıfırla"
+                                >
+                                    <RotateCcw size={14} strokeWidth={3} />
+                                </button>
+                            )}
                             <button 
-                                onClick={() => actions.extendSlot(todaysData.dayName as WeekDay, todaysData.currentSlot!.id, -10)}
-                                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors"
-                                title="10 Dakika Geri Al"
-                            >
-                                <Minus size={14} strokeWidth={3} />
-                            </button>
-                            <button 
-                                onClick={() => actions.extendSlot(todaysData.dayName as WeekDay, todaysData.currentSlot!.id, 10)}
+                                onClick={() => setBonusMinutes(prev => prev + 10)}
                                 className="px-3 h-8 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-tight shadow-lg shadow-indigo-600/20 flex items-center gap-1.5 transition-all active:scale-95"
-                                title="10 Dakika Uzat"
+                                title="Sayaca 10 Dakika Ekle"
                             >
                                 <Timer size={14} />
                                 +10 DK
@@ -371,13 +339,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                               {state.students[todaysData.currentSlot!.studentId!]?.name}
                           </h2>
                           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/10">
-                             <Sparkles size={14} className="text-indigo-400" />
-                             <span className="text-[10px] text-indigo-300 font-black uppercase tracking-widest">Öğrenci Aktif</span>
+                             <span className="text-[10px] text-indigo-300 font-black uppercase tracking-widest">
+                                {bonusMinutes > 0 ? `+${bonusMinutes} DK EK SÜRE İLE` : 'PROGRAMDAKİ SÜRE'}
+                             </span>
                           </div>
                       </div>
                       <div className="text-right shrink-0">
                           <div className="text-5xl font-black text-white leading-none tracking-tighter drop-shadow-lg">{todaysData.timeLeft}</div>
-                          <div className="text-[10px] font-black text-slate-500 uppercase mt-3 tracking-[0.2em]">DAKİKA</div>
+                          <div className="text-[10px] font-black text-slate-500 uppercase mt-3 tracking-[0.2em]">DAKİKA KALDI</div>
                       </div>
                   </div>
 
@@ -398,7 +367,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                            </div>
                        </div>
                        <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
-                            <span className="text-xs font-black text-indigo-100 tracking-tighter">{todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
+                            <span className="text-xs font-black text-indigo-100 tracking-tighter">PROGRAM: {todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
                         </div>
                   </div>
               </div>
@@ -411,17 +380,14 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                           <Coffee size={20} strokeWidth={2.5} className="animate-bounce" />
                           <span className="text-xs font-black uppercase tracking-[0.2em]">DERS ARASI ☕</span>
                       </div>
-                      <button 
-                            onClick={openDesktopWidget}
-                            className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400 transition-all flex items-center"
-                        >
-                            <Monitor size={16} />
-                        </button>
+                      <button onClick={openDesktopWidget} className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400">
+                          <Monitor size={16} />
+                      </button>
                   </div>
                   
                   <div className="flex items-end justify-between relative z-10">
                       <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">GELECEK ÖĞRENCİ</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">SIRADAKİ ÖĞRENCİ</p>
                           <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-none">
                               {todaysData.nextSlot ? (state.students[todaysData.nextSlot.studentId!]?.name || "Boş Ders") : "Gün Sonu"}
                           </h2>
@@ -483,11 +449,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       {/* MODALS */}
       <Dialog isOpen={isTeachersListOpen} onClose={() => { setIsTeachersListOpen(false); setIsAddTeacherMode(false); }} title={isAddTeacherMode ? "Eğitmen Ekle" : "Kadro"}
         actions={isAddTeacherMode ? (<><button onClick={() => setIsAddTeacherMode(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleSaveTeacher} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md">Ekle</button></>) : (<button onClick={() => setIsAddTeacherMode(true)} className="w-full py-4 bg-slate-900 text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all uppercase tracking-widest"><UserPlus size={16} /> Yeni Eğitmen</button>)}>
-          {isAddTeacherMode ? (<div className="py-2"><input type="text" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-indigo-500 transition-all outline-none" placeholder="Ad Soyad..." autoFocus /></div>) : (<div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto no-scrollbar">{state.teachers.length === 0 ? <p className="text-center py-6 text-slate-400 font-bold text-xs">Eğitmen bulunamadı.</p> : state.teachers.map(teacher => (<div key={teacher} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${teacher === state.currentTeacher ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div><div><div className="font-black text-slate-800 text-sm">{teacher}</div><div className="text-[10px] font-bold text-slate-400 mt-0.5">Eğitmen</div></div></div><div className="flex items-center gap-2"><button onClick={(e) => handleShareTeacherLink(e, teacher)} className="p-2 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-colors"><Share2 size={16} /></button>{teacher !== state.currentTeacher && (<button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-black border border-slate-200 rounded-lg hover:border-indigo-600 transition-all uppercase tracking-wider">Seç</button>)}</div></div>))}</div>)}
+          {isAddTeacherMode ? (<div className="py-2"><input type="text" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-indigo-500 outline-none" placeholder="Ad Soyad..." autoFocus /></div>) : (<div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto no-scrollbar">{state.teachers.map(teacher => (<div key={teacher} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${teacher === state.currentTeacher ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div><div><div className="font-black text-slate-800 text-sm">{teacher}</div><div className="text-[10px] font-bold text-slate-400 mt-0.5">Eğitmen</div></div></div><div className="flex items-center gap-2"><button onClick={(e) => handleShareTeacherLink(e, teacher)} className="p-2 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-colors"><Share2 size={16} /></button>{teacher !== state.currentTeacher && (<button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-black border border-slate-200 rounded-lg hover:border-indigo-600 transition-all uppercase tracking-wider">Seç</button>)}</div></div>))}</div>)}
       </Dialog>
 
       <Dialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="Ayarlar">
-        <div className="flex flex-col gap-5 max-h-[70vh] overflow-y-auto no-scrollbar py-1">
+        <div className="flex flex-col gap-5 py-1">
              <div className="flex items-center gap-3 p-1">
                 <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm font-black text-slate-500">{user?.name ? user.name.charAt(0).toUpperCase() : 'E'}</div>
                 <div className="flex-1">
@@ -495,10 +461,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                     <p className="text-[10px] text-slate-400 font-medium">{user?.email}</p>
                 </div>
              </div>
-             <div className="pt-2">
-                 <button onClick={actions.forceSync} className="w-full mb-2 py-3 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest">Buluta Zorla Senkron Et</button>
-                 <button onClick={logout} className="w-full py-3.5 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest"><LogOut size={16} /> Oturumu Kapat</button>
-             </div>
+             <button onClick={logout} className="w-full py-3.5 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest"><LogOut size={16} /> Oturumu Kapat</button>
         </div>
       </Dialog>
     </div>
