@@ -183,13 +183,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         }
 
         const studentName = (cSlot && cSlot.studentId) ? (state.students[cSlot.studentId]?.name || "Öğrenci") : "Ders Arası";
-        const nextName = (nSlot && nSlot.studentId) ? (state.students[nSlot.studentId]?.name.split(' ')[0] || "Ders") : "Gün Sonu";
+        const nextName = (nSlot && nSlot.studentId) ? (state.students[nSlot.studentId]?.name || "Gün Sonu") : "Program Bitti";
 
         if (sType === 'IN_LESSON') {
             container.innerHTML = `
               <div class="w-full h-full p-6 flex flex-col justify-between relative overflow-hidden bg-slate-950">
                 <div class="absolute -top-24 -right-24 w-56 h-56 bg-indigo-600/10 rounded-full blur-[60px] pointer-events-none"></div>
-                <div class="absolute -bottom-24 -left-24 w-40 h-40 bg-violet-600/5 rounded-full blur-[50px] pointer-events-none"></div>
 
                 <div class="flex items-center justify-between relative z-10">
                     <div class="flex items-center gap-2">
@@ -213,15 +212,19 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                     </div>
                 </div>
 
-                <div class="space-y-4 relative z-10">
-                    <div class="h-1.5 bg-white/5 rounded-full overflow-hidden p-0 border border-white/5">
-                        <div class="h-full bg-gradient-to-r from-indigo-500 to-indigo-300 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
+                <div class="space-y-3 relative z-10">
+                    <div class="h-1 bg-white/5 rounded-full overflow-hidden p-0">
+                        <div class="h-full bg-indigo-500 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
                     </div>
-                    <div class="flex items-center justify-between border-t border-white/5 pt-3">
-                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">SONRA: ${nextName}</span>
-                        <div class="flex items-center gap-2">
-                          <span class="text-[9px] font-bold text-indigo-400/80">${cSlot?.start} — ${cSlot?.end}</span>
-                          ${localBonus > 0 ? `<span class="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 text-[8px] font-black rounded uppercase">+${localBonus} DK</span>` : ''}
+                    
+                    <div class="flex flex-col gap-1.5 pt-2 border-t border-white/5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ</span>
+                            <span class="text-[9px] font-bold text-slate-400">${cSlot?.start} — ${cSlot?.end}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                             <span class="text-sm font-black text-white/90 truncate max-w-[200px] tracking-tight">${nextName}</span>
+                             ${localBonus > 0 ? `<span class="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 text-[9px] font-black rounded uppercase tracking-tighter shadow-[0_0_10px_rgba(99,102,241,0.1)]">+${localBonus} DK BONUS</span>` : ''}
                         </div>
                     </div>
                 </div>
@@ -256,9 +259,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                     </div>
                     <div>
                         <h2 class="text-xl font-black text-white/90 tracking-tight">Ders Arası</h2>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-2">SIRADAKİ: <span class="text-indigo-400">${nextName}</span></p>
+                        <div class="flex flex-col gap-1 mt-3">
+                            <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ</span>
+                            <span class="text-base font-black text-indigo-400">${nextName}</span>
+                        </div>
                     </div>
-                    ${tLeft > 0 ? `<div class="mt-2 text-2xl font-black text-white/30 tracking-tighter">${tLeft} DK KALDI</div>` : ''}
+                    ${tLeft > 0 ? `<div class="mt-2 text-xl font-black text-white/20 tracking-tighter">${tLeft} DK KALDI</div>` : ''}
                 </div>
               </div>
             `;
