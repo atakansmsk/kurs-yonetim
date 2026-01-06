@@ -41,7 +41,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isLoaded, setIsLoaded] = useState(false);
   const [isRecovered, setIsRecovered] = useState(false);
   const isFirstSync = useRef(true);
+  const lastSavedAt = useRef<string>("");
 
+  // 1. VERİ YÜKLEME VE ABONELİK
   useEffect(() => {
     if (!user) { 
       setState(INITIAL_STATE); 
@@ -75,6 +77,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         (newData) => {
             let finalData = { ...newData };
             
+            // Eğer gelen veri boşsa ama yerelde veri varsa kurtar
             if (isFirstSync.current) {
                 const remoteStudentCount = Object.keys(finalData.students || {}).length;
                 const localStudentCount = Object.keys(localBest?.students || {}).length;
@@ -85,6 +88,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 }
                 isFirstSync.current = false;
             } else {
+                // Eğer gelen veri bizim az önce gönderdiğimiz veriden daha eskiyse kabul etme
+                if (lastSavedAt.current && finalData.updatedAt && finalData.updatedAt < lastSavedAt.current) {
+                    return;
+                }
                 setIsRecovered(false);
             }
 
@@ -108,6 +115,25 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => unsubscribe();
   }, [user]);
 
+  // 2. VERİ KAYDETME (Persistent Sync)
+  useEffect(() => {
+    if (!isLoaded || !user || state.updatedAt === new Date(0).toISOString()) return;
+    
+    // Sadece state değiştiğinde ve state gerçekten yüklendiğinde kaydet
+    // debounce ekleyerek peş peşe kayıtları azaltıyoruz
+    const timeout = setTimeout(() => {
+        if (state.updatedAt !== lastSavedAt.current) {
+            lastSavedAt.current = state.updatedAt;
+            DataService.saveUserData(user.id, sanitize(state))
+                .catch(err => console.error("Bulut kaydı başarısız, yerel yedek devrede.", err));
+            localStorage.setItem(`kurs_data_backup_${user.id}`, JSON.stringify(state));
+        }
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [state, isLoaded, user]);
+
+  // 3. OTOMATİK DERS İŞLEME (Optimized)
   useEffect(() => {
     if (!isLoaded || !state.autoLessonProcessing || !user) return;
 
@@ -134,7 +160,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         teacherSlots.forEach(slot => {
           if (slot.studentId && !nextProcessedToday.includes(slot.id)) {
             const slotStartMinutes = timeToMinutes(slot.start);
-            if (currentMinutes >= slotStartMinutes) {
+            // Ders başlama saatinden 5 dakika sonra borç yazalım (Hatalı yazımı önlemek için tampon süre)
+            if (currentMinutes >= slotStartMinutes + 5) {
               const student = nextStudents[slot.studentId];
               if (student && student.isActive !== false) {
                 const txId = Math.random().toString(36).substr(2, 9);
@@ -169,7 +196,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           processedSlots: { ...s.processedSlots, [todayDateStr]: nextProcessedToday }
         }));
       }
-    }, 30000);
+    }, 60000); // 30 saniye yerine 1 dakikada bir kontrol yeterli ve daha stabil
 
     return () => clearInterval(processInterval);
   }, [isLoaded, state.autoLessonProcessing, state.teachers, state.schedule, state.processedSlots, state.students, user]);
@@ -177,13 +204,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateState = (updater: (prev: AppState) => AppState) => {
       setState(current => {
           const newState = updater(current);
-          newState.updatedAt = new Date().toISOString();
-
-          if (user) {
-              DataService.saveUserData(user.id, sanitize(newState)).catch(err => console.error(err));
-              localStorage.setItem(`kurs_data_backup_${user.id}`, JSON.stringify(newState));
-          }
-          return newState;
+          return { ...newState, updatedAt: new Date().toISOString() };
       });
   };
 
