@@ -5,9 +5,10 @@ import { AuthService } from '../services/api';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from '../firebaseConfig';
 
-// Extend Type Definition locally if needed or rely on updated types
+// Extend Type Definition locally
 interface ExtendedAuthContextType extends AuthContextType {
     loginGuest: () => void;
+    hasConnectionIssue: boolean;
 }
 
 const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
@@ -15,48 +16,62 @@ const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasConnectionIssue, setHasConnectionIssue] = useState(false);
 
   useEffect(() => {
-    // 0.5 saniye zaman aşımı (Hızlı açılış)
-    const timeout = setTimeout(() => {
-        setLoading(false);
-    }, 500);
+    // 6 saniye içinde Firebase yanıt vermezse bağlantı sorunu olduğunu varsay
+    const connectionTimeout = setTimeout(() => {
+        if (loading) {
+            console.warn("Firebase bağlantısı zaman aşımına uğradı. Ağ kısıtlaması olabilir.");
+            setHasConnectionIssue(true);
+            setLoading(false);
+        }
+    }, 6000);
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      clearTimeout(timeout);
+      clearTimeout(connectionTimeout);
       if (firebaseUser) {
         setUser({
           id: firebaseUser.uid,
           email: firebaseUser.email!,
           name: firebaseUser.displayName || "Kullanıcı"
         });
+        setHasConnectionIssue(false);
       } else {
-        // Eğer manuel olarak "Misafir" girişi yapılmadıysa null yap
-        // (AuthService.loginGuest ile state güncelleniyor, burada ezmemek lazım)
-        // Ancak onAuthStateChanged sadece Firebase çıkışlarında tetiklenir.
-        // Misafir modunda burası null dönebilir, sorun yok.
+        setUser(null);
       }
       setLoading(false);
+    }, (error) => {
+        console.error("Auth state error:", error);
+        setHasConnectionIssue(true);
+        setLoading(false);
     });
 
     return () => {
         unsubscribe();
-        clearTimeout(timeout);
+        clearTimeout(connectionTimeout);
     };
-  }, []);
+  }, [loading]);
 
   const login = async (email: string, pass: string) => {
-    const userData = await AuthService.login(email, pass);
-    if (userData && userData.id === 'local_user') {
-        setUser(userData);
-        return true;
+    try {
+        const userData = await AuthService.login(email, pass);
+        if (userData) {
+            setUser(userData);
+            setHasConnectionIssue(false);
+            return true;
+        }
+        return false;
+    } catch (e) {
+        setHasConnectionIssue(true);
+        return false;
     }
-    return !!userData;
   };
 
   const loginGuest = async () => {
       const guestUser = await AuthService.loginGuest();
       setUser(guestUser);
+      setHasConnectionIssue(false);
   };
 
   const register = async (email: string, pass: string, name: string) => {
@@ -70,11 +85,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   if (loading) {
-    return <div className="h-screen w-full flex items-center justify-center bg-[#F8FAFC] text-slate-400">Yükleniyor...</div>;
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F8FAFC]">
+        <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <div className="text-slate-400 font-bold tracking-widest uppercase text-[10px]">VERİLER SENKRONİZE EDİLİYOR...</div>
+      </div>
+    );
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loginGuest }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loginGuest, hasConnectionIssue }}>
       {children}
     </AuthContext.Provider>
   );

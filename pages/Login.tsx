@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ArrowRight, Lock, Mail, Sparkles, User, AlertCircle, WifiOff, HardDrive } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Sparkles, User, AlertCircle, WifiOff, HardDrive, Info, Globe } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const { login, register, loginGuest } = useAuth();
+  const { login, register, loginGuest, hasConnectionIssue } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   
   const [email, setEmail] = useState("");
@@ -18,22 +18,23 @@ export const Login: React.FC = () => {
     setError("");
     setLoading(true);
 
-    // Yapay bekleme
-    await new Promise(r => setTimeout(r, 800));
-
     if (!email || !pass) {
         setError("Lütfen tüm alanları doldurun.");
         setLoading(false);
         return;
     }
 
-    if (isRegister) {
-        if (!name) { setError("İsim zorunludur."); setLoading(false); return; }
-        const success = await register(email, pass, name);
-        if (!success) setError("Bu e-posta zaten kayıtlı.");
-    } else {
-        const success = await login(email, pass);
-        if (!success) setError("E-posta veya şifre hatalı.");
+    try {
+        if (isRegister) {
+            if (!name) { setError("İsim zorunludur."); setLoading(false); return; }
+            const success = await register(email, pass, name);
+            if (!success) setError("Kayıt sırasında bir sorun oluştu.");
+        } else {
+            const success = await login(email, pass);
+            if (!success) setError("E-posta/şifre hatalı veya bağlantı yok.");
+        }
+    } catch (err) {
+        setError("Sunucuya ulaşılamıyor. Lütfen internetinizi kontrol edin.");
     }
     setLoading(false);
   };
@@ -55,6 +56,22 @@ export const Login: React.FC = () => {
             <h1 className="text-2xl font-black text-slate-800 tracking-tight">Kurs Pro</h1>
             <p className="text-sm font-medium text-slate-400 mt-1">Eğitmen Yönetim Portalı</p>
         </div>
+
+        {/* NETWORK WARNING FOR HOME WIFI ISSUES */}
+        {hasConnectionIssue && (
+            <div className="mb-6 bg-amber-50 border border-amber-100 p-4 rounded-2xl animate-in fade-in zoom-in-95 duration-500">
+                <div className="flex items-center gap-2 text-amber-700 font-black text-xs uppercase tracking-tight mb-2">
+                    <WifiOff size={16} /> Ağ Bağlantı Sorunu
+                </div>
+                <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                    Ev Wi-Fi ağınız uygulama servislerini (Firebase/CDN) engelliyor olabilir. 
+                    <br/><br/>
+                    <strong className="block text-amber-900">• Çözüm 1:</strong> Wi-Fi yerine 4G/Mobil veri kullanın.
+                    <strong className="block text-amber-900">• Çözüm 2:</strong> DNS ayarınızı <strong>8.8.8.8</strong> yapın.
+                    <strong className="block text-amber-900">• Çözüm 3:</strong> Aşağıdaki <strong>"Çevrimdışı Kullan"</strong> butonunu seçin.
+                </p>
+            </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -116,23 +133,27 @@ export const Login: React.FC = () => {
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                     <>
-                        {isRegister ? 'Ücretsiz Kayıt Ol' : 'Giriş Yap'}
+                        {isRegister ? 'Ücretsiz Kayıt Ol' : 'Bulut Girişi Yap'}
                         <ArrowRight size={20} />
                     </>
                 )}
             </button>
         </form>
         
-        {/* LOCAL MODE BUTTON */}
+        {/* LOCAL MODE BUTTON - HIGHLIGHTED DURING CONNECTION ISSUES */}
         <div className="mt-4 pt-4 border-t border-slate-100">
              <button 
                 onClick={loginGuest}
-                className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 hover:text-slate-800 transition-colors flex items-center justify-center gap-2"
+                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 border-2 ${
+                    hasConnectionIssue 
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xl shadow-indigo-100 animate-pulse' 
+                    : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+                }`}
              >
-                 <HardDrive size={18} className="text-indigo-500" />
+                 <HardDrive size={18} />
                  Kurulumsuz / Çevrimdışı Kullan
              </button>
-             <p className="text-[9px] text-center text-slate-300 mt-2">Verileriniz sadece bu cihazda saklanır.</p>
+             <p className="text-[9px] text-center text-slate-400 mt-2 font-medium">İnternetiniz yoksa veya kısıtlıysa bu modu kullanın.</p>
         </div>
 
         {/* Toggle */}
@@ -151,8 +172,8 @@ export const Login: React.FC = () => {
       </div>
       
       <div className="mt-6 text-center opacity-40">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            {isRegister ? "Ücretsiz Firebase Hesabı" : "Çevrimdışı Mod Aktif"}
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 justify-center">
+            <Globe size={12} /> Bağlantı Durumu: {hasConnectionIssue ? 'Kısıtlı' : 'Aktif'}
         </p>
       </div>
     </div>
