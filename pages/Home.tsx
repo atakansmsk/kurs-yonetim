@@ -2,8 +2,8 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
-/* Import WeekDay type from types */
-import { WeekDay } from '../types';
+/* Import WeekDay and Student types from types */
+import { WeekDay, Student } from '../types';
 import { 
   UserPlus, 
   Settings, 
@@ -147,6 +147,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         height: 240,
       });
 
+      // Ensure full height for scrolling context
+      pipWindow.document.documentElement.style.height = '100%';
+      pipWindow.document.body.style.height = '100%';
+      pipWindow.document.body.style.margin = '0';
+      pipWindow.document.body.style.padding = '0';
+
       // Fontları ve Stilleri kopyala
       [...document.styleSheets].forEach((styleSheet) => {
         try {
@@ -166,8 +172,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
       const container = pipWindow.document.createElement('div');
       container.id = 'pip-root';
+      container.className = "h-full w-full bg-slate-950 overflow-hidden flex flex-col font-sans selection:bg-indigo-500/30";
       pipWindow.document.body.append(container);
-      pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex flex-col font-sans selection:bg-indigo-500/30";
 
       let localBonus = bonusMinutes;
       let localFreeEnd = freeSessionEnd;
@@ -207,15 +213,16 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
         if (isSelectingStudent) {
             // ÖĞRENCİ SEÇİM EKRANI
-            const activeStudents = Object.values(state.students).filter(s => s.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
+            // Fix: Cast Object.values to Student[] to avoid 'unknown' type errors
+            const activeStudents = (Object.values(state.students) as Student[]).filter(s => s.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
             
             container.innerHTML = `
-              <div class="w-full h-full p-4 flex flex-col bg-slate-950 relative">
+              <div class="w-full h-full p-4 flex flex-col bg-slate-950 relative overflow-hidden">
                 <div class="flex items-center justify-between mb-3 shrink-0 px-2">
                     <span class="text-[10px] font-black text-indigo-400 tracking-widest uppercase">Kime Ders İşleniyor?</span>
                     <button id="pip-back" class="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 active:scale-90"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                 </div>
-                <div class="flex-1 overflow-y-auto space-y-1.5 px-2 no-scrollbar">
+                <div class="flex-1 overflow-y-auto min-h-0 space-y-1.5 px-2">
                     <button class="pip-student-item w-full p-3 rounded-xl bg-white/5 border border-white/5 text-left flex items-center gap-3 active:scale-95 transition-all group" data-id="none" data-name="Genel Seans">
                         <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs group-hover:bg-indigo-600 group-hover:text-white transition-colors">G</div>
                         <span class="text-sm font-bold text-white/90">Genel Seans (İsimsiz)</span>
@@ -226,6 +233,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                             <span class="text-sm font-bold text-white/90 truncate">${s.name}</span>
                         </button>
                     `).join('')}
+                    <div class="h-4 w-full"></div> <!-- Extra padding for bottom scroll -->
                 </div>
               </div>
             `;
