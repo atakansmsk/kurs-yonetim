@@ -30,7 +30,8 @@ import {
   Timer,
   Plus,
   Minus,
-  RotateCcw
+  RotateCcw,
+  Play
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -58,6 +59,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
   // GEÇİCİ EK SÜRE (Programı bozmaz, sadece sayacı etkiler)
   const [bonusMinutes, setBonusMinutes] = useState(0);
 
+  // SERBEST SEANS (Sadece Widget/Local state için)
+  const [freeSessionEnd, setFreeSessionEnd] = useState<number | null>(null);
+
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -76,17 +80,20 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
     const activeLessons = slots.filter(s => s.studentId);
     
     const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
-    const currentSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && (timeToMinutes(s.end) + bonusMinutes) > currentMins);
+    
+    // Önce programdaki dersi kontrol et
+    let currentSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && (timeToMinutes(s.end) + bonusMinutes) > currentMins);
     const nextSlot = slots.find(s => timeToMinutes(s.start) > currentMins && s.studentId);
     
     const firstLesson = activeLessons[0];
     const dayStarted = activeLessons.length > 0 && currentMins >= timeToMinutes(activeLessons[0].start);
 
-    let statusType: 'IN_LESSON' | 'BREAK' | 'IDLE' = 'IDLE';
+    let statusType: 'IN_LESSON' | 'BREAK' | 'IDLE' | 'FREE_SESSION' = 'IDLE';
     let timeLeft = 0;
     let progress = 0;
     let gapToNext = 0;
 
+    // Eğer programda ders varsa
     if (currentSlot && currentSlot.studentId) {
         statusType = 'IN_LESSON';
         const start = timeToMinutes(currentSlot.start);
@@ -97,9 +104,20 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         if (nextSlot) {
             gapToNext = timeToMinutes(nextSlot.start) - endWithBonus;
         }
-    } else {
+    } 
+    // Eğer programda ders yok ama "Serbest Seans" aktifse
+    else if (freeSessionEnd && freeSessionEnd > currentMins) {
+        statusType = 'FREE_SESSION';
+        timeLeft = freeSessionEnd - currentMins;
+        // Serbest seans varsayılan 40 dk kabul edilerek ilerleme hesaplanır
+        progress = Math.min(((40 - timeLeft) / 40) * 100, 100);
+    }
+    else {
         if (bonusMinutes !== 0) {
             setTimeout(() => setBonusMinutes(0), 100);
+        }
+        if (freeSessionEnd) {
+            setTimeout(() => setFreeSessionEnd(null), 100);
         }
         if (nextSlot) {
             statusType = 'BREAK';
@@ -119,7 +137,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         lessonCount: activeLessons.length,
         dayName
     };
-  }, [state.schedule, state.currentTeacher, currentTime, state.students, bonusMinutes]);
+  }, [state.schedule, state.currentTeacher, currentTime, state.students, bonusMinutes, freeSessionEnd]);
 
   // MASAÜSTÜ WIDGET (PIP) MANTIĞI
   const openDesktopWidget = async () => {
@@ -158,6 +176,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       pipWindow.document.body.className = "bg-slate-950 overflow-hidden m-0 p-0 h-full flex flex-col font-sans selection:bg-indigo-500/30";
 
       let localBonus = bonusMinutes;
+      let localFreeEnd = freeSessionEnd;
 
       const updatePipUI = () => {
         const now = new Date();
@@ -165,10 +184,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         const dayName = jsDayToAppKey[now.getDay()];
         const key = `${state.currentTeacher}|${dayName}`;
         const slots = (state.schedule[key] || []).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-        const cSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && (timeToMinutes(s.end) + localBonus) > currentMins);
+        
+        let cSlot = slots.find(s => timeToMinutes(s.start) <= currentMins && (timeToMinutes(s.end) + localBonus) > currentMins);
         const nSlot = slots.find(s => timeToMinutes(s.start) > currentMins && s.studentId);
         
-        let sType: 'IN_LESSON' | 'BREAK' | 'IDLE' = 'IDLE';
+        let sType: 'IN_LESSON' | 'BREAK' | 'IDLE' | 'FREE_SESSION' = 'IDLE';
         let tLeft = 0;
         let prog = 0;
         
@@ -177,23 +197,27 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
             const endWithB = timeToMinutes(cSlot.end) + localBonus;
             tLeft = endWithB - currentMins;
             prog = Math.min(((currentMins - timeToMinutes(cSlot.start)) / (endWithB - timeToMinutes(cSlot.start))) * 100, 100);
+        } else if (localFreeEnd && localFreeEnd > currentMins) {
+            sType = 'FREE_SESSION';
+            tLeft = localFreeEnd - currentMins;
+            prog = Math.min(((40 - tLeft) / 40) * 100, 100);
         } else if (nSlot) {
             sType = 'BREAK';
             tLeft = timeToMinutes(nSlot.start) - currentMins;
         }
 
-        const studentName = (cSlot && cSlot.studentId) ? (state.students[cSlot.studentId]?.name || "Öğrenci") : "Ders Arası";
+        const studentName = (sType === 'IN_LESSON') ? (state.students[cSlot!.studentId!]?.name || "Öğrenci") : (sType === 'FREE_SESSION' ? "Serbest Seans" : "Ders Arası");
         const nextName = (nSlot && nSlot.studentId) ? (state.students[nSlot.studentId]?.name || "Gün Sonu") : "Program Bitti";
 
-        if (sType === 'IN_LESSON') {
+        if (sType === 'IN_LESSON' || sType === 'FREE_SESSION') {
             container.innerHTML = `
               <div class="w-full h-full p-6 flex flex-col justify-between relative overflow-hidden bg-slate-950">
                 <div class="absolute -top-24 -right-24 w-56 h-56 bg-indigo-600/10 rounded-full blur-[60px] pointer-events-none"></div>
 
                 <div class="flex items-center justify-between relative z-10">
                     <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse shadow-[0_0_8px_#818cf8]"></div>
-                        <span class="text-[10px] font-black text-indigo-300 tracking-[0.2em] uppercase">CANLI DERS</span>
+                        <div class="w-2 h-2 ${sType === 'FREE_SESSION' ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24]' : 'bg-indigo-400 shadow-[0_0_8px_#818cf8]'} rounded-full animate-pulse"></div>
+                        <span class="text-[10px] font-black ${sType === 'FREE_SESSION' ? 'text-amber-300' : 'text-indigo-300'} tracking-[0.2em] uppercase">${sType === 'FREE_SESSION' ? 'SERBEST SEANS' : 'CANLI DERS'}</span>
                     </div>
                     <div class="flex items-center gap-1.5">
                       <button id="pip-reset" class="bg-white/5 hover:bg-white/10 text-white p-1.5 rounded-lg border border-white/10 transition-all active:scale-90" title="Sıfırla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></button>
@@ -214,17 +238,17 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
                 <div class="space-y-3 relative z-10">
                     <div class="h-1 bg-white/5 rounded-full overflow-hidden p-0">
-                        <div class="h-full bg-indigo-500 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
+                        <div class="h-full ${sType === 'FREE_SESSION' ? 'bg-amber-500' : 'bg-indigo-500'} rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
                     </div>
                     
                     <div class="flex flex-col gap-1.5 pt-2 border-t border-white/5">
                         <div class="flex items-center justify-between">
                             <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ</span>
-                            <span class="text-[9px] font-bold text-slate-400">${cSlot?.start} — ${cSlot?.end}</span>
+                            <span class="text-[9px] font-bold text-slate-400">${sType === 'IN_LESSON' ? (cSlot?.start + ' — ' + cSlot?.end) : 'Serbest Çalışma'}</span>
                         </div>
                         <div class="flex items-center justify-between">
                              <span class="text-sm font-black text-white/90 truncate max-w-[200px] tracking-tight">${nextName}</span>
-                             ${localBonus > 0 ? `<span class="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 text-[9px] font-black rounded uppercase tracking-tighter shadow-[0_0_10px_rgba(99,102,241,0.1)]">+${localBonus} DK BONUS</span>` : ''}
+                             ${localBonus > 0 || sType === 'FREE_SESSION' ? `<span class="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 text-[9px] font-black rounded uppercase tracking-tighter shadow-[0_0_10px_rgba(99,102,241,0.1)]">+${localBonus} DK BONUS</span>` : ''}
                         </div>
                     </div>
                 </div>
@@ -233,41 +257,61 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
             
             // PiP Kontrolleri
             container.querySelector('#pip-add')?.addEventListener('click', () => {
-              localBonus += 10;
-              setBonusMinutes(prev => prev + 10);
+              if (sType === 'FREE_SESSION') {
+                  localFreeEnd += 10;
+                  setFreeSessionEnd(localFreeEnd);
+              } else {
+                  localBonus += 10;
+                  setBonusMinutes(prev => prev + 10);
+              }
               updatePipUI();
             });
             container.querySelector('#pip-minus')?.addEventListener('click', () => {
-              if(localBonus >= 10) {
+              if (sType === 'FREE_SESSION') {
+                  localFreeEnd -= 10;
+                  setFreeSessionEnd(localFreeEnd);
+              } else if (localBonus >= 10) {
                   localBonus -= 10;
                   setBonusMinutes(prev => Math.max(0, prev - 10));
-                  updatePipUI();
               }
+              updatePipUI();
             });
             container.querySelector('#pip-reset')?.addEventListener('click', () => {
               localBonus = 0;
+              localFreeEnd = null;
               setBonusMinutes(0);
+              setFreeSessionEnd(null);
               updatePipUI();
             });
         } else {
             container.innerHTML = `
-              <div class="w-full h-full p-8 flex flex-col items-center justify-center text-center bg-slate-950 relative overflow-hidden">
+              <div class="w-full h-full p-6 flex flex-col items-center justify-center text-center bg-slate-950 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-slate-950"></div>
-                <div class="relative z-10 flex flex-col items-center gap-4">
-                    <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5 mb-1">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
-                    </div>
-                    <div>
+                <div class="relative z-10 flex flex-col items-center gap-4 w-full">
+                    <div class="flex flex-col items-center">
                         <h2 class="text-xl font-black text-white/90 tracking-tight">Ders Arası</h2>
-                        <div class="flex flex-col gap-1 mt-3">
+                        <div class="flex flex-col gap-1 mt-2">
                             <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">SIRADAKİ</span>
                             <span class="text-base font-black text-indigo-400">${nextName}</span>
                         </div>
                     </div>
-                    ${tLeft > 0 ? `<div class="mt-2 text-xl font-black text-white/20 tracking-tighter">${tLeft} DK KALDI</div>` : ''}
+                    
+                    <button id="pip-start-free" class="mt-2 w-full max-w-[200px] py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl flex items-center justify-center gap-2 text-white text-xs font-black uppercase tracking-widest transition-all active:scale-95 group">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400 group-hover:scale-110 transition-transform"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Serbest Seans Başlat
+                    </button>
+
+                    ${tLeft > 0 ? `<div class="mt-1 text-[10px] font-black text-white/20 tracking-widest">${tLeft} DK SONRA DERSİN VAR</div>` : ''}
                 </div>
               </div>
             `;
+
+            container.querySelector('#pip-start-free')?.addEventListener('click', () => {
+                const startMins = now.getHours() * 60 + now.getMinutes();
+                localFreeEnd = startMins + 40;
+                setFreeSessionEnd(localFreeEnd);
+                updatePipUI();
+            });
         }
       };
 
@@ -334,32 +378,40 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
       {/* 2. HERO: LIVE STATUS */}
       <div className="px-7 mb-10">
-          {todaysData.statusType === 'IN_LESSON' ? (
-              <div className="bg-slate-950 rounded-[3rem] p-8 shadow-2xl shadow-indigo-950/20 flex flex-col gap-8 relative overflow-hidden animate-in fade-in duration-700">
-                  <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-[80px] pointer-events-none"></div>
+          {(todaysData.statusType === 'IN_LESSON' || todaysData.statusType === 'FREE_SESSION') ? (
+              <div className={`rounded-[3rem] p-8 shadow-2xl flex flex-col gap-8 relative overflow-hidden animate-in fade-in duration-700 ${todaysData.statusType === 'FREE_SESSION' ? 'bg-slate-900 shadow-amber-950/10' : 'bg-slate-950 shadow-indigo-950/20'}`}>
+                  <div className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] pointer-events-none ${todaysData.statusType === 'FREE_SESSION' ? 'bg-amber-600/10' : 'bg-indigo-600/20'}`}></div>
 
                   <div className="flex items-center justify-between relative z-10">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-6 h-6 bg-indigo-500/20 rounded-full">
-                            <div className="w-2 h-2 bg-indigo-400 rounded-full animate-ping"></div>
+                        <div className={`flex items-center justify-center w-6 h-6 rounded-full ${todaysData.statusType === 'FREE_SESSION' ? 'bg-amber-500/20' : 'bg-indigo-500/20'}`}>
+                            <div className={`w-2 h-2 rounded-full animate-ping ${todaysData.statusType === 'FREE_SESSION' ? 'bg-amber-400' : 'bg-indigo-400'}`}></div>
                         </div>
-                        <span className="text-[11px] font-black text-indigo-300 uppercase tracking-[0.3em]">CANLI DERS</span>
+                        <span className={`text-[11px] font-black uppercase tracking-[0.3em] ${todaysData.statusType === 'FREE_SESSION' ? 'text-amber-300' : 'text-indigo-300'}`}>
+                            {todaysData.statusType === 'FREE_SESSION' ? 'SERBEST SEANS' : 'CANLI DERS'}
+                        </span>
                       </div>
                       <div className="flex gap-2">
                         {/* GEÇİCİ SÜRE YÖNETİMİ */}
                         <div className="bg-white/5 backdrop-blur-xl p-1 rounded-2xl border border-white/5 flex items-center gap-1">
-                            {bonusMinutes > 0 && (
+                            {(bonusMinutes > 0 || todaysData.statusType === 'FREE_SESSION') && (
                                 <button 
-                                    onClick={() => setBonusMinutes(0)}
+                                    onClick={() => { setBonusMinutes(0); setFreeSessionEnd(null); }}
                                     className="w-8 h-8 rounded-xl bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center text-red-300 transition-colors"
-                                    title="Ek Süreyi Sıfırla"
+                                    title="Sıfırla"
                                 >
                                     <RotateCcw size={14} strokeWidth={3} />
                                 </button>
                             )}
                             <button 
-                                onClick={() => setBonusMinutes(prev => prev + 10)}
-                                className="px-3 h-8 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-tight shadow-lg shadow-indigo-600/20 flex items-center gap-1.5 transition-all active:scale-95"
+                                onClick={() => {
+                                    if (todaysData.statusType === 'FREE_SESSION') {
+                                        setFreeSessionEnd(prev => (prev || 0) + 10);
+                                    } else {
+                                        setBonusMinutes(prev => prev + 10);
+                                    }
+                                }}
+                                className={`px-3 h-8 rounded-xl text-white text-[10px] font-black uppercase tracking-tight shadow-lg flex items-center gap-1.5 transition-all active:scale-95 ${todaysData.statusType === 'FREE_SESSION' ? 'bg-amber-600 shadow-amber-600/20' : 'bg-indigo-600 shadow-indigo-600/20'}`}
                                 title="Sayaca 10 Dakika Ekle"
                             >
                                 <Timer size={14} />
@@ -379,11 +431,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                   <div className="flex items-end justify-between gap-6 relative z-10">
                       <div className="flex-1 min-w-0">
                           <h2 className="text-4xl font-black text-white truncate tracking-tighter leading-none mb-4">
-                              {state.students[todaysData.currentSlot!.studentId!]?.name}
+                              {todaysData.statusType === 'FREE_SESSION' ? "Serbest Seans" : (state.students[todaysData.currentSlot!.studentId!]?.name)}
                           </h2>
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/10">
-                             <span className="text-[10px] text-indigo-300 font-black uppercase tracking-widest">
-                                {bonusMinutes > 0 ? `+${bonusMinutes} DK EK SÜRE İLE` : 'PROGRAMDAKİ SÜRE'}
+                          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${todaysData.statusType === 'FREE_SESSION' ? 'bg-amber-500/10 border-amber-500/10' : 'bg-indigo-500/10 border-indigo-500/10'}`}>
+                             <span className={`text-[10px] font-black uppercase tracking-widest ${todaysData.statusType === 'FREE_SESSION' ? 'text-amber-300' : 'text-indigo-300'}`}>
+                                {bonusMinutes > 0 || todaysData.statusType === 'FREE_SESSION' ? `EK SÜRE AKTİF` : 'PROGRAMDAKİ SÜRE'}
                              </span>
                           </div>
                       </div>
@@ -395,7 +447,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
                   <div className="space-y-4 relative z-10">
                       <div className="h-2.5 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
-                          <div className="h-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300 rounded-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(99,102,241,0.4)]" style={{ width: `${todaysData.progress}%` }}></div>
+                          <div className={`h-full rounded-full transition-all duration-1000 ease-out shadow-lg ${todaysData.statusType === 'FREE_SESSION' ? 'bg-gradient-to-r from-amber-500 to-orange-400' : 'bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300'}`} style={{ width: `${todaysData.progress}%` }}></div>
                       </div>
                   </div>
 
@@ -410,7 +462,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                            </div>
                        </div>
                        <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
-                            <span className="text-xs font-black text-indigo-100 tracking-tighter">PROGRAM: {todaysData.currentSlot?.start} — {todaysData.currentSlot?.end}</span>
+                            <span className="text-xs font-black text-indigo-100 tracking-tighter">
+                                {todaysData.statusType === 'FREE_SESSION' ? 'WIDGET SEANSI' : `PROGRAM: ${todaysData.currentSlot?.start} — ${todaysData.currentSlot?.end}`}
+                            </span>
                         </div>
                   </div>
               </div>
