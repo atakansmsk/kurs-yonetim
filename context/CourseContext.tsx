@@ -42,6 +42,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isRecovered, setIsRecovered] = useState(false);
   const isFirstSync = useRef(true);
   const lastSavedAt = useRef<string>("");
+  const lastLocalUpdateAt = useRef<string>("");
 
   // 1. VERİ YÜKLEME VE ABONELİK
   useEffect(() => {
@@ -49,6 +50,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setState(INITIAL_STATE); 
       setIsLoaded(true); 
       isFirstSync.current = true;
+      lastLocalUpdateAt.current = "";
       return; 
     }
     
@@ -88,8 +90,10 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 }
                 isFirstSync.current = false;
             } else {
-                // Eğer gelen veri bizim az önce gönderdiğimiz veriden daha eskiyse kabul etme
-                if (lastSavedAt.current && finalData.updatedAt && finalData.updatedAt < lastSavedAt.current) {
+                // KRİTİK: Eğer gelen veri bizim yerel güncel verimizden daha eskiyse kabul etme
+                // lastLocalUpdateAt.current yerel olarak yapılan en son değişikliğin zamanını tutar
+                if (lastLocalUpdateAt.current && finalData.updatedAt && finalData.updatedAt < lastLocalUpdateAt.current) {
+                    console.log("Sync: Gelen veri yerel veriden eski, reddedildi.");
                     return;
                 }
                 setIsRecovered(false);
@@ -202,9 +206,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [isLoaded, state.autoLessonProcessing, state.teachers, state.schedule, state.processedSlots, state.students, user]);
 
   const updateState = (updater: (prev: AppState) => AppState) => {
+      const now = new Date().toISOString();
+      lastLocalUpdateAt.current = now;
       setState(current => {
           const newState = updater(current);
-          return { ...newState, updatedAt: new Date().toISOString() };
+          return { ...newState, updatedAt: now };
       });
   };
 
@@ -281,7 +287,14 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (!student) return s;
           const date = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
           const isDebt = type === 'LESSON';
-          const newTx: Transaction = { id: Math.random().toString(36).substr(2, 9), note: isDebt ? 'Ders İşlendi' : 'Ödeme Alındı', date, isDebt, amount: isDebt ? 0 : (amount ?? student.fee) };
+          const finalAmount = isDebt ? 0 : (amount !== undefined ? amount : student.fee);
+          const newTx: Transaction = { 
+              id: Math.random().toString(36).substr(2, 9), 
+              note: isDebt ? 'Ders İşlendi' : 'Ödeme Alındı', 
+              date, 
+              isDebt, 
+              amount: finalAmount 
+          };
           return { ...s, students: { ...s.students, [studentId]: { ...student, history: [newTx, ...(student.history || [])] } } };
       }),
       updateTransaction: (studentId, transactionId, note, customDate) => updateState(s => {
