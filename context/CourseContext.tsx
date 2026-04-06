@@ -282,7 +282,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           } 
         };
       }),
-      addTransaction: (studentId, type, customDate, amount, customNote) => updateState(s => {
+      addTransaction: (studentId, type, customDate, amount) => updateState(s => {
           const student = s.students[studentId];
           if (!student) return s;
           const date = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
@@ -290,7 +290,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const finalAmount = isDebt ? 0 : (amount !== undefined ? amount : student.fee);
           const newTx: Transaction = { 
               id: Math.random().toString(36).substr(2, 9), 
-              note: customNote || (isDebt ? 'Ders İşlendi' : 'Ödeme Alındı'), 
+              note: isDebt ? 'Ders İşlendi' : 'Ödeme Alındı', 
               date, 
               isDebt, 
               amount: finalAmount 
@@ -342,27 +342,6 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const st = s.students[studentId];
           if(!st) return s;
           return { ...s, students: { ...s.students, [studentId]: { ...st, resources: (st.resources || []).filter(r => r.id !== resourceId) } } };
-      }),
-      updateSettings: (iban, bankName, accountHolder) => updateState(s => ({
-          ...s,
-          iban: iban.trim(),
-          bankName: bankName.trim(),
-          accountHolder: accountHolder.trim()
-      })),
-      updateConsent: (studentId, status) => updateState(s => {
-          const student = s.students[studentId];
-          if (!student) return s;
-          return {
-              ...s,
-              students: {
-                  ...s.students,
-                  [studentId]: {
-                      ...student,
-                      consentStatus: status,
-                      consentDate: new Date().toISOString()
-                  }
-              }
-          };
       }),
       clearDay: (day) => updateState(s => {
            const key = `${s.currentTeacher}|${day}`;

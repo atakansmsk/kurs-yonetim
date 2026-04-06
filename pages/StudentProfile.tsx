@@ -34,7 +34,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
   const [isResourcesModalOpen, setIsResourcesModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-  const [isResetDebtConfirmOpen, setIsResetDebtConfirmOpen] = useState(false);
   
   // Move Lesson Modal
   const [isMoveLessonModalOpen, setIsMoveLessonModalOpen] = useState(false);
@@ -116,22 +115,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const { currentHistory, archivedHistory, totalDoneCount, lessonNumberMap } = useMemo(() => {
       if (!student) return { currentHistory: [], archivedHistory: [], totalDoneCount: 0, lessonNumberMap: {} };
       
-      // EĞER ÜCRET 0 İSE BORÇ HESAPLAMA
-      if (student.fee <= 0) {
-          const allHistoryDesc = [...(student.history || [])].reverse();
-          const now = new Date();
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
-          const current = [];
-          const archived = [];
-          allHistoryDesc.forEach(tx => {
-              const txDate = new Date(tx.date);
-              if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) current.push(tx);
-              else archived.push(tx);
-          });
-          return { currentHistory: current, archivedHistory: archived, totalDoneCount: 0, lessonNumberMap: {} };
-      }
-
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
@@ -139,35 +122,26 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       // Tüm geçmişi ESKİDEN -> YENİYE sırala (Hesaplama için)
       const allHistoryAsc = [...(student.history || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
-      // Toplam ödenen tutarı hesapla
-      const totalPaid = allHistoryAsc
-          .filter(tx => !tx.isDebt)
-          .reduce((sum, tx) => sum + (tx.amount || 0), 0);
-      
-      // 1 ay = 4 ders. 1 ders ücreti = fee / 4
-      const lessonCost = student.fee / 4;
-      const coveredLessonsCount = Math.floor(totalPaid / lessonCost);
-
       // Ders Numaralarını Hesapla
       const map: Record<string, number> = {};
-      let validLessonIndex = 0;
-      let unpaidCounter = 0;
+      let counter = 0; // Bu değişken döngü sonunda "Son Ödemeden Sonraki Toplam Ders Sayısı" olacak.
 
       allHistoryAsc.forEach(tx => {
-          if (tx.isDebt) {
+          // Ödeme görürsem sayacı sıfırla
+          if (!tx.isDebt) {
+              counter = 0;
+          } 
+          // Ders görürsem (İptal/Gelmedi/Telafi Bekliyor HARİÇ) sayacı artır
+          else {
               const lowerNote = (tx.note || "").toLowerCase();
               const isValidLesson = !lowerNote.includes("gelmedi") && 
                                     !lowerNote.includes("katılım yok") && 
                                     !lowerNote.includes("iptal") &&
-                                    !lowerNote.includes("telafi bekliyor");
+                                    !lowerNote.includes("telafi bekliyor"); // Telafi Yapıldı ise sayılır
               
               if (isValidLesson) {
-                  validLessonIndex++;
-                  // Eğer bu ders ödenen ders sayısından sonraysa numaralandır
-                  if (validLessonIndex > coveredLessonsCount) {
-                      unpaidCounter++;
-                      map[tx.id] = unpaidCounter;
-                  }
+                  counter++;
+                  map[tx.id] = counter;
               }
           }
       });
@@ -192,7 +166,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return { 
           currentHistory: current, 
           archivedHistory: archived, 
-          totalDoneCount: unpaidCounter,
+          totalDoneCount: counter,
           lessonNumberMap: map
       };
   }, [student]);
@@ -231,32 +205,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
 
   const handleCall = () => window.open(`tel:+${getPhoneClean()}`, '_self');
   
-  const handleOpenParentPortal = () => {
-      if (!user || !student) return;
-      const baseUrl = window.location.origin + window.location.pathname;
-      const url = `${baseUrl}?parentView=true&teacherId=${user.id}&studentId=${student.id}`;
-      
-      if (navigator.share) {
-          navigator.share({
-              title: 'Veli Bilgilendirme Portalı',
-              text: `${student.name} için veli bilgilendirme linki:`,
-              url: url,
-          }).catch(() => {
-              // Fallback to clipboard if share is cancelled or fails
-              navigator.clipboard.writeText(url).then(() => {
-                  alert("Veli portalı linki kopyalandı!");
-              });
-          });
-      } else {
-          navigator.clipboard.writeText(url).then(() => {
-              alert("Veli portalı linki kopyalandı!");
-          }).catch(err => {
-              console.error('Kopyalama hatası:', err);
-              window.open(url, '_blank');
-          });
-      }
-  };
-
   const handleAddPastLesson = () => {
       if (pastDate) {
           actions.addTransaction(studentId, 'LESSON', pastDate);
@@ -335,20 +283,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       setSelectedTx(null);
   };
 
-  const handleResetDebt = () => {
-      if (!student || totalDoneCount <= 0) return;
-      const lessonCost = student.fee / 4;
-      const amountToPay = totalDoneCount * lessonCost;
-      
-      actions.addTransaction(
-          studentId, 
-          'PAYMENT', 
-          new Date().toISOString(), 
-          amountToPay,
-          "Borç Sıfırlama (Düzeltme)"
-      );
-      
-      setIsArchiveModalOpen(false); // Just in case
+  const handleOpenParentPortal = () => {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const portalUrl = `${baseUrl}?parentView=true&teacherId=${user?.id}&studentId=${student.id}`;
+      window.open(portalUrl, '_blank');
   };
 
   // --- SCHEDULE MOVE HANDLER ---
@@ -634,7 +572,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
             </div>
             <div>
                 <h2 className="text-xl font-black text-slate-900 leading-tight">{student.name}</h2>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1">
                      {student.isActive === false ? (
                          <div className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold border border-slate-200">
                              Arşivlenmiş (Pasif)
@@ -643,17 +581,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                          <button onClick={handleOpenParentPortal} className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors">
                             <Globe size={10} /> Veli Bilgilendirme Linki
                          </button>
-                     )}
-                     
-                     {student.consentStatus && (
-                        <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            student.consentStatus === 'APPROVED' 
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                            : 'bg-red-50 text-red-600 border-red-100'
-                        }`}>
-                            {student.consentStatus === 'APPROVED' ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
-                            KVKK: {student.consentStatus === 'APPROVED' ? 'Onaylı' : 'Reddedildi'}
-                        </div>
                      )}
                 </div>
             </div>
@@ -724,17 +651,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                            <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{totalDoneCount}</span>
                            <span className="text-xs font-bold text-indigo-200 uppercase tracking-wide mb-1.5">Ders</span>
                         </div>
-                        <div className="flex items-center justify-between mt-1">
-                           <p className="text-[9px] text-indigo-200 font-medium opacity-70">Son ödemeden sonra</p>
-                           {totalDoneCount > 0 && (
-                               <button 
-                                   onClick={(e) => { e.stopPropagation(); setIsResetDebtConfirmOpen(true); }}
-                                   className="text-[9px] font-black text-white bg-white/20 px-2 py-0.5 rounded hover:bg-white/30 transition-colors"
-                               >
-                                   SIFIRLA
-                               </button>
-                           )}
-                        </div>
+                        <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Son ödemeden sonra</p>
                      </div>
 
                      <button 
@@ -764,14 +681,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      </div>
 
                      <button 
-                        onClick={() => {
-                            if (totalDoneCount >= 8) {
-                                setPastPaymentAmount(student.fee.toString());
-                                setIsPastPaymentModalOpen(true);
-                            } else {
-                                actions.addTransaction(studentId, 'PAYMENT');
-                            }
-                        }}
+                        onClick={() => setIsPastPaymentModalOpen(true)}
                         className="mt-auto w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 text-xs font-bold transition-all active:scale-[0.98]"
                      >
                         <Banknote size={14} strokeWidth={2.5} /> Ödeme Al
@@ -907,17 +817,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           <div className="py-2"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
       </Dialog>
 
-      <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title={totalDoneCount >= 8 ? "Birikmiş Ödeme Al" : "Ödeme Ekle"} 
+      <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Ödeme Ekle" 
           actions={<><button onClick={() => setIsPastPaymentModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddPastPayment} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Kaydet</button></>}
       >
           <div className="flex flex-col gap-3 py-2">
-              {totalDoneCount >= 8 && (
-                  <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl mb-2">
-                      <p className="text-[11px] font-bold text-amber-700 leading-tight">
-                          Bu öğrencinin {Math.floor(totalDoneCount / 4)} aylık ({totalDoneCount} ders) borcu birikmiş. Ne kadar ödeme alındı?
-                      </p>
-                  </div>
-              )}
               <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
               <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tutar (TL)</label>
@@ -1053,25 +956,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       <Dialog isOpen={isArchiveModalOpen} onClose={() => setIsArchiveModalOpen(false)} title="Geçmiş Kayıtlar">
           <div className="max-h-[60vh] overflow-y-auto space-y-4 py-2 pr-1 custom-scrollbar">
                {archivedHistory.length === 0 ? <p className="text-center text-slate-400 text-sm">Kayıt yok.</p> : archivedHistory.map(tx => renderTransactionItem(tx))}
-          </div>
-      </Dialog>
-
-      {/* Reset Debt Confirmation Modal */}
-      <Dialog 
-          isOpen={isResetDebtConfirmOpen} 
-          onClose={() => setIsResetDebtConfirmOpen(false)} 
-          title="Borç Sıfırlama"
-          actions={
-              <>
-                  <button onClick={() => setIsResetDebtConfirmOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button>
-                  <button onClick={() => { handleResetDebt(); setIsResetDebtConfirmOpen(false); }} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-sm">Sıfırla</button>
-              </>
-          }
-      >
-          <div className="py-2">
-              <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  {totalDoneCount} derslik borcu sıfırlamak istediğinize emin misiniz? Bu işlem geri alınamaz ve ödeme kaydı olarak işlenecektir.
-              </p>
           </div>
       </Dialog>
     </div>

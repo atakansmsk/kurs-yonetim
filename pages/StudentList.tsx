@@ -26,28 +26,20 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
   // Yardımcı Fonksiyon: Son ödemeden sonraki geçerli ders sayısını hesaplar
   const getUnpaidLessonCount = (student: Student): number => {
       if (!student.history || student.history.length === 0) return 0;
-      
-      const validLessons = student.history.filter(tx => {
-          if (!tx.isDebt) return false;
-          const lowerNote = (tx.note || "").toLowerCase();
-          return !lowerNote.includes("gelmedi") && 
-                 !lowerNote.includes("katılım yok") && 
-                 !lowerNote.includes("iptal") &&
-                 !lowerNote.includes("telafi bekliyor");
-      }).length;
-
-      const totalPaid = student.history
-          .filter(tx => !tx.isDebt)
-          .reduce((sum, tx) => sum + (tx.amount || 0), 0);
-
-      if (student.fee <= 0) return 0;
-      
-      // 1 ay = 4 ders kabul ediliyor. 1 ders ücreti = fee / 4
-      const lessonCost = student.fee / 4;
-      const coveredLessons = Math.floor(totalPaid / lessonCost);
-      
-      const unpaid = validLessons - coveredLessons;
-      return unpaid > 0 ? unpaid : 0;
+      const history = [...student.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      let counter = 0;
+      history.forEach(tx => {
+          if (!tx.isDebt) counter = 0;
+          else {
+              const lowerNote = (tx.note || "").toLowerCase();
+              const isValidLesson = !lowerNote.includes("gelmedi") && 
+                                    !lowerNote.includes("katılım yok") && 
+                                    !lowerNote.includes("iptal") &&
+                                    !lowerNote.includes("telafi bekliyor");
+              if (isValidLesson) counter++;
+          }
+      });
+      return counter;
   };
 
   const { debtors, paidStudents, stats, monthlyEarnings } = useMemo(() => {

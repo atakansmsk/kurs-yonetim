@@ -28,8 +28,6 @@ export interface Student {
   color?: string;
   nextLessonNote?: string;
   isActive?: boolean;
-  consentStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
-  consentDate?: string;
 }
 
 export interface LessonSlot {
@@ -61,9 +59,6 @@ export interface AppState {
   updatedAt: string;
   autoLessonProcessing: boolean;
   processedSlots?: Record<string, string[]>; 
-  iban?: string;
-  bankName?: string;
-  accountHolder?: string;
 }
 
 export interface CourseContextType {
@@ -85,7 +80,7 @@ export interface CourseContextType {
     bookSlot: (day: WeekDay, slotId: string, studentId: string, label?: 'REGULAR' | 'MAKEUP' | 'TRIAL') => void;
     cancelSlot: (day: WeekDay, slotId: string) => void;
     extendSlot: (day: WeekDay, slotId: string, minutes: number) => void;
-    addTransaction: (studentId: string, type: 'LESSON' | 'PAYMENT', customDate?: string, amount?: number, customNote?: string) => void;
+    addTransaction: (studentId: string, type: 'LESSON' | 'PAYMENT', customDate?: string, amount?: number) => void;
     updateTransaction: (studentId: string, transactionId: string, note: string, customDate?: string) => void;
     deleteTransaction: (studentId: string, transactionId: string) => void;
     toggleAutoProcessing: () => void;
@@ -94,8 +89,6 @@ export interface CourseContextType {
     swapSlots: (dayA: WeekDay, slotIdA: string, dayB: WeekDay, slotIdB: string) => void;
     addResource: (studentId: string, title: string, url: string, type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE') => void;
     deleteResource: (studentId: string, resourceId: string) => void;
-    updateSettings: (iban: string, bankName: string, accountHolder: string) => void;
-    updateConsent: (studentId: string, status: 'APPROVED' | 'REJECTED') => void;
     clearDay: (day: WeekDay) => void;
     forceSync: () => Promise<void>;
   };

@@ -30,19 +30,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
   const [previewType, setPreviewType] = useState<'IMAGE' | 'PDF' | null>(null);
   const [previewTitle, setPreviewTitle] = useState("");
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [isConsentOpen, setIsConsentOpen] = useState(false);
-
-  useEffect(() => {
-    const hasConsented = localStorage.getItem(`consent_confirmed_${studentId}`);
-    if (!hasConsented && !loading && student) {
-      setIsConsentOpen(true);
-    }
-  }, [loading, student, studentId]);
-
-  const handleConsent = () => {
-    localStorage.setItem(`consent_confirmed_${studentId}`, 'true');
-    setIsConsentOpen(false);
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -587,39 +574,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
             </div>
         )}
 
-        {/* IBAN Section */}
-        <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm mt-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-            <div className="flex items-center gap-3 mb-4 text-indigo-600">
-                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                    <Banknote size={20} />
-                </div>
-                <h3 className="text-sm font-black uppercase tracking-widest">ÖDEME BİLGİLERİ</h3>
-            </div>
-            <div className="space-y-4">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group active:bg-slate-100 transition-colors cursor-pointer" onClick={() => {
-                    navigator.clipboard.writeText("TR00 0000 0000 0000 0000 0000 00");
-                    // Simple feedback could be added here
-                }}>
-                    <div className="flex justify-between items-start mb-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">IBAN ADRESİ</p>
-                        <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase">Kopyala</span>
-                    </div>
-                    <p className="text-sm font-mono font-bold text-slate-700 break-all tracking-tight">TR00 0000 0000 0000 0000 0000 00</p>
-                    
-                    <div className="mt-4">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ALICI</p>
-                        <p className="text-sm font-bold text-slate-700">Arti Sanat Merkezi</p>
-                    </div>
-                </div>
-                <div className="flex items-start gap-2 px-2">
-                    <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                        Lütfen ödeme açıklama kısmına <span className="font-bold text-slate-700">öğrenci adını ve soyadını</span> yazmayı unutmayınız.
-                    </p>
-                </div>
-            </div>
-        </div>
-
         {/* Footer */}
         <div className="text-center pt-10 pb-6 opacity-40">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -661,75 +615,6 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                       <span className="text-xs font-bold text-slate-400">Dosya görüntülenemedi.</span>
                   </div>
               )}
-          </div>
-      </Dialog>
-
-      {/* WELCOME & CONSENT MODAL */}
-      <Dialog 
-        isOpen={isConsentOpen} 
-        onClose={() => {}} // Prevent closing by clicking outside or X
-        title="Arti Sanat’a Hoş Geldiniz"
-        actions={
-            <button 
-                onClick={handleConsent} 
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-            >
-                Okudum, Onaylıyorum <CheckCircle2 size={18} />
-            </button>
-        }
-      >
-          <div className="space-y-4 max-h-[60vh] overflow-auto pr-2 custom-scrollbar">
-              <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                  <p className="text-sm font-bold text-indigo-900 leading-relaxed">
-                      Kurs kaydınız başarıyla tamamlanmıştır. Eğitim sürecimizle ilgili önemli bilgilendirmeleri aşağıda bulabilirsiniz.
-                  </p>
-              </div>
-
-              <div className="space-y-3">
-                  <div className="flex gap-3">
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
-                          <CalendarCheck size={14} className="text-slate-600" />
-                      </div>
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                          Dersler planlanan gün ve saatlerde yapılacak olup haftada bir gün, 1 ders şeklinde düzenlenmiştir.
-                      </p>
-                  </div>
-
-                  <div className="flex gap-3">
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
-                          <AlertCircle size={14} className="text-slate-600" />
-                      </div>
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                          Öğrencinin unuttuğu veya mazeretsiz katılmadığı dersler yapılmış sayılacaktır.
-                      </p>
-                  </div>
-
-                  <div className="flex gap-3">
-                      <div className="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 mt-0.5">
-                          <Image size={14} className="text-emerald-600" />
-                      </div>
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                          Öğrencimizin ders ve etkinliklerde çekilen fotoğraf ve videolarının kurumumuzun sosyal medya hesaplarında paylaşılabilmesi için onayınız rica olunur.
-                      </p>
-                  </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100">
-                  <div className="flex items-center gap-2 mb-2 text-slate-400">
-                      <Banknote size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">ÖDEME BİLGİLERİ</span>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">IBAN</p>
-                      <p className="text-xs font-mono font-bold text-slate-700 break-all">TR00 0000 0000 0000 0000 0000 00</p>
-                      <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase mb-1">ALICI</p>
-                      <p className="text-xs font-bold text-slate-700">Arti Sanat Merkezi</p>
-                  </div>
-              </div>
-
-              <p className="text-[10px] text-slate-400 font-bold text-center pt-2">
-                  İyi günler dileriz.
-              </p>
           </div>
       </Dialog>
     </div>
