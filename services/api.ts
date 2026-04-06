@@ -126,6 +126,37 @@ export const DataService = {
     }
   },
 
+  async updateStudentConsent(userId: string, studentId: string, status: 'APPROVED' | 'REJECTED'): Promise<void> {
+    if (IS_LOCAL_MODE || userId === 'local_user') {
+        const localData = localStorage.getItem(`kurs_data_${userId}`);
+        if (localData) {
+            const data = JSON.parse(localData) as AppState;
+            if (data.students[studentId]) {
+                data.students[studentId].consentStatus = status;
+                data.students[studentId].consentDate = new Date().toISOString();
+                data.updatedAt = new Date().toISOString();
+                localStorage.setItem(`kurs_data_${userId}`, JSON.stringify(data));
+            }
+        }
+        return;
+    }
+    try {
+      const { updateDoc } = await import("firebase/firestore");
+      const docRef = doc(db, "schools", userId);
+      
+      const updateData: any = {
+          [`students.${studentId}.consentStatus`]: status,
+          [`students.${studentId}.consentDate`]: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+      };
+      
+      await updateDoc(docRef, updateData);
+    } catch (e) {
+      console.error("Consent update error:", e);
+      throw e;
+    }
+  },
+
   subscribeToUserData(userId: string, onUpdate: (data: AppState) => void, onError: (error: any) => void): () => void {
     if (IS_LOCAL_MODE) {
         // İlk yükleme

@@ -56,6 +56,16 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
   const [isTeachersListOpen, setIsTeachersListOpen] = useState(false);
   const [isAddTeacherMode, setIsAddTeacherMode] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [iban, setIban] = useState(state.iban || "");
+  const [bankName, setBankName] = useState(state.bankName || "");
+  const [accountHolder, setAccountHolder] = useState(state.accountHolder || "");
+
+  const handleSaveSettings = () => {
+      actions.updateSettings(iban, bankName, accountHolder);
+      setIsSettingsOpen(false);
+      alert("Ayarlar kaydedildi.");
+  };
+
   const [newTeacherName, setNewTeacherName] = useState("");
   
   // GEÇİCİ EK SÜRE (Programı bozmaz, sadece sayacı etkiler)
@@ -122,6 +132,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         }
     }
 
+    const currentName = (statusType === 'IN_LESSON') ? (state.students[currentSlot!.studentId!]?.name || "Öğrenci") : (statusType === 'FREE_SESSION' ? freeSessionStudentName : "Ders Arası");
+    const nextName = (nextSlot && nextSlot.studentId) ? (state.students[nextSlot.studentId]?.name || "Gün Sonu") : "Program Bitti";
+
     return { 
         statusType, 
         currentSlot, 
@@ -129,9 +142,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         timeLeft, 
         progress, 
         lessonCount: activeLessons.length,
-        dayName
+        dayName,
+        currentName,
+        nextName
     };
-  }, [state.schedule, state.currentTeacher, currentTime, state.students, bonusMinutes, freeSessionEnd]);
+  }, [state.schedule, state.currentTeacher, currentTime, state.students, bonusMinutes, freeSessionEnd, freeSessionStudentName]);
 
   // MASAÜSTÜ WIDGET (PIP) MANTIĞI
   const openDesktopWidget = async () => {
@@ -213,7 +228,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
         if (isSelectingStudent) {
             // ÖĞRENCİ SEÇİM EKRANI
-            // Fix: Cast Object.values to Student[] to avoid 'unknown' type errors
             const activeStudents = (Object.values(state.students) as Student[]).filter(s => s.isActive !== false).sort((a, b) => a.name.localeCompare(b.name));
             
             container.innerHTML = `
@@ -341,7 +355,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
               setFreeSessionStudentName("");
               updatePipUI();
             });
-        } else {
+        } else if (sType === 'BREAK') {
             container.innerHTML = `
               <div class="w-full h-full p-6 flex flex-col items-center justify-center text-center bg-slate-950 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-slate-950"></div>
@@ -365,6 +379,29 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
             `;
 
             container.querySelector('#pip-start-lesson')?.addEventListener('click', () => {
+                isSelectingStudent = true;
+                updatePipUI();
+            });
+        } else {
+            // IDLE
+            container.innerHTML = `
+              <div class="w-full h-full p-6 flex flex-col items-center justify-center text-center bg-slate-950 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-slate-950"></div>
+                <div class="relative z-10 flex flex-col items-center gap-4 w-full">
+                    <div class="flex flex-col items-center">
+                        <h2 class="text-xl font-black text-white/90 tracking-tight">Program Bekleniyor</h2>
+                        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">ŞU AN DERSİNİZ YOK</p>
+                    </div>
+                    
+                    <button id="pip-start-free" class="mt-2 w-full max-w-[200px] py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl flex items-center justify-center gap-2 text-white text-xs font-black uppercase tracking-widest transition-all active:scale-95 group shadow-lg shadow-emerald-600/20">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="group-hover:scale-110 transition-transform"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Seans Başlat
+                    </button>
+                </div>
+              </div>
+            `;
+
+            container.querySelector('#pip-start-free')?.addEventListener('click', () => {
                 isSelectingStudent = true;
                 updatePipUI();
             });
@@ -434,124 +471,71 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
 
       {/* 2. HERO: LIVE STATUS */}
       <div className="px-7 mb-10">
-          {(todaysData.statusType === 'IN_LESSON' || todaysData.statusType === 'FREE_SESSION') ? (
-              <div className={`rounded-[3rem] p-8 shadow-2xl flex flex-col gap-8 relative overflow-hidden animate-in fade-in duration-700 ${todaysData.statusType === 'FREE_SESSION' ? 'bg-slate-900 shadow-emerald-950/10' : 'bg-slate-950 shadow-indigo-950/20'}`}>
-                  <div className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] pointer-events-none ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-600/10' : 'bg-indigo-600/20'}`}></div>
-
-                  <div className="flex items-center justify-between relative z-10">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex items-center justify-center w-6 h-6 rounded-full ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-500/20' : 'bg-indigo-500/20'}`}>
-                            <div className={`w-2 h-2 rounded-full animate-ping ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-400' : 'bg-indigo-400'}`}></div>
-                        </div>
-                        <span className={`text-[11px] font-black uppercase tracking-[0.3em] ${todaysData.statusType === 'FREE_SESSION' ? 'text-emerald-300' : 'text-indigo-300'}`}>
-                            {todaysData.statusType === 'FREE_SESSION' ? 'ANLIK SEANS' : 'CANLI DERS'}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        {/* GEÇİCİ SÜRE YÖNETİMİ */}
-                        <div className="bg-white/5 backdrop-blur-xl p-1 rounded-2xl border border-white/5 flex items-center gap-1">
-                            {(bonusMinutes > 0 || todaysData.statusType === 'FREE_SESSION') && (
-                                <button 
-                                    onClick={() => { setBonusMinutes(0); setFreeSessionEnd(null); setFreeSessionStudentName(""); }}
-                                    className="w-8 h-8 rounded-xl bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center text-red-300 transition-colors"
-                                    title="Sıfırla"
-                                >
-                                    <RotateCcw size={14} strokeWidth={3} />
-                                </button>
-                            )}
-                            <button 
-                                onClick={() => {
-                                    if (todaysData.statusType === 'FREE_SESSION') {
-                                        setFreeSessionEnd(prev => (prev || 0) + 10);
-                                    } else {
-                                        setBonusMinutes(prev => prev + 10);
-                                    }
-                                }}
-                                className={`px-3 h-8 rounded-xl text-white text-[10px] font-black uppercase tracking-tight shadow-lg flex items-center gap-1.5 transition-all active:scale-95 ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-600 shadow-emerald-600/20' : 'bg-indigo-600 shadow-indigo-600/20'}`}
-                                title="Sayaca 10 Dakika Ekle"
-                            >
-                                <Timer size={14} />
-                                +10 DK
-                            </button>
-                        </div>
-                        <button 
-                            onClick={openDesktopWidget}
-                            className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/5 text-indigo-200 transition-all flex items-center"
-                            title="Masaüstü Widget"
-                        >
-                            <Monitor size={16} />
-                        </button>
-                      </div>
-                  </div>
-                  
-                  <div className="flex items-end justify-between gap-6 relative z-10">
-                      <div className="flex-1 min-w-0">
-                          <h2 className="text-4xl font-black text-white truncate tracking-tighter leading-none mb-4">
-                              {todaysData.statusType === 'FREE_SESSION' ? freeSessionStudentName : (state.students[todaysData.currentSlot!.studentId!]?.name)}
-                          </h2>
-                          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-500/10 border-emerald-500/10' : 'bg-indigo-500/10 border-indigo-500/10'}`}>
-                             <span className={`text-[10px] font-black uppercase tracking-widest ${todaysData.statusType === 'FREE_SESSION' ? 'text-emerald-300' : 'text-indigo-300'}`}>
-                                {bonusMinutes > 0 || todaysData.statusType === 'FREE_SESSION' ? `EK SÜRE AKTİF` : 'PROGRAMDAKİ SÜRE'}
-                             </span>
-                          </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                          <div className="text-5xl font-black text-white leading-none tracking-tighter drop-shadow-lg">{todaysData.timeLeft}</div>
-                          <div className="text-[10px] font-black text-slate-500 uppercase mt-3 tracking-[0.2em]">DAKİKA KALDI</div>
-                      </div>
-                  </div>
-
-                  <div className="space-y-4 relative z-10">
-                      <div className="h-2.5 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
-                          <div className={`h-full rounded-full transition-all duration-1000 ease-out shadow-lg ${todaysData.statusType === 'FREE_SESSION' ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300'}`} style={{ width: `${todaysData.progress}%` }}></div>
-                      </div>
-                  </div>
-
-                  <div className="pt-6 border-t border-white/5 flex items-center justify-between relative z-10">
-                       <div className="flex items-center gap-4">
-                           <div className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5"><Forward size={18} strokeWidth={2} /></div>
-                           <div>
-                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">SIRADAKİ</span>
-                               <span className="text-sm font-bold text-slate-100">
-                                   {todaysData.nextSlot ? (state.students[todaysData.nextSlot.studentId!]?.name || "Boş Saat") : "Gün Sonu"}
-                               </span>
-                           </div>
-                       </div>
-                       <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
-                            <span className="text-xs font-black text-indigo-100 tracking-tighter">
-                                {todaysData.statusType === 'FREE_SESSION' ? 'ANLIK WIDGET DERSİ' : `PROGRAM: ${todaysData.currentSlot?.start} — ${todaysData.currentSlot?.end}`}
-                            </span>
-                        </div>
-                  </div>
+          <div className="bg-slate-900 rounded-[32px] p-6 shadow-2xl shadow-slate-200 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                  <Zap size={120} className="text-white" />
               </div>
-          ) : (
-              <div className="bg-white border border-slate-100 rounded-[3rem] p-8 shadow-xl shadow-slate-200/40 flex flex-col gap-7 animate-in slide-in-from-top-4 duration-500 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-50/50 rounded-full blur-[60px] pointer-events-none"></div>
+              <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px]"></div>
 
-                  <div className="flex items-center justify-between relative z-10">
-                      <div className="bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-2xl flex items-center gap-3">
-                          <Coffee size={20} strokeWidth={2.5} className="animate-bounce" />
-                          <span className="text-xs font-black uppercase tracking-[0.2em]">DERS ARASI ☕</span>
+              <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-2.5">
+                          <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${todaysData.statusType === 'IDLE' ? 'bg-slate-500' : todaysData.statusType === 'BREAK' ? 'bg-amber-400' : 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.5)]'}`}></div>
+                          <span className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase">
+                              {todaysData.statusType === 'IN_LESSON' ? 'Canlı Ders' : todaysData.statusType === 'FREE_SESSION' ? 'Anlık Seans' : todaysData.statusType === 'BREAK' ? 'Ders Arası' : 'Program Bekleniyor'}
+                          </span>
                       </div>
-                      <button onClick={openDesktopWidget} className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400">
-                          <Monitor size={16} />
+                      <button onClick={openDesktopWidget} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 transition-all active:scale-95 border border-white/5" title="Masaüstü Widget">
+                          <Monitor size={18} />
                       </button>
                   </div>
-                  
-                  <div className="flex items-end justify-between relative z-10">
-                      <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">SIRADAKİ ÖĞRENCİ</p>
-                          <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-none">
-                              {todaysData.nextSlot ? (state.students[todaysData.nextSlot.studentId!]?.name || "Boş Ders") : "Gün Sonu"}
-                          </h2>
+
+                  <div className="mb-8">
+                      <h2 className="text-3xl font-black text-white tracking-tight mb-2 truncate">{todaysData.currentName}</h2>
+                      <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
+                              <Clock size={14} />
+                              {todaysData.statusType === 'IDLE' ? 'Programda ders yok' : `${todaysData.timeLeft} dakika kaldı`}
+                          </div>
+                          {todaysData.statusType !== 'IDLE' && (
+                              <div className="h-1 w-1 rounded-full bg-slate-700"></div>
+                          )}
+                          <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                              Sıradaki: {todaysData.nextName}
+                          </div>
                       </div>
-                      <div className="text-right">
-                          <p className="text-4xl font-black text-indigo-600 leading-none tracking-tighter">{todaysData.timeLeft}</p>
-                          <p className="text-[10px] font-black text-slate-400 mt-3 uppercase tracking-widest">DK SONRA</p>
+                  </div>
+
+                  <div className="space-y-4">
+                      <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
+                          <div 
+                              className={`h-full rounded-full transition-all duration-1000 ease-out ${todaysData.statusType === 'BREAK' ? 'bg-amber-400' : 'bg-gradient-to-r from-indigo-500 to-emerald-400'}`}
+                              style={{ width: `${todaysData.progress}%` }}
+                          ></div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => setBonusMinutes(prev => prev + 10)}
+                            className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white text-[11px] font-black tracking-widest uppercase transition-all active:scale-95 flex items-center justify-center gap-2"
+                          >
+                              <Plus size={14} strokeWidth={3} /> 10 DK EKLE
+                          </button>
+                          {(todaysData.statusType === 'IDLE' || todaysData.statusType === 'BREAK') && (
+                              <button 
+                                onClick={() => {
+                                    setFreeSessionEnd((currentTime.getHours() * 60 + currentTime.getMinutes()) + 40);
+                                    setFreeSessionStudentName("Anlık Seans");
+                                }}
+                                className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 rounded-2xl text-white text-[11px] font-black tracking-widest uppercase transition-all active:scale-95 shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2"
+                              >
+                                  <Play size={14} fill="currentColor" /> SEANS BAŞLAT
+                              </button>
+                          )}
                       </div>
                   </div>
               </div>
-          )}
+          </div>
       </div>
 
       {/* 4. DASHBOARD PILL */}
@@ -605,7 +589,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
           {isAddTeacherMode ? (<div className="py-2"><input type="text" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-indigo-500 outline-none" placeholder="Ad Soyad..." autoFocus /></div>) : (<div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto no-scrollbar">{state.teachers.map(teacher => (<div key={teacher} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${teacher === state.currentTeacher ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div><div><div className="font-black text-slate-800 text-sm">{teacher}</div><div className="text-[10px] font-bold text-slate-400 mt-0.5">Eğitmen</div></div></div><div className="flex items-center gap-2"><button onClick={(e) => handleShareTeacherLink(e, teacher)} className="p-2 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-colors"><Share2 size={16} /></button>{teacher !== state.currentTeacher && (<button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-black border border-slate-200 rounded-lg hover:border-indigo-600 transition-all uppercase tracking-wider">Seç</button>)}</div></div>))}</div>)}
       </Dialog>
 
-      <Dialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="Ayarlar">
+      <Dialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} title="Ayarlar"
+        actions={<><button onClick={() => setIsSettingsOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleSaveSettings} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md">Kaydet</button></>}
+      >
         <div className="flex flex-col gap-5 py-1">
              <div className="flex items-center gap-3 p-1">
                 <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm font-black text-slate-500">{user?.name ? user.name.charAt(0).toUpperCase() : 'E'}</div>
@@ -614,7 +600,24 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                     <p className="text-[10px] text-slate-400 font-medium">{user?.email}</p>
                 </div>
              </div>
-             <button onClick={logout} className="w-full py-3.5 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest"><LogOut size={16} /> Oturumu Kapat</button>
+
+             <div className="space-y-4 pt-2 border-t border-slate-100">
+                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ÖDEME BİLGİLERİ (IBAN)</h4>
+                 <div>
+                     <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Banka Adı</label>
+                     <input type="text" value={bankName} onChange={(e) => setBankName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Örn: Garanti BBVA" />
+                 </div>
+                 <div>
+                     <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Hesap Sahibi</label>
+                     <input type="text" value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Ad Soyad" />
+                 </div>
+                 <div>
+                     <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">IBAN</label>
+                     <input type="text" value={iban} onChange={(e) => setIban(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="TR00..." />
+                 </div>
+             </div>
+
+             <button onClick={logout} className="w-full py-3.5 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest mt-4"><LogOut size={16} /> Oturumu Kapat</button>
         </div>
       </Dialog>
     </div>
