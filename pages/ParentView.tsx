@@ -184,17 +184,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       // 5. Dynamic Lesson Numbering Logic & Total Count
       const lessonNumberMap = new Map<string, number>();
       
-      // Toplam ödenen tutarı hesapla
-      const totalPaid = allHistorySorted
-          .filter(tx => !tx.isDebt)
-          .reduce((sum, tx) => sum + (tx.amount || 0), 0);
-      
-      // 1 ay = 4 ders. 1 ders ücreti = fee / 4
-      const lessonCost = student.fee > 0 ? student.fee / 4 : 0;
-      const coveredLessonsCount = lessonCost > 0 ? Math.floor(totalPaid / lessonCost) : 0;
-
       // Hangi dersler sayaca dahil edilecek?
-      const countableLessons = allHistorySorted.filter(tx => {
+      // - Normal dersler
+      // - Yapılan telafiler (bekleyenler değil)
+      // - Deneme dersleri
+      const countableLessons = filteredHistory.filter(tx => {
           if (!tx.isDebt) return false;
           const lowerNote = (tx.note || "").toLowerCase();
           return !lowerNote.includes("gelmedi") && 
@@ -206,13 +200,8 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       // Numaralandırma için eskiden yeniye sırala
       countableLessons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      let unpaidCounter = 0;
       countableLessons.forEach((tx, index) => {
-          const validLessonIndex = index + 1;
-          if (validLessonIndex > coveredLessonsCount) {
-              unpaidCounter++;
-              lessonNumberMap.set(tx.id, unpaidCounter);
-          }
+          lessonNumberMap.set(tx.id, index + 1);
       });
       
       return {
@@ -221,7 +210,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           currentPeriodHistory: filteredHistory, 
           safeResources,
           lessonNumberMap,
-          totalDoneCount: unpaidCounter
+          totalDoneCount: countableLessons.length
       };
 
   }, [student, appState]);

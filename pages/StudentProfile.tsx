@@ -122,35 +122,26 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       // Tüm geçmişi ESKİDEN -> YENİYE sırala (Hesaplama için)
       const allHistoryAsc = [...(student.history || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
-      // Toplam ödenen tutarı hesapla
-      const totalPaid = allHistoryAsc
-          .filter(tx => !tx.isDebt)
-          .reduce((sum, tx) => sum + (tx.amount || 0), 0);
-      
-      // 1 ay = 4 ders. 1 ders ücreti = fee / 4
-      const lessonCost = student.fee > 0 ? student.fee / 4 : 0;
-      const coveredLessonsCount = lessonCost > 0 ? Math.floor(totalPaid / lessonCost) : 0;
-
       // Ders Numaralarını Hesapla
       const map: Record<string, number> = {};
-      let validLessonIndex = 0;
-      let unpaidCounter = 0;
+      let counter = 0; // Bu değişken döngü sonunda "Son Ödemeden Sonraki Toplam Ders Sayısı" olacak.
 
       allHistoryAsc.forEach(tx => {
-          if (tx.isDebt) {
+          // Ödeme görürsem sayacı sıfırla
+          if (!tx.isDebt) {
+              counter = 0;
+          } 
+          // Ders görürsem (İptal/Gelmedi/Telafi Bekliyor HARİÇ) sayacı artır
+          else {
               const lowerNote = (tx.note || "").toLowerCase();
               const isValidLesson = !lowerNote.includes("gelmedi") && 
                                     !lowerNote.includes("katılım yok") && 
                                     !lowerNote.includes("iptal") &&
-                                    !lowerNote.includes("telafi bekliyor");
+                                    !lowerNote.includes("telafi bekliyor"); // Telafi Yapıldı ise sayılır
               
               if (isValidLesson) {
-                  validLessonIndex++;
-                  // Eğer bu ders ödenen ders sayısından sonraysa numaralandır
-                  if (validLessonIndex > coveredLessonsCount) {
-                      unpaidCounter++;
-                      map[tx.id] = unpaidCounter;
-                  }
+                  counter++;
+                  map[tx.id] = counter;
               }
           }
       });
@@ -175,7 +166,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       return { 
           currentHistory: current, 
           archivedHistory: archived, 
-          totalDoneCount: unpaidCounter,
+          totalDoneCount: counter,
           lessonNumberMap: map
       };
   }, [student]);
@@ -690,14 +681,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                      </div>
 
                      <button 
-                        onClick={() => {
-                            if (totalDoneCount >= 8) {
-                                setPastPaymentAmount(student.fee.toString());
-                                setIsPastPaymentModalOpen(true);
-                            } else {
-                                actions.addTransaction(studentId, 'PAYMENT');
-                            }
-                        }}
+                        onClick={() => setIsPastPaymentModalOpen(true)}
                         className="mt-auto w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 text-xs font-bold transition-all active:scale-[0.98]"
                      >
                         <Banknote size={14} strokeWidth={2.5} /> Ödeme Al
@@ -833,17 +817,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           <div className="py-2"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
       </Dialog>
 
-      <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title={totalDoneCount >= 8 ? "Birikmiş Ödeme Al" : "Ödeme Ekle"} 
+      <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Ödeme Ekle" 
           actions={<><button onClick={() => setIsPastPaymentModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddPastPayment} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Kaydet</button></>}
       >
           <div className="flex flex-col gap-3 py-2">
-              {totalDoneCount >= 8 && (
-                  <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl mb-2">
-                      <p className="text-[11px] font-bold text-amber-700 leading-tight">
-                          Bu öğrencinin {Math.floor(totalDoneCount / 4)} aylık ({totalDoneCount} ders) borcu birikmiş. Ne kadar ödeme alındı?
-                      </p>
-                  </div>
-              )}
               <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastPaymentDate} onChange={(e) => setPastPaymentDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
               <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tutar (TL)</label>
