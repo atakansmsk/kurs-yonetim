@@ -79,20 +79,19 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         (newData) => {
             let finalData = { ...newData };
             
-            // Eğer gelen veri boşsa ama yerelde veri varsa kurtar
-            if (isFirstSync.current) {
-                const remoteStudentCount = Object.keys(finalData.students || {}).length;
-                const localStudentCount = Object.keys(localBest?.students || {}).length;
+            const remoteStudentCount = Object.keys(finalData.students || {}).length;
+            const localStudentCount = Object.keys(localBest?.students || {}).length;
 
+            // Eğer gelen veri boşsa ama yerelde veri varsa kurtar (Sadece ilk senkronizasyonda)
+            if (isFirstSync.current) {
                 if (remoteStudentCount === 0 && localStudentCount > 0) {
                     finalData = localBest as AppState;
                     setIsRecovered(true);
                 }
                 isFirstSync.current = false;
             } else {
-                // KRİTİK: Eğer gelen veri bizim yerel güncel verimizden daha eskiyse kabul etme
-                // lastLocalUpdateAt.current yerel olarak yapılan en son değişikliğin zamanını tutar
-                if (lastLocalUpdateAt.current && finalData.updatedAt && finalData.updatedAt < lastLocalUpdateAt.current) {
+                // KRİTİK: Eğer gelen veri bizim yerel güncel verimizden daha eskiyse ve yerel verimiz boş değilse kabul etme
+                if (lastLocalUpdateAt.current && finalData.updatedAt && finalData.updatedAt < lastLocalUpdateAt.current && remoteStudentCount > 0) {
                     console.log("Sync: Gelen veri yerel veriden eski, reddedildi.");
                     return;
                 }
@@ -309,29 +308,96 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return { ...s, students: { ...s.students, [studentId]: { ...st, history: (st.history || []).filter(t => t.id !== transactionId) } } };
       }),
       toggleAutoProcessing: () => updateState(s => ({ ...s, autoLessonProcessing: !s.autoLessonProcessing })),
-      moveSlot: (fD, fS, tD, tS) => {},
+      moveSlot: (fromDay, fromSlotId, toDay, toSlotId) => updateState(s => {
+        const fromKey = `${s.currentTeacher}|${fromDay}`;
+        const toKey = `${s.currentTeacher}|${toDay}`;
+        
+        const fromSlots = s.schedule[fromKey] || [];
+        const toSlots = s.schedule[toKey] || [];
+        
+        const fromSlot = fromSlots.find(sl => sl.id === fromSlotId);
+        const toSlot = toSlots.find(sl => sl.id === toSlotId);
+        
+        if (!fromSlot || !toSlot) return s;
+        
+        // Move booking from 'from' to 'to'
+        const studentId = fromSlot.studentId;
+        const label = fromSlot.label;
+        
+        const updatedFromSlots = fromSlots.map(sl => sl.id === fromSlotId ? { ...sl, studentId: null, label: null as any } : sl);
+        
+        const newSchedule = { ...s.schedule };
+        newSchedule[fromKey] = updatedFromSlots;
+        
+        // If they are on the same day, use the already updated array
+        const currentToSlots = (fromKey === toKey) ? updatedFromSlots : toSlots;
+        const updatedToSlots = currentToSlots.map(sl => sl.id === toSlotId ? { ...sl, studentId, label } : sl);
+        
+        newSchedule[toKey] = updatedToSlots;
+        
+        return { ...s, schedule: newSchedule };
+      }),
       moveStudent: (studentId, fromDay, fromSlotId, toDay, newStart) => updateState(s => {
         const oldKey = `${s.currentTeacher}|${fromDay}`;
         const newKey = `${s.currentTeacher}|${toDay}`;
         const oldSlots = s.schedule[oldKey] || [];
         const oldSlot = oldSlots.find(sl => sl.id === fromSlotId);
         const updatedOldSlots = oldSlots.map(slot => slot.id === fromSlotId ? { ...slot, studentId: null, label: null as any } : slot);
-        let newSlots = [...(s.schedule[newKey] || [])];
+        
+        const newSchedule = { ...s.schedule };
+        newSchedule[oldKey] = updatedOldSlots;
+        
+        let newSlots = [...(newSchedule[newKey] || [])];
         const targetIdx = newSlots.findIndex(slot => slot.start === newStart);
+        
         if (targetIdx > -1) {
             newSlots[targetIdx] = { ...newSlots[targetIdx], studentId, label: oldSlot?.label as any };
         } else {
             const h = parseInt(newStart.split(':')[0]);
             const m = parseInt(newStart.split(':')[1]);
-            const endM = (h * 60 + m + 40);
+            const duration = 40; // Default duration
+            const endM = (h * 60 + m + duration);
             const endT = `${Math.floor(endM/60).toString().padStart(2,'0')}:${(endM%60).toString().padStart(2,'0')}`;
             const newSlot: LessonSlot = { id: Math.random().toString(36).substr(2, 9), start: newStart, end: endT, studentId, label: oldSlot?.label as any };
             newSlots.push(newSlot);
             newSlots.sort((a, b) => a.start.localeCompare(b.start));
         }
-        return { ...s, schedule: { ...s.schedule, [oldKey]: updatedOldSlots, [newKey]: newSlots } };
+        
+        newSchedule[newKey] = newSlots;
+        return { ...s, schedule: newSchedule };
       }),
-      swapSlots: (dA, sA, dB, sB) => {},
+      swapSlots: (dayA, slotIdA, dayB, slotIdB) => updateState(s => {
+        const keyA = `${s.currentTeacher}|${dayA}`;
+        const keyB = `${s.currentTeacher}|${dayB}`;
+        
+        const slotsA = s.schedule[keyA] || [];
+        const slotsB = s.schedule[keyB] || [];
+        
+        const slotA = slotsA.find(sl => sl.id === slotIdA);
+        const slotB = slotsB.find(sl => sl.id === slotIdB);
+        
+        if (!slotA || !slotB) return s;
+        
+        const studentA = slotA.studentId;
+        const labelA = slotA.label;
+        const studentB = slotB.studentId;
+        const labelB = slotB.label;
+        
+        const newSchedule = { ...s.schedule };
+        
+        if (keyA === keyB) {
+            newSchedule[keyA] = slotsA.map(sl => {
+                if (sl.id === slotIdA) return { ...sl, studentId: studentB, label: labelB };
+                if (sl.id === slotIdB) return { ...sl, studentId: studentA, label: labelA };
+                return sl;
+            });
+        } else {
+            newSchedule[keyA] = slotsA.map(sl => sl.id === slotIdA ? { ...sl, studentId: studentB, label: labelB } : sl);
+            newSchedule[keyB] = slotsB.map(sl => sl.id === slotIdB ? { ...sl, studentId: studentA, label: labelA } : sl);
+        }
+        
+        return { ...s, schedule: newSchedule };
+      }),
       addResource: (studentId, title, url, type) => updateState(s => {
           const st = s.students[studentId];
           if(!st) return s;

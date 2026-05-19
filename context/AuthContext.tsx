@@ -19,6 +19,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [hasConnectionIssue, setHasConnectionIssue] = useState(false);
 
   useEffect(() => {
+    // Sayfa yenilendiğinde misafir modunu hatırla
+    const wasGuest = localStorage.getItem('is_guest_mode') === 'true';
+    if (wasGuest && !user) {
+        AuthService.loginGuest().then(guestUser => {
+            setUser(guestUser);
+            setLoading(false);
+        });
+    }
+
     // 6 saniye içinde Firebase yanıt vermezse bağlantı sorunu olduğunu varsay
     const connectionTimeout = setTimeout(() => {
         if (loading) {
@@ -70,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginGuest = async () => {
       const guestUser = await AuthService.loginGuest();
+      localStorage.setItem('is_guest_mode', 'true');
       setUser(guestUser);
       setHasConnectionIssue(false);
   };
@@ -81,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     AuthService.logout();
+    localStorage.removeItem('is_guest_mode');
     setUser(null);
   };
 

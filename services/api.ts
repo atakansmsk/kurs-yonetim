@@ -154,7 +154,21 @@ export const DataService = {
         if (docSnap.exists()) {
           onUpdate(docSnap.data() as AppState);
         } else {
-          // Eğer döküman yoksa (yeni kullanıcı), boş dönmeyelim, bekleyelim.
+          // Eğer döküman yoksa (yeni kullanıcı), boş bir state ile başlat ki CourseContext yüklensin
+          onUpdate({
+              ...({
+                  schoolName: "Sanat Okulu",
+                  schoolIcon: "sparkles",
+                  themeColor: "indigo",
+                  currentTeacher: "Eğitmen",
+                  teachers: ["Eğitmen"],
+                  students: {},
+                  schedule: {},
+                  updatedAt: new Date(0).toISOString(),
+                  autoLessonProcessing: true,
+                  processedSlots: {}
+              } as AppState)
+          });
         }
       }, 
       (error) => {
