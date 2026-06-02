@@ -122,6 +122,11 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         }
     }
 
+    const firstLessonAttr = activeLessons[0] ? {
+        start: activeLessons[0].start,
+        studentName: state.students[activeLessons[0].studentId!]?.name || "Öğrenci"
+    } : null;
+
     return { 
         statusType, 
         currentSlot, 
@@ -129,7 +134,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         timeLeft, 
         progress, 
         lessonCount: activeLessons.length,
-        dayName
+        dayName,
+        firstLesson: firstLessonAttr
     };
   }, [state.schedule, state.currentTeacher, currentTime, state.students, bonusMinutes, freeSessionEnd]);
 
@@ -563,7 +569,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                   </div>
                   <div>
                       <h4 className="text-sm font-black text-slate-900 leading-none">Bugünün Özeti</h4>
-                      <p className="text-xs font-bold text-slate-400 mt-1.5">Toplam <span className="text-orange-600 font-black">{todaysData.lessonCount} Seans</span> Var</p>
+                      <div className="mt-1.5 flex flex-col gap-0.5">
+                          <p className="text-xs font-bold text-slate-400">
+                              Toplam <span className="text-orange-600 font-black">{todaysData.lessonCount} Seans</span> Var
+                          </p>
+                          {todaysData.firstLesson ? (
+                              <p className="text-[10px] font-medium text-slate-500 mt-1">
+                                  Günün ilk dersi: <span className="font-bold text-slate-700">{todaysData.firstLesson.start}</span>'da <span className="font-bold text-indigo-600">{todaysData.firstLesson.studentName}</span> ile
+                              </p>
+                          ) : (
+                              <p className="text-[10px] font-medium text-slate-400 mt-1">Günün planlanmış dersi bulunmuyor.</p>
+                          )}
+                      </div>
                   </div>
               </div>
           </div>
