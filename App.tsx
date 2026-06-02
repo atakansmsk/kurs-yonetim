@@ -144,8 +144,8 @@ const AppContent: React.FC = () => {
         <div className="bg-white border-t border-slate-100 pb-safe pt-2 px-6 shadow-sm">
             <nav className="flex justify-around items-center h-16">
               <NavButton active={activeTab === 'HOME'} onClick={() => handleTabChange('HOME')} icon={HomeIcon} label="Ana Sayfa" />
-              <NavButton active={activeTab === 'SCHEDULE'} onClick={() => handleTabChange('SCHEDULE')} icon={CalendarRange} label="Program" />
               <NavButton active={activeTab === 'WEEKLY'} onClick={() => handleTabChange('WEEKLY')} icon={LayoutGrid} label="Özet" />
+              <NavButton active={activeTab === 'SCHEDULE'} onClick={() => handleTabChange('SCHEDULE')} icon={CalendarRange} label="Program" />
               <NavButton active={activeTab === 'STUDENTS'} onClick={() => handleTabChange('STUDENTS')} icon={Users2} label="Kişiler" />
             </nav>
         </div>
