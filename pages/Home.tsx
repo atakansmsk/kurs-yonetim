@@ -33,7 +33,8 @@ import {
   RotateCcw,
   Play,
   Search,
-  UserCheck
+  UserCheck,
+  Banknote
 } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
 
@@ -58,6 +59,68 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState("");
   
+  // ÖDEME AL MODAL DEĞİŞKENLERİ
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
+
+  const getUnpaidCount = (student: Student): number => {
+    if (!student.history || student.history.length === 0) return 0;
+    const history = [...student.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let counter = 0;
+    history.forEach(tx => {
+        if (!tx.isDebt) counter = 0;
+        else {
+            const lowerNote = (tx.note || "").toLowerCase();
+            const isValidLesson = !lowerNote.includes("gelmedi") && 
+                                  !lowerNote.includes("katılım yok") && 
+                                  !lowerNote.includes("iptal") &&
+                                  !lowerNote.includes("telafi bekliyor");
+            if (isValidLesson) counter++;
+        }
+    });
+    return counter;
+  };
+
+  const activeStudentsList = useMemo(() => {
+    return (Object.values(state.students) as Student[])
+        .filter(s => s.isActive !== false)
+        .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  }, [state.students]);
+
+  const filteredPaymentStudents = useMemo(() => {
+    if (!paymentSearch.trim()) return activeStudentsList;
+    const query = paymentSearch.toLowerCase();
+    return activeStudentsList.filter(s => s.name.toLowerCase().includes(query));
+  }, [activeStudentsList, paymentSearch]);
+
+  const handleSavePayment = () => {
+    if (!selectedStudent) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount < 0) {
+        alert("Lütfen geçerli bir miktar girin.");
+        return;
+    }
+    
+    let dateStr = new Date().toISOString();
+    if (paymentDate) {
+        const [year, month, day] = paymentDate.split('-').map(Number);
+        const d = new Date();
+        d.setFullYear(year, month - 1, day);
+        const now = new Date();
+        d.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+        dateStr = d.toISOString();
+    }
+
+    actions.addTransaction(selectedStudent.id, 'PAYMENT', dateStr, amount);
+    
+    setSelectedStudent(null);
+    setPaymentSearch("");
+    setIsPaymentOpen(false);
+  };
+
   // GEÇİCİ EK SÜRE (Programı bozmaz, sadece sayacı etkiler)
   const [bonusMinutes, setBonusMinutes] = useState(0);
 
@@ -593,7 +656,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
               className="w-full bg-slate-950 p-4 rounded-2xl shadow-xl shadow-slate-200/50 flex items-center justify-between group active:scale-[0.98] transition-all border border-slate-800"
           >
               <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center group-hover:rotate-6 transition-transform shadow-md shadow-indigo-600/30">
+                  <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center group-hover:rotate-6 transition-transform shadow-md shadow-indigo-600/30 shrink-0">
                       <CalendarDays size={20} strokeWidth={2} />
                   </div>
                   <div className="text-left space-y-1">
@@ -603,9 +666,149 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
               </div>
               <ChevronRight size={18} className="text-slate-700 group-hover:translate-x-1 transition-transform" />
           </button>
+
+          <button 
+              onClick={() => {
+                setIsPaymentOpen(true);
+                setSelectedStudent(null);
+                setPaymentSearch("");
+              }}
+              className="w-full bg-white p-3.5 rounded-2xl shadow-sm border border-slate-100/90 flex items-center justify-between group active:scale-[0.98] transition-all"
+          >
+              <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                      <Banknote size={18} strokeWidth={2.5} />
+                  </div>
+                  <h4 className="font-extrabold text-slate-800 text-[13.5px] tracking-tight">Ödeme Al</h4>
+              </div>
+              <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+          </button>
       </div>
 
       {/* MODALS */}
+      <Dialog 
+        isOpen={isPaymentOpen} 
+        onClose={() => {
+            setIsPaymentOpen(false);
+            setSelectedStudent(null);
+            setPaymentSearch("");
+        }} 
+        title={selectedStudent ? "Ödeme Bilgileri" : "Ödeme Al: Öğrenci Seç"}
+        actions={
+          selectedStudent ? (
+            <>
+              <button 
+                onClick={() => setSelectedStudent(null)} 
+                className="px-4 py-2 text-slate-500 font-bold text-sm"
+              >
+                Geri
+              </button>
+              <button 
+                onClick={handleSavePayment} 
+                className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-600/10 transition-all hover:bg-emerald-700 active:scale-95 whitespace-nowrap"
+              >
+                Kaydet
+              </button>
+            </>
+          ) : null
+        }
+      >
+        {selectedStudent ? (
+          <div className="space-y-4 py-1">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm shrink-0">
+                      {selectedStudent.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                      <h4 className="font-extrabold text-slate-800 text-[13.5px] leading-none mb-1 truncate">{selectedStudent.name}</h4>
+                      <p className="text-[10px] text-slate-400 font-medium">Standard Seans Ücreti: <span className="font-bold text-slate-600">{selectedStudent.fee} ₺</span></p>
+                  </div>
+              </div>
+              
+              <div className="space-y-3">
+                  <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Alınan Tutar (₺)</label>
+                      <input 
+                          type="number" 
+                          inputMode="decimal"
+                          value={paymentAmount} 
+                          onChange={(e) => setPaymentAmount(e.target.value)} 
+                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500 transition-colors text-sm" 
+                          placeholder="Ücret" 
+                      />
+                  </div>
+                  <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Ödeme Tarihi</label>
+                      <input 
+                          type="date" 
+                          value={paymentDate} 
+                          onChange={(e) => setPaymentDate(e.target.value)} 
+                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500 transition-colors text-sm" 
+                      />
+                  </div>
+              </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 py-1">
+              {/* Arama Barı */}
+              <div className="relative">
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                      type="text"
+                      value={paymentSearch}
+                      onChange={(e) => setPaymentSearch(e.target.value)}
+                      placeholder="Öğrenci ara..."
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-850 outline-none focus:border-indigo-500 transition-colors"
+                  />
+              </div>
+
+              {/* Öğrenci Listesi */}
+              <div className="flex flex-col gap-2 max-h-[280px] overflow-y-auto no-scrollbar pt-1">
+                  {filteredPaymentStudents.length === 0 ? (
+                      <div className="text-center py-6">
+                           <p className="text-xs font-bold text-slate-400">Aktif öğrenci bulunamadı.</p>
+                      </div>
+                  ) : (
+                      filteredPaymentStudents.map(student => {
+                          const unpaidCount = getUnpaidCount(student);
+                          return (
+                              <button
+                                  key={student.id}
+                                  onClick={() => {
+                                      setSelectedStudent(student);
+                                      setPaymentAmount(student.fee.toString());
+                                      setPaymentDate(new Date().toISOString().split('T')[0]);
+                                  }}
+                                  className="w-full text-left p-3 bg-white hover:bg-slate-50/50 border border-slate-100 rounded-2xl flex items-center justify-between transition-all active:scale-[0.98] group"
+                              >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                      <div className="w-9 h-9 rounded-xl bg-indigo-50/70 text-indigo-600 font-extrabold text-xs flex items-center justify-center shrink-0">
+                                          {student.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      <div className="min-w-0">
+                                          <div className="font-extrabold text-slate-800 text-[13px] leading-tight truncate group-hover:text-indigo-600 transition-colors">{student.name}</div>
+                                          <div className="text-[9px] font-bold text-slate-400 mt-1">Standart: {student.fee} ₺</div>
+                                      </div>
+                                  </div>
+                                  <div className="shrink-0 flex items-center gap-1.5">
+                                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border ${
+                                          unpaidCount >= 4 ? 'bg-rose-50 border-rose-100 text-rose-600' : 
+                                          unpaidCount > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 
+                                          'bg-emerald-50 border-emerald-100 text-emerald-600'
+                                      }`}>
+                                          {student.fee === 0 ? "MUAF" : `${unpaidCount} Seans`}
+                                      </span>
+                                      <ChevronRight size={14} className="text-slate-350 group-hover:text-slate-500 transition-colors" />
+                                  </div>
+                              </button>
+                          );
+                      })
+                  )}
+              </div>
+          </div>
+        )}
+      </Dialog>
+
       <Dialog isOpen={isTeachersListOpen} onClose={() => { setIsTeachersListOpen(false); setIsAddTeacherMode(false); }} title={isAddTeacherMode ? "Eğitmen Ekle" : "Kadro"}
         actions={isAddTeacherMode ? (<><button onClick={() => setIsAddTeacherMode(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleSaveTeacher} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md">Ekle</button></>) : (<button onClick={() => setIsAddTeacherMode(true)} className="w-full py-4 bg-slate-900 text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all uppercase tracking-widest"><UserPlus size={16} /> Yeni Eğitmen</button>)}>
           {isAddTeacherMode ? (<div className="py-2"><input type="text" value={newTeacherName} onChange={(e) => setNewTeacherName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:border-indigo-500 outline-none" placeholder="Ad Soyad..." autoFocus /></div>) : (<div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto no-scrollbar">{state.teachers.map(teacher => (<div key={teacher} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${teacher === state.currentTeacher ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{teacher.charAt(0).toUpperCase()}</div><div><div className="font-black text-slate-800 text-sm">{teacher}</div><div className="text-[10px] font-bold text-slate-400 mt-0.5">Eğitmen</div></div></div><div className="flex items-center gap-2"><button onClick={(e) => handleShareTeacherLink(e, teacher)} className="p-2 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-colors"><Share2 size={16} /></button>{teacher !== state.currentTeacher && (<button onClick={() => { actions.switchTeacher(teacher); setIsTeachersListOpen(false); }} className="px-3 py-1.5 text-[10px] font-black border border-slate-200 rounded-lg hover:border-indigo-600 transition-all uppercase tracking-wider">Seç</button>)}</div></div>))}</div>)}
