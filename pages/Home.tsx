@@ -433,30 +433,30 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       </div>
 
       {/* 2. HERO: LIVE STATUS */}
-      <div className="px-7 mb-10">
+      <div className="px-7 mb-6">
           {(todaysData.statusType === 'IN_LESSON' || todaysData.statusType === 'FREE_SESSION') ? (
-              <div className={`rounded-[3rem] p-8 shadow-2xl flex flex-col gap-8 relative overflow-hidden animate-in fade-in duration-700 ${todaysData.statusType === 'FREE_SESSION' ? 'bg-slate-900 shadow-emerald-950/10' : 'bg-slate-950 shadow-indigo-950/20'}`}>
+              <div className={`rounded-[2rem] p-6 shadow-xl flex flex-col gap-6 relative overflow-hidden animate-in fade-in duration-700 ${todaysData.statusType === 'FREE_SESSION' ? 'bg-slate-900 shadow-emerald-950/5' : 'bg-slate-950 shadow-indigo-950/10'}`}>
                   <div className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] pointer-events-none ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-600/10' : 'bg-indigo-600/20'}`}></div>
 
                   <div className="flex items-center justify-between relative z-10">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex items-center justify-center w-6 h-6 rounded-full ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-500/20' : 'bg-indigo-500/20'}`}>
-                            <div className={`w-2 h-2 rounded-full animate-ping ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-400' : 'bg-indigo-400'}`}></div>
+                      <div className="flex items-center gap-3.5">
+                        <div className={`flex items-center justify-center w-5 h-5 rounded-full ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-500/20' : 'bg-indigo-500/20'}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full animate-ping ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-400' : 'bg-indigo-400'}`}></div>
                         </div>
-                        <span className={`text-[11px] font-black uppercase tracking-[0.3em] ${todaysData.statusType === 'FREE_SESSION' ? 'text-emerald-300' : 'text-indigo-300'}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${todaysData.statusType === 'FREE_SESSION' ? 'text-emerald-300' : 'text-indigo-300'}`}>
                             {todaysData.statusType === 'FREE_SESSION' ? 'ANLIK SEANS' : 'CANLI DERS'}
                         </span>
                       </div>
                       <div className="flex gap-2">
                         {/* GEÇİCİ SÜRE YÖNETİMİ */}
-                        <div className="bg-white/5 backdrop-blur-xl p-1 rounded-2xl border border-white/5 flex items-center gap-1">
+                        <div className="bg-white/5 backdrop-blur-xl p-0.5 rounded-xl border border-white/5 flex items-center gap-1">
                             {(bonusMinutes > 0 || todaysData.statusType === 'FREE_SESSION') && (
                                 <button 
                                     onClick={() => { setBonusMinutes(0); setFreeSessionEnd(null); setFreeSessionStudentName(""); }}
-                                    className="w-8 h-8 rounded-xl bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center text-red-300 transition-colors"
+                                    className="w-7 h-7 rounded-lg bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center text-red-300 transition-colors pointer-events-auto"
                                     title="Sıfırla"
                                 >
-                                    <RotateCcw size={14} strokeWidth={3} />
+                                    <RotateCcw size={12} strokeWidth={3} />
                                 </button>
                             )}
                             <button 
@@ -467,87 +467,87 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                                         setBonusMinutes(prev => prev + 10);
                                     }
                                 }}
-                                className={`px-3 h-8 rounded-xl text-white text-[10px] font-black uppercase tracking-tight shadow-lg flex items-center gap-1.5 transition-all active:scale-95 ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-600 shadow-emerald-600/20' : 'bg-indigo-600 shadow-indigo-600/20'}`}
+                                className={`px-2.5 h-7 rounded-lg text-white text-[10px] font-black uppercase tracking-tight shadow-md flex items-center gap-1.5 transition-all active:scale-95 ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-600 shadow-emerald-600/10' : 'bg-indigo-600 shadow-indigo-600/10'}`}
                                 title="Sayaca 10 Dakika Ekle"
                             >
-                                <Timer size={14} />
+                                <Timer size={12} />
                                 +10 DK
                             </button>
                         </div>
                         <button 
                             onClick={openDesktopWidget}
-                            className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/5 text-indigo-200 transition-all flex items-center"
+                            className="bg-white/5 hover:bg-white/10 backdrop-blur-xl p-1.5 rounded-xl border border-white/5 text-indigo-200 transition-all flex items-center"
                             title="Masaüstü Widget"
                         >
-                            <Monitor size={16} />
+                            <Monitor size={14} />
                         </button>
                       </div>
                   </div>
                   
                   <div className="flex items-end justify-between gap-6 relative z-10">
                       <div className="flex-1 min-w-0">
-                          <h2 className="text-4xl font-black text-white truncate tracking-tighter leading-none mb-4">
+                          <h2 className="text-3xl font-black text-white truncate tracking-tighter leading-none mb-3">
                               {todaysData.statusType === 'FREE_SESSION' ? freeSessionStudentName : (state.students[todaysData.currentSlot!.studentId!]?.name)}
                           </h2>
-                          <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-500/10 border-emerald-500/10' : 'bg-indigo-500/10 border-indigo-500/10'}`}>
-                             <span className={`text-[10px] font-black uppercase tracking-widest ${todaysData.statusType === 'FREE_SESSION' ? 'text-emerald-300' : 'text-indigo-300'}`}>
+                          <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border ${todaysData.statusType === 'FREE_SESSION' ? 'bg-emerald-500/10 border-emerald-500/10' : 'bg-indigo-500/10 border-indigo-500/10'}`}>
+                             <span className={`text-[9px] font-black uppercase tracking-widest ${todaysData.statusType === 'FREE_SESSION' ? 'text-emerald-300' : 'text-indigo-300'}`}>
                                 {bonusMinutes > 0 || todaysData.statusType === 'FREE_SESSION' ? `EK SÜRE AKTİF` : 'PROGRAMDAKİ SÜRE'}
                              </span>
                           </div>
                       </div>
                       <div className="text-right shrink-0">
-                          <div className="text-5xl font-black text-white leading-none tracking-tighter drop-shadow-lg">{todaysData.timeLeft}</div>
-                          <div className="text-[10px] font-black text-slate-500 uppercase mt-3 tracking-[0.2em]">DAKİKA KALDI</div>
+                          <div className="text-4xl font-black text-white leading-none tracking-tighter drop-shadow-md">{todaysData.timeLeft}</div>
+                          <div className="text-[9px] font-black text-slate-500 uppercase mt-2 tracking-[0.2em]">DAKİKA KALDI</div>
                       </div>
                   </div>
 
-                  <div className="space-y-4 relative z-10">
-                      <div className="h-2.5 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
-                          <div className={`h-full rounded-full transition-all duration-1000 ease-out shadow-lg ${todaysData.statusType === 'FREE_SESSION' ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300'}`} style={{ width: `${todaysData.progress}%` }}></div>
+                  <div className="space-y-3 relative z-10">
+                      <div className="h-2 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
+                          <div className={`h-full rounded-full transition-all duration-1000 ease-out shadow-md ${todaysData.statusType === 'FREE_SESSION' ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-indigo-500 via-indigo-400 to-indigo-300'}`} style={{ width: `${todaysData.progress}%` }}></div>
                       </div>
                   </div>
 
-                  <div className="pt-6 border-t border-white/5 flex items-center justify-between relative z-10">
-                       <div className="flex items-center gap-4">
-                           <div className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5"><Forward size={18} strokeWidth={2} /></div>
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between relative z-10">
+                       <div className="flex items-center gap-3">
+                           <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5"><Forward size={14} strokeWidth={2} /></div>
                            <div>
-                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">SIRADAKİ</span>
-                               <span className="text-sm font-bold text-slate-100">
+                               <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-0.5">SIRADAKİ</span>
+                               <span className="text-xs font-bold text-slate-100">
                                    {todaysData.nextSlot ? (state.students[todaysData.nextSlot.studentId!]?.name || "Boş Saat") : "Gün Sonu"}
                                </span>
                            </div>
                        </div>
-                       <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
-                            <span className="text-xs font-black text-indigo-100 tracking-tighter">
+                       <div className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
+                            <span className="text-[10px] font-black text-indigo-100 tracking-tighter">
                                 {todaysData.statusType === 'FREE_SESSION' ? 'ANLIK WIDGET DERSİ' : `PROGRAM: ${todaysData.currentSlot?.start} — ${todaysData.currentSlot?.end}`}
                             </span>
                         </div>
                   </div>
               </div>
           ) : (
-              <div className="bg-white border border-slate-100 rounded-[3rem] p-8 shadow-xl shadow-slate-200/40 flex flex-col gap-7 animate-in slide-in-from-top-4 duration-500 relative overflow-hidden">
+              <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-lg shadow-slate-200/20 flex flex-col gap-5 animate-in slide-in-from-top-4 duration-500 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-50/50 rounded-full blur-[60px] pointer-events-none"></div>
 
                   <div className="flex items-center justify-between relative z-10">
-                      <div className="bg-indigo-50 text-indigo-600 px-5 py-2.5 rounded-2xl flex items-center gap-3">
-                          <Coffee size={20} strokeWidth={2.5} className="animate-bounce" />
-                          <span className="text-xs font-black uppercase tracking-[0.2em]">DERS ARASI ☕</span>
+                      <div className="bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-xl flex items-center gap-2">
+                          <Coffee size={18} strokeWidth={2.5} className="animate-bounce" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.15em]">DERS ARASI ☕</span>
                       </div>
-                      <button onClick={openDesktopWidget} className="bg-slate-50 hover:bg-slate-100 p-2 rounded-xl border border-slate-100 text-slate-400">
-                          <Monitor size={16} />
+                      <button onClick={openDesktopWidget} className="bg-slate-50 hover:bg-slate-100 p-1.5 rounded-xl border border-slate-100 text-slate-400">
+                          <Monitor size={14} />
                       </button>
                   </div>
                   
                   <div className="flex items-end justify-between relative z-10">
                       <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">SIRADAKİ ÖĞRENCİ</p>
-                          <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-none">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1.5">SIRADAKİ ÖĞRENCİ</p>
+                          <h2 className="text-2xl font-black text-slate-900 tracking-tighter leading-none">
                               {todaysData.nextSlot ? (state.students[todaysData.nextSlot.studentId!]?.name || "Boş Ders") : "Gün Sonu"}
                           </h2>
                       </div>
                       <div className="text-right">
-                          <p className="text-4xl font-black text-indigo-600 leading-none tracking-tighter">{todaysData.timeLeft}</p>
-                          <p className="text-[10px] font-black text-slate-400 mt-3 uppercase tracking-widest">DK SONRA</p>
+                          <p className="text-3xl font-black text-indigo-600 leading-none tracking-tighter">{todaysData.timeLeft}</p>
+                          <p className="text-[9px] font-black text-slate-400 mt-1.5 uppercase tracking-widest">DK SONRA</p>
                       </div>
                   </div>
               </div>
@@ -555,46 +555,46 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
       </div>
 
       {/* 4. DASHBOARD PILL */}
-      <div className="px-7 mb-10">
-          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-[1.5rem] bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                      <Flame size={26} strokeWidth={2} />
+      <div className="px-7 mb-6">
+          <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                      <Flame size={20} strokeWidth={2} />
                   </div>
                   <div>
-                      <h4 className="text-[15px] font-black text-slate-900 leading-none">Bugünün Özeti</h4>
-                      <p className="text-xs font-bold text-slate-400 mt-2">Toplam <span className="text-orange-600 font-black">{todaysData.lessonCount} Seans</span> Var</p>
+                      <h4 className="text-sm font-black text-slate-900 leading-none">Bugünün Özeti</h4>
+                      <p className="text-xs font-bold text-slate-400 mt-1.5">Toplam <span className="text-orange-600 font-black">{todaysData.lessonCount} Seans</span> Var</p>
                   </div>
               </div>
           </div>
       </div>
 
       {/* 5. QUICK ACTIONS */}
-      <div className="px-7 space-y-4 mb-14">
+      <div className="px-7 space-y-3 mb-8">
           <button 
               onClick={() => onNavigate('SCHEDULE')} 
-              className="w-full bg-slate-950 p-6 rounded-[2rem] shadow-2xl shadow-slate-200 flex items-center justify-between group active:scale-[0.98] transition-all border border-slate-800"
+              className="w-full bg-slate-950 p-4 rounded-2xl shadow-xl shadow-slate-200/50 flex items-center justify-between group active:scale-[0.98] transition-all border border-slate-800"
           >
-              <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-[1.5rem] bg-indigo-600 text-white flex items-center justify-center group-hover:rotate-6 transition-transform shadow-lg shadow-indigo-600/30">
-                      <CalendarDays size={28} strokeWidth={2} />
+              <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center group-hover:rotate-6 transition-transform shadow-md shadow-indigo-600/30">
+                      <CalendarDays size={20} strokeWidth={2} />
                   </div>
-                  <div className="text-left space-y-1.5">
-                      <h4 className="font-black text-white text-lg tracking-tight leading-none">Haftalık Program</h4>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">TAKVİMİ YÖNET</p>
+                  <div className="text-left space-y-1">
+                      <h4 className="font-black text-white text-[15px] tracking-tight leading-none">Haftalık Program</h4>
+                      <p className="text-[8px] text-slate-500 font-bold uppercase tracking-[0.2em]">TAKVİMİ YÖNET</p>
                   </div>
               </div>
-              <ChevronRight size={22} className="text-slate-700 group-hover:translate-x-1.5 transition-transform" />
+              <ChevronRight size={18} className="text-slate-700 group-hover:translate-x-1 transition-transform" />
           </button>
 
-          <div className="grid grid-cols-2 gap-4">
-            <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4 active:scale-95 transition-all group">
-                 <div className="w-11 h-11 rounded-[1.15rem] bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm"><GraduationCap size={22} strokeWidth={2} /></div>
-                 <span className="font-black text-slate-900 text-[11px] uppercase tracking-widest">KADRO</span>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3 active:scale-95 transition-all group">
+                 <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm"><GraduationCap size={18} strokeWidth={2} /></div>
+                 <span className="font-black text-slate-900 text-[10px] uppercase tracking-widest">KADRO</span>
             </button>
-            <button onClick={() => onNavigate('WEEKLY')} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4 active:scale-95 transition-all group">
-                 <div className="w-11 h-11 rounded-[1.15rem] bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm"><LayoutGrid size={22} strokeWidth={2} /></div>
-                 <span className="font-black text-slate-900 text-[11px] uppercase tracking-widest">ÖZET</span>
+            <button onClick={() => onNavigate('WEEKLY')} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3 active:scale-95 transition-all group">
+                 <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm"><LayoutGrid size={18} strokeWidth={2} /></div>
+                 <span className="font-black text-slate-900 text-[10px] uppercase tracking-widest">ÖZET</span>
             </button>
           </div>
       </div>
