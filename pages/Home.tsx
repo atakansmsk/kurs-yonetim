@@ -586,17 +586,6 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
               </div>
               <ChevronRight size={18} className="text-slate-700 group-hover:translate-x-1 transition-transform" />
           </button>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => setIsTeachersListOpen(true)} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3 active:scale-95 transition-all group">
-                 <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm"><GraduationCap size={18} strokeWidth={2} /></div>
-                 <span className="font-black text-slate-900 text-[10px] uppercase tracking-widest">KADRO</span>
-            </button>
-            <button onClick={() => onNavigate('WEEKLY')} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3 active:scale-95 transition-all group">
-                 <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm"><LayoutGrid size={18} strokeWidth={2} /></div>
-                 <span className="font-black text-slate-900 text-[10px] uppercase tracking-widest">ÖZET</span>
-            </button>
-          </div>
       </div>
 
       {/* MODALS */}
