@@ -50,6 +50,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   // Selection
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
+  // Link copied state
+  const [isCopied, setIsCopied] = useState(false);
+
   // Form Data
   const getTodayString = () => new Date().toISOString().split('T')[0];
 
@@ -283,10 +286,47 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       setSelectedTx(null);
   };
 
-  const handleOpenParentPortal = () => {
+  const getParentPortalUrl = () => {
       const baseUrl = window.location.origin + window.location.pathname;
-      const portalUrl = `${baseUrl}?parentView=true&teacherId=${user?.id}&studentId=${student.id}`;
+      return `${baseUrl}?parentView=true&teacherId=${user?.id}&studentId=${student.id}`;
+  };
+
+  const handleOpenParentPortal = () => {
+      const portalUrl = getParentPortalUrl();
       window.open(portalUrl, '_blank');
+  };
+
+  const handleCopyParentPortalLink = async () => {
+      const portalUrl = getParentPortalUrl();
+      try {
+          await navigator.clipboard.writeText(portalUrl);
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+      } catch (err) {
+          // Fallback if clipboard API is not supported/allowed in iframe
+          const textArea = document.createElement("textarea");
+          textArea.value = portalUrl;
+          textArea.style.position = "fixed";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          try {
+              document.execCommand('copy');
+              setIsCopied(true);
+              setTimeout(() => setIsCopied(false), 2000);
+          } catch (e) {
+              console.error("Link kopyalanamadı", e);
+          }
+          document.body.removeChild(textArea);
+      }
+  };
+
+  const handleShareParentPortalWhatsApp = () => {
+      const portalUrl = getParentPortalUrl();
+      const phone = getPhoneClean();
+      const message = `Merhaba, ${student.name} için hazırladığım veli bilgilendirme ve ders takip portalı linkine buradan ulaşabilirsiniz:\n\n${portalUrl}`;
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
   };
 
   // --- SCHEDULE MOVE HANDLER ---
@@ -578,9 +618,42 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                              Arşivlenmiş (Pasif)
                          </div>
                      ) : (
-                         <button onClick={handleOpenParentPortal} className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100 transition-colors">
-                            <Globe size={10} /> Veli Bilgilendirme Linki
-                         </button>
+                         <div className="flex flex-wrap items-center gap-1.5">
+                              {/* Linki Kopyala Button */}
+                              <button 
+                                  onClick={handleCopyParentPortalLink} 
+                                  className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all active:scale-95 border ${
+                                      isCopied 
+                                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
+                                      : 'text-indigo-600 bg-indigo-50 border-indigo-100 hover:bg-indigo-100'
+                                  }`}
+                                  title="Linki Kopyala"
+                              >
+                                  {isCopied ? <Check size={10} className="text-emerald-600" /> : <Link size={10} />}
+                                  {isCopied ? 'Kopyalandı!' : 'Linki Kopyala'}
+                              </button>
+
+                              {/* WhatsApp ile Gönder Button */}
+                              <button 
+                                  onClick={handleShareParentPortalWhatsApp} 
+                                  className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full hover:bg-emerald-100 transition-all active:scale-95"
+                                  title="WhatsApp ile Veliye Gönder"
+                              >
+                                  <MessageCircle size={10} />
+                                  Veliye Gönder
+                              </button>
+
+                              {/* Portalı Aç Button */}
+                              <button 
+                                  onClick={handleOpenParentPortal} 
+                                  className="flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-full hover:bg-slate-150 transition-all active:scale-95"
+                                  title="Veli Portalını Aç"
+                              >
+                                  <Globe size={10} />
+                                  Aç
+                              </button>
+                          </div>
+                          
                      )}
                 </div>
             </div>
