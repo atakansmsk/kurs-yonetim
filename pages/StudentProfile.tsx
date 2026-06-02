@@ -661,23 +661,23 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       </div>
 
       {/* 2. Content */}
-      <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-6">
+      <div className="flex-1 overflow-y-auto px-5 pt-4 pb-10 space-y-5">
           
           {/* NEXT LESSON NOTE */}
-          <div className={`p-4 rounded-2xl border transition-colors cursor-pointer ${student.nextLessonNote ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`} onClick={() => { setTempNote(student.nextLessonNote || ""); setIsNoteEditing(true); }}>
-              <div className="flex items-center gap-2 mb-1">
-                  <AlertTriangle size={16} className={student.nextLessonNote ? "text-red-500" : "text-slate-400"} />
-                  <span className={`text-xs font-bold uppercase tracking-widest ${student.nextLessonNote ? "text-red-600" : "text-slate-400"}`}>Gelecek Ders Notu</span>
+          <div className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${student.nextLessonNote ? 'bg-red-50/80 border-red-200' : 'bg-white border-slate-100 shadow-sm hover:border-slate-200'}`} onClick={() => { setTempNote(student.nextLessonNote || ""); setIsNoteEditing(true); }}>
+              <div className="flex items-center gap-1.5 mb-1 bg-transparent">
+                  <AlertTriangle size={14} className={student.nextLessonNote ? "text-red-500 animate-pulse" : "text-slate-400"} />
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${student.nextLessonNote ? "text-red-600" : "text-slate-400"}`}>Gelecek Ders Notu</span>
               </div>
               {student.nextLessonNote ? (
-                  <p className="text-sm font-bold text-red-700">{student.nextLessonNote}</p>
+                  <p className="text-xs font-bold text-red-700">{student.nextLessonNote}</p>
               ) : (
-                  <p className="text-sm text-slate-400">Not eklemek için dokunun (Örn: Haftaya 15 dk geç gelecek)</p>
+                  <p className="text-[11px] font-bold text-slate-400 tracking-tight">Not eklemek için dokunun (Örn: Haftaya 15 dk geç gelecek)</p>
               )}
           </div>
 
           {/* SCHEDULE CARD (NEW) */}
-          <div className="bg-white rounded-[24px] border border-slate-100 p-4 shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-100/90 p-3.5 shadow-sm">
              <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Calendar size={14} /> Ders Programı
@@ -708,8 +708,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
 
           {/* STATS CARDS */}
-          <div className="grid grid-cols-2 gap-4">
-              <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-5 text-white shadow-xl shadow-indigo-200 flex flex-col justify-between h-48 group">
+          <div className="grid grid-cols-2 gap-3.5">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 p-4 text-white shadow-xl shadow-indigo-100 flex flex-col justify-between h-[164px] group">
                   <div className="absolute top-[-20%] right-[-20%] w-40 h-40 bg-white/10 rounded-full blur-[40px] pointer-events-none"></div>
                   <div className="absolute bottom-[-10%] left-[-10%] w-32 h-32 bg-purple-500/30 rounded-full blur-[50px] pointer-events-none"></div>
                   
@@ -736,9 +736,9 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   </div>
               </div>
 
-              <div className="relative overflow-hidden rounded-[24px] bg-white border border-slate-100 p-5 shadow-lg shadow-slate-100/80 flex flex-col justify-between h-48">
-                   <div className="absolute top-0 right-0 p-4 opacity-5">
-                       <Wallet size={80} className="text-slate-900" />
+              <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-100/90 p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-[164px]">
+                   <div className="absolute top-0 right-0 p-3 opacity-5">
+                       <Wallet size={72} className="text-slate-900" />
                    </div>
 
                   <div className="relative z-10 flex flex-col h-full justify-between">
@@ -765,7 +765,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
 
           {/* RESOURCES SECTION */}
-          <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
+          <div className="bg-slate-50/50 rounded-2xl p-3.5 border border-slate-100">
               <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Link size={14} /> Materyaller

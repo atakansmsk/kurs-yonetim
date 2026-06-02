@@ -191,28 +191,28 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                 (activeTab === 'DEBTORS' ? debtors : paidStudents).map(student => (
                     <div 
                         key={student.id} 
-                        className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100 flex items-center gap-4 cursor-pointer active:scale-[0.98] hover:border-indigo-200 transition-all animate-in slide-in-from-bottom-2"
+                        className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100/80 flex items-center gap-3.5 cursor-pointer active:scale-[0.98] hover:border-indigo-200 transition-all animate-in slide-in-from-bottom-2"
                         onClick={() => onSelect(student.id)}
                     >
                         {/* Avatar */}
-                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-base shadow-inner ${activeTab === 'DEBTORS' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-inner shrink-0 ${activeTab === 'DEBTORS' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {student.name.charAt(0).toUpperCase()}
                         </div>
                         
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                            <h4 className="font-black text-slate-800 truncate text-sm tracking-tight leading-none mb-2">{student.name}</h4>
+                            <h4 className="font-extrabold text-slate-800 truncate text-[13.5px] tracking-tight leading-none mb-1.5">{student.name}</h4>
                             <div className="flex items-center gap-2">
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 border ${
+                                <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 border ${
                                     student.unpaidCount >= 4 ? 'bg-rose-50 border-rose-100 text-rose-600' : 
                                     student.unpaidCount > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 
                                     'bg-emerald-50 border-emerald-100 text-emerald-600'
                                 }`}>
                                     <Layers size={10} />
-                                    {student.fee === 0 ? "MUAF" : `${student.unpaidCount} Ders`}
+                                    {student.fee === 0 ? "MUAF" : `${student.unpaidCount} Seans`}
                                 </span>
                                 {student.fee > 0 && student.unpaidCount >= 4 && (
-                                    <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter bg-rose-50 px-1.5 py-0.5 rounded animate-pulse">
+                                    <span className="text-[8px] font-black text-rose-500 uppercase tracking-tighter bg-rose-50/60 px-1.5 py-0.5 rounded border border-rose-100 animate-pulse">
                                         Ödeme Vakti
                                     </span>
                                 )}
