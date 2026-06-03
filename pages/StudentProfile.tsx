@@ -30,6 +30,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isPastLessonModalOpen, setIsPastLessonModalOpen] = useState(false);
   const [isPastPaymentModalOpen, setIsPastPaymentModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isLessonOptionsOpen, setIsLessonOptionsOpen] = useState(false);
   const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
   const [isResourcesModalOpen, setIsResourcesModalOpen] = useState(false);
@@ -880,6 +881,58 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
              <p className="text-[9px] text-center text-slate-400 font-medium">
                  {editIsActive ? "Aktif: Listelerde görünür." : "Pasif: Arşive kaldırılır, listelerden gizlenir."}
              </p>
+
+             {/* Delete Student Section */}
+             <div className="border-t border-slate-100/80 pt-3 mt-3">
+                 <button 
+                     onClick={() => {
+                         setIsEditModalOpen(false);
+                         setIsDeleteConfirmOpen(true);
+                     }}
+                     className="w-full py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest border border-rose-100"
+                 >
+                     <Trash2 size={15} /> Öğrenciyi Sil
+                 </button>
+             </div>
+          </div>
+      </Dialog>
+
+      {/* Delete Student Confirmation Modal */}
+      <Dialog 
+          isOpen={isDeleteConfirmOpen} 
+          onClose={() => setIsDeleteConfirmOpen(false)} 
+          title="Öğrenciyi Sil" 
+          actions={
+              <>
+                  <button 
+                      onClick={() => setIsDeleteConfirmOpen(false)} 
+                      className="px-4 py-2 text-slate-500 font-bold text-sm"
+                  >
+                      İptal
+                  </button>
+                  <button 
+                      onClick={() => {
+                          actions.deleteStudent(studentId);
+                          setIsDeleteConfirmOpen(false);
+                          onBack();
+                      }} 
+                      className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold text-sm shadow-md shadow-red-650/20 active:scale-95 transition-all"
+                  >
+                      Sil
+                  </button>
+              </>
+          }
+      >
+          <div className="py-2 text-center space-y-3">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2 select-none">
+                  <AlertTriangle size={24} />
+              </div>
+              <p className="font-extrabold text-slate-800 text-sm tracking-tight leading-normal">
+                  "{student.name}" isimli öğrenciyi silmek istediğinize emin misiniz?
+              </p>
+              <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+                  Bu işlem geri alınamaz. Öğrencinin tüm ders katılım kayıtları, ödemeleri, özel ders notları ve yüklediğiniz materyaller kalıcı olarak silinecektir.
+              </p>
           </div>
       </Dialog>
       

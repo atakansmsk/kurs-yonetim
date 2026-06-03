@@ -42,12 +42,13 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       return counter;
   };
 
-  const { debtors, paidStudents, stats, monthlyEarnings } = useMemo(() => {
+  const { debtors, paidStudents, exemptStudents, inactiveStudents, stats, monthlyEarnings } = useMemo(() => {
       const allStudents = Object.values(state.students || {}) as Student[];
-      const visibleStudents = allStudents.filter(s => s.isActive !== false);
 
       let debtorsList: (Student & { unpaidCount: number })[] = [];
       let paidList: (Student & { unpaidCount: number })[] = [];
+      let exemptList: (Student & { unpaidCount: number })[] = [];
+      let inactiveList: (Student & { unpaidCount: number })[] = [];
       let totalExpectedDebt = 0;
       
       // Aylık Ciro Hesabı (Haftalık programa kayıtlı benzersiz öğrencilerin toplam fee tutarı)
@@ -65,15 +66,21 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           if (s) earnings += s.fee || 0;
       });
 
-      visibleStudents.forEach(student => {
+      allStudents.forEach(student => {
           const unpaidCount = getUnpaidLessonCount(student);
-          const isDebtor = student.fee > 0 && unpaidCount >= 4;
 
-          if (isDebtor) {
-              debtorsList.push({ ...student, unpaidCount });
-              totalExpectedDebt += student.fee;
+          if (student.isActive === false) {
+              inactiveList.push({ ...student, unpaidCount });
+          } else if (student.fee === 0) {
+              exemptList.push({ ...student, unpaidCount });
           } else {
-              paidList.push({ ...student, unpaidCount });
+              const isDebtor = unpaidCount >= 4;
+              if (isDebtor) {
+                  debtorsList.push({ ...student, unpaidCount });
+                  totalExpectedDebt += student.fee;
+              } else {
+                  paidList.push({ ...student, unpaidCount });
+              }
           }
       });
 
@@ -82,7 +89,9 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
       return {
           debtors: debtorsList.filter(filterFn).sort((a, b) => b.unpaidCount - a.unpaidCount),
           paidStudents: paidList.filter(filterFn).sort((a, b) => a.name.localeCompare(b.name, 'tr')),
-          stats: { totalExpectedDebt, countDebtors: debtorsList.length, countPaid: paidList.length },
+          exemptStudents: exemptList.filter(filterFn).sort((a, b) => a.name.localeCompare(b.name, 'tr')),
+          inactiveStudents: inactiveList.filter(filterFn).sort((a, b) => a.name.localeCompare(b.name, 'tr')),
+          stats: { totalExpectedDebt, countDebtors: debtorsList.length, countPaid: paidList.length + exemptList.length },
           monthlyEarnings: earnings
       };
   }, [state.students, state.schedule, state.currentTeacher, search]);
@@ -100,6 +109,68 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
           actions.deleteStudent(deleteId);
           setDeleteId(null);
       }
+  };
+
+  const renderStudentRow = (student: Student & { unpaidCount: number }, type: 'DEBTORS' | 'PAID' | 'EXEMPT' | 'INACTIVE') => {
+      let avatarClass = "bg-emerald-50 text-emerald-600";
+      if (type === 'DEBTORS') {
+          avatarClass = "bg-rose-50 text-rose-600";
+      } else if (type === 'EXEMPT') {
+          avatarClass = "bg-[#EBFDFA] text-emerald-600";
+      } else if (type === 'INACTIVE') {
+          avatarClass = "bg-slate-100 text-slate-400";
+      }
+
+      return (
+          <div 
+              key={student.id} 
+              className={`bg-white rounded-[1.25rem] p-2.5 shadow-sm border border-slate-100/80 flex items-center gap-3 cursor-pointer active:scale-[0.98] hover:border-indigo-200 transition-all animate-in slide-in-from-bottom-2 ${
+                  type === 'INACTIVE' ? 'opacity-[0.7] border-slate-100' : ''
+              }`}
+              onClick={() => onSelect(student.id)}
+          >
+              {/* Avatar */}
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shadow-inner shrink-0 ${avatarClass}`}>
+                  {student.name.charAt(0).toUpperCase()}
+              </div>
+              
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                  <h4 className="font-extrabold text-slate-800 truncate text-[12.5px] tracking-tight leading-none mb-1">{student.name}</h4>
+                  <div className="flex items-center gap-2">
+                      {type === 'EXEMPT' ? (
+                          <span className="text-[9px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 border bg-emerald-50 border-emerald-100 text-emerald-600">
+                              <Layers size={9} />
+                              MUAF
+                          </span>
+                      ) : type === 'INACTIVE' ? (
+                          <span className="text-[9px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 border bg-slate-100 border-slate-200/60 text-slate-400">
+                              <Layers size={9} />
+                              PASİF
+                          </span>
+                      ) : (
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 border ${
+                              student.unpaidCount >= 4 ? 'bg-rose-50 border-rose-100 text-rose-600' : 
+                              student.unpaidCount > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 
+                              'bg-emerald-50 border-emerald-100 text-emerald-600'
+                          }`}>
+                              <Layers size={9} />
+                              {student.unpaidCount} Seans
+                          </span>
+                      )}
+                      
+                      {student.fee > 0 && student.unpaidCount >= 4 && type !== 'INACTIVE' && (
+                          <span className="text-[7.5px] font-black text-rose-500 uppercase tracking-tighter bg-rose-50/60 px-1.5 py-0.5 rounded border border-rose-100 animate-pulse">
+                              Ödeme Vakti
+                          </span>
+                      )}
+                  </div>
+              </div>
+              <div className="text-slate-300">
+                  <ChevronRight size={16} />
+              </div>
+          </div>
+      );
   };
 
   return (
@@ -170,59 +241,86 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                 onClick={() => setActiveTab('PAID')}
                 className={`flex-1 py-2 text-[10px] font-black rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-widest ${activeTab === 'PAID' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}
               >
-                  <CheckCircle2 size={14} className={activeTab === 'PAID' ? 'text-emerald-500' : ''} /> Tamam ({paidStudents.length})
+                  <CheckCircle2 size={14} className={activeTab === 'PAID' ? 'text-emerald-500' : ''} /> Diğer ({paidStudents.length + exemptStudents.length + inactiveStudents.length})
               </button>
           </div>
       </div>
 
       {/* Student List */}
-      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-32 space-y-3 no-scrollbar">
-            {(activeTab === 'DEBTORS' ? debtors : paidStudents).length === 0 ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95">
-                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
-                        <Users size={32} />
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-32 space-y-4 no-scrollbar">
+            {activeTab === 'DEBTORS' ? (
+                 debtors.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95">
+                          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
+                             <Users size={32} />
+                          </div>
+                          <p className="font-bold text-slate-400 text-sm">Liste şu an boş.</p>
+                          <p className="text-[10px] text-slate-300 uppercase tracking-widest mt-1">
+                             Ödeme bekleyen öğrenci yok.
+                          </p>
+                      </div>
+                 ) : (
+                     <div className="space-y-3">
+                         <div className="flex items-center gap-2 px-1 mb-2">
+                             <span className="text-[10px] font-black text-rose-500 uppercase tracking-wider">Bekleyen Ödemeler ({debtors.length})</span>
+                             <div className="h-[1px] bg-slate-200/60 flex-1"></div>
+                         </div>
+                         {debtors.map(student => renderStudentRow(student, 'DEBTORS'))}
                      </div>
-                     <p className="font-bold text-slate-400 text-sm">Liste şu an boş.</p>
-                     <p className="text-[10px] text-slate-300 uppercase tracking-widest mt-1">
-                        {activeTab === 'DEBTORS' ? 'Ödeme bekleyen öğrenci yok.' : 'Kayıtlı öğrenci bulunamadı.'}
-                     </p>
-                 </div>
+                 )
             ) : (
-                (activeTab === 'DEBTORS' ? debtors : paidStudents).map(student => (
-                    <div 
-                        key={student.id} 
-                        className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100/80 flex items-center gap-3.5 cursor-pointer active:scale-[0.98] hover:border-indigo-200 transition-all animate-in slide-in-from-bottom-2"
-                        onClick={() => onSelect(student.id)}
-                    >
-                        {/* Avatar */}
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-inner shrink-0 ${activeTab === 'DEBTORS' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {student.name.charAt(0).toUpperCase()}
-                        </div>
-                        
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                            <h4 className="font-extrabold text-slate-800 truncate text-[13.5px] tracking-tight leading-none mb-1.5">{student.name}</h4>
-                            <div className="flex items-center gap-2">
-                                <span className={`text-[9.5px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 border ${
-                                    student.unpaidCount >= 4 ? 'bg-rose-50 border-rose-100 text-rose-600' : 
-                                    student.unpaidCount > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 
-                                    'bg-emerald-50 border-emerald-100 text-emerald-600'
-                                }`}>
-                                    <Layers size={10} />
-                                    {student.fee === 0 ? "MUAF" : `${student.unpaidCount} Seans`}
-                                </span>
-                                {student.fee > 0 && student.unpaidCount >= 4 && (
-                                    <span className="text-[8px] font-black text-rose-500 uppercase tracking-tighter bg-rose-50/60 px-1.5 py-0.5 rounded border border-rose-100 animate-pulse">
-                                        Ödeme Vakti
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="text-slate-300">
-                            <ChevronRight size={18} />
-                        </div>
-                    </div>
-                ))
+                 (paidStudents.length === 0 && exemptStudents.length === 0 && inactiveStudents.length === 0) ? (
+                      <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95">
+                          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
+                             <Users size={32} />
+                          </div>
+                          <p className="font-bold text-slate-400 text-sm">Liste şu an boş.</p>
+                          <p className="text-[10px] text-slate-300 uppercase tracking-widest mt-1">
+                             Kayıtlı öğrenci bulunamadı.
+                          </p>
+                      </div>
+                 ) : (
+                      <div className="space-y-6">
+                          {/* Ödemesi Tamam Öğrenciler */}
+                          {paidStudents.length > 0 && (
+                              <div className="space-y-3">
+                                  <div className="flex items-center gap-2 px-1 mb-1">
+                                      <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider">Ödemesi Düzenli ({paidStudents.length})</span>
+                                      <div className="h-[1px] bg-slate-200/60 flex-1"></div>
+                                  </div>
+                                  <div className="space-y-3 animate-in fade-in duration-300">
+                                      {paidStudents.map(student => renderStudentRow(student, 'PAID'))}
+                                  </div>
+                              </div>
+                          )}
+
+                          {/* Muaf Öğrenciler */}
+                          {exemptStudents.length > 0 && (
+                              <div className="space-y-3">
+                                  <div className="flex items-center gap-2 px-1 mb-1">
+                                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Muaf Öğrenciler ({exemptStudents.length})</span>
+                                      <div className="h-[1px] bg-emerald-100/60 flex-1"></div>
+                                  </div>
+                                  <div className="space-y-3 animate-in fade-in duration-350">
+                                      {exemptStudents.map(student => renderStudentRow(student, 'EXEMPT'))}
+                                  </div>
+                              </div>
+                          )}
+
+                          {/* Pasif (Aktif Olmayan) Öğrenciler */}
+                          {inactiveStudents.length > 0 && (
+                              <div className="space-y-3">
+                                  <div className="flex items-center gap-2 px-1 mb-1">
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Pasif Öğrenciler ({inactiveStudents.length})</span>
+                                      <div className="h-[1px] bg-slate-200/50 flex-1"></div>
+                                  </div>
+                                  <div className="space-y-3 animate-in fade-in duration-400">
+                                      {inactiveStudents.map(student => renderStudentRow(student, 'INACTIVE'))}
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                 )
             )}
       </div>
 
