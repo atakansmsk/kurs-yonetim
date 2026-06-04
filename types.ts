@@ -5,6 +5,7 @@ export interface Transaction {
   date: string; // ISO string
   isDebt: boolean; // true: Lesson (Debt added), false: Payment
   amount: number;
+  lessonCount?: number; // 1 for full (40-min) lesson, 0.5 for half (20-min) lesson, etc.
 }
 
 export interface Resource {
@@ -80,8 +81,8 @@ export interface CourseContextType {
     bookSlot: (day: WeekDay, slotId: string, studentId: string, label?: 'REGULAR' | 'MAKEUP' | 'TRIAL') => void;
     cancelSlot: (day: WeekDay, slotId: string) => void;
     extendSlot: (day: WeekDay, slotId: string, minutes: number) => void;
-    addTransaction: (studentId: string, type: 'LESSON' | 'PAYMENT', customDate?: string, amount?: number) => void;
-    updateTransaction: (studentId: string, transactionId: string, note: string, customDate?: string) => void;
+    addTransaction: (studentId: string, type: 'LESSON' | 'PAYMENT', customDate?: string, amount?: number, lessonCount?: number) => void;
+    updateTransaction: (studentId: string, transactionId: string, note: string, customDate?: string, lessonCount?: number) => void;
     deleteTransaction: (studentId: string, transactionId: string) => void;
     toggleAutoProcessing: () => void;
     moveSlot: (fromDay: WeekDay, fromSlotId: string, toDay: WeekDay, toSlotId: string) => void;

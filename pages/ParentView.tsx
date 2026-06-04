@@ -200,8 +200,11 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
       // Numaralandırma için eskiden yeniye sırala
       countableLessons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      countableLessons.forEach((tx, index) => {
-          lessonNumberMap.set(tx.id, index + 1);
+      let currentLessonCounter = 0;
+      countableLessons.forEach((tx) => {
+          const lCount = tx.lessonCount !== undefined ? tx.lessonCount : 1;
+          currentLessonCounter += lCount;
+          lessonNumberMap.set(tx.id, currentLessonCounter);
       });
       
       return {
@@ -210,7 +213,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
           currentPeriodHistory: filteredHistory, 
           safeResources,
           lessonNumberMap,
-          totalDoneCount: countableLessons.length
+          totalDoneCount: currentLessonCounter
       };
 
   }, [student, appState]);
@@ -486,7 +489,7 @@ export const ParentView: React.FC<ParentViewProps> = ({ teacherId, studentId }) 
                             // REGULAR LESSON - DYNAMIC NUMBERING
                             const num = lessonNumberMap.get(tx.id);
                             if (num) {
-                                title = `${num}. Ders`;
+                                title = `${Number(num.toFixed(1))}. Ders`;
                             } else {
                                 // Özel ders notu varsa onu göster
                                 title = tx.note || "Ders";

@@ -163,6 +163,11 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         teacherSlots.forEach(slot => {
           if (slot.studentId && !nextProcessedToday.includes(slot.id)) {
             const slotStartMinutes = timeToMinutes(slot.start);
+            const slotEndMinutes = timeToMinutes(slot.end);
+            const duration = slotEndMinutes - slotStartMinutes;
+            const isHalfLesson = duration <= 25;
+            const lessonCount = isHalfLesson ? 0.5 : 1.0;
+            
             // Ders başlama saatinden 5 dakika sonra borç yazalım (Hatalı yazımı önlemek için tampon süre)
             if (currentMinutes >= slotStartMinutes + 5) {
               const student = nextStudents[slot.studentId];
@@ -171,12 +176,16 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 const isMakeup = slot.label === 'MAKEUP';
                 const isTrial = slot.label === 'TRIAL';
                 
+                const noteType = isMakeup ? 'Telafi Dersi' : isTrial ? 'Deneme Dersi' : 'Otomatik Ders';
+                const note = isHalfLesson ? `Yarım ${noteType} İşlendi (20 dk)` : `${noteType} İşlendi`;
+                
                 const newTx: Transaction = {
                   id: txId,
-                  note: isMakeup ? 'Telafi Dersi İşlendi' : isTrial ? 'Deneme Dersi İşlendi' : 'Otomatik Ders İşlendi',
+                  note,
                   date: now.toISOString(),
                   isDebt: true,
-                  amount: 0
+                  amount: 0,
+                  lessonCount
                 };
 
                 nextStudents[slot.studentId] = {
@@ -281,7 +290,7 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           } 
         };
       }),
-      addTransaction: (studentId, type, customDate, amount) => updateState(s => {
+       addTransaction: (studentId, type, customDate, amount, lessonCount) => updateState(s => {
           const student = s.students[studentId];
           if (!student) return s;
           const date = customDate ? new Date(customDate).toISOString() : new Date().toISOString();
@@ -289,17 +298,27 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const finalAmount = isDebt ? 0 : (amount !== undefined ? amount : student.fee);
           const newTx: Transaction = { 
               id: Math.random().toString(36).substr(2, 9), 
-              note: isDebt ? 'Ders İşlendi' : 'Ödeme Alındı', 
+              note: isDebt ? (lessonCount === 0.5 ? 'Yarım Ders İşlendi (20 dk)' : 'Ders İşlendi') : 'Ödeme Alındı', 
               date, 
               isDebt, 
-              amount: finalAmount 
+              amount: finalAmount,
+              lessonCount: isDebt ? (lessonCount !== undefined ? lessonCount : 1) : undefined
           };
           return { ...s, students: { ...s.students, [studentId]: { ...student, history: [newTx, ...(student.history || [])] } } };
       }),
-      updateTransaction: (studentId, transactionId, note, customDate) => updateState(s => {
+      updateTransaction: (studentId, transactionId, note, customDate, lessonCount) => updateState(s => {
           const student = s.students[studentId];
           if (!student) return s;
-          const updatedHistory = (student.history || []).map(tx => tx.id === transactionId ? { ...tx, note, date: customDate ? new Date(customDate).toISOString() : tx.date } : tx);
+          const updatedHistory = (student.history || []).map(tx => 
+              tx.id === transactionId 
+                  ? { 
+                      ...tx, 
+                      note, 
+                      date: customDate ? new Date(customDate).toISOString() : tx.date,
+                      lessonCount: tx.isDebt ? (lessonCount !== undefined ? lessonCount : tx.lessonCount) : undefined
+                    } 
+                  : tx
+          );
           return { ...s, students: { ...s.students, [studentId]: { ...student, history: updatedHistory } } };
       }),
       deleteTransaction: (studentId, transactionId) => updateState(s => {

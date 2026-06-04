@@ -36,7 +36,10 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                                     !lowerNote.includes("katılım yok") && 
                                     !lowerNote.includes("iptal") &&
                                     !lowerNote.includes("telafi bekliyor");
-              if (isValidLesson) counter++;
+              if (isValidLesson) {
+                  const weight = tx.lessonCount !== undefined ? tx.lessonCount : 1;
+                  counter += weight;
+              }
           }
       });
       return counter;
@@ -155,7 +158,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                               'bg-emerald-50 border-emerald-100 text-emerald-600'
                           }`}>
                               <Layers size={9} />
-                              {student.unpaidCount} Seans
+                              {Number(student.unpaidCount.toFixed(1))} Seans
                           </span>
                       )}
                       

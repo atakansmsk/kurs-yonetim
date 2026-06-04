@@ -58,6 +58,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const getTodayString = () => new Date().toISOString().split('T')[0];
 
   const [pastDate, setPastDate] = useState(getTodayString());
+  const [pastLessonCount, setPastLessonCount] = useState<number>(1);
   const [pastPaymentDate, setPastPaymentDate] = useState(getTodayString());
   const [pastPaymentAmount, setPastPaymentAmount] = useState("");
   const [makeupCompleteDate, setMakeupCompleteDate] = useState(getTodayString());
@@ -144,7 +145,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                                     !lowerNote.includes("telafi bekliyor"); // Telafi Yapıldı ise sayılır
               
               if (isValidLesson) {
-                  counter++;
+                  const weight = tx.lessonCount !== undefined ? tx.lessonCount : 1;
+                  counter += weight;
                   map[tx.id] = counter;
               }
           }
@@ -211,9 +213,10 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   
   const handleAddPastLesson = () => {
       if (pastDate) {
-          actions.addTransaction(studentId, 'LESSON', pastDate);
+          actions.addTransaction(studentId, 'LESSON', pastDate, undefined, pastLessonCount);
           setIsPastLessonModalOpen(false);
           setPastDate(getTodayString());
+          setPastLessonCount(1);
       }
   };
 
@@ -255,7 +258,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       setIsNoteEditing(false);
   };
 
-  const handleLessonAction = (action: 'ABSENT' | 'MAKEUP' | 'DELETE' | 'MAKEUP_DONE') => {
+  const handleLessonAction = (action: 'ABSENT' | 'MAKEUP' | 'DELETE' | 'MAKEUP_DONE' | 'MAKE_HALF' | 'MAKE_FULL') => {
       if (!selectedTx) return;
 
       if (action === 'DELETE') {
@@ -268,6 +271,12 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           setIsLessonOptionsOpen(false);
           setIsMakeupCompleteModalOpen(true);
           return; 
+      } else if (action === 'MAKE_HALF') {
+          const note = selectedTx.note === 'Ders İşlendi' ? 'Yarım Ders İşlendi (20 dk)' : selectedTx.note;
+          actions.updateTransaction(studentId, selectedTx.id, note, undefined, 0.5);
+      } else if (action === 'MAKE_FULL') {
+          const note = selectedTx.note === 'Yarım Ders İşlendi (20 dk)' || selectedTx.note.includes('Yarım Ders') ? 'Ders İşlendi' : selectedTx.note;
+          actions.updateTransaction(studentId, selectedTx.id, note, undefined, 1.0);
       }
       setIsLessonOptionsOpen(false);
       setSelectedTx(null);
@@ -549,7 +558,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       } else {
           const calculatedNum = lessonNumberMap[tx.id];
           if (calculatedNum) {
-              title = `${calculatedNum}. Ders İşlendi`;
+              const isHalf = tx.lessonCount === 0.5;
+               title = `${Number(calculatedNum.toFixed(1))}. Ders İşlendi${isHalf ? ' (Yarım)' : ''}`;
           } else {
               title = tx.note;
           }
@@ -722,7 +732,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                         </div>
                         <div className="flex items-end gap-1.5 flex-wrap">
                            {/* TOPLAM BORÇ DERS SAYISI (SON ÖDEMEDEN SONRA) */}
-                           <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{totalDoneCount}</span>
+                           <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{Number(totalDoneCount.toFixed(1))}</span>
                            <span className="text-xs font-bold text-indigo-200 uppercase tracking-wide mb-1.5">Ders</span>
                         </div>
                         <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Son ödemeden sonra</p>
@@ -940,7 +950,37 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       <Dialog isOpen={isPastLessonModalOpen} onClose={() => setIsPastLessonModalOpen(false)} title="Geçmiş Ders Ekle" 
           actions={<><button onClick={() => setIsPastLessonModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleAddPastLesson} className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm">Ekle</button></>}
       >
-          <div className="py-2"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label><input type="date" value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
+          <div className="py-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Tarih</label>
+              <input type="date" value={pastDate} onChange={(e) => setPastDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
+          </div>
+          <div className="py-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2">Ders Süresi / Tipi</label>
+              <div className="grid grid-cols-2 gap-2">
+                  <button 
+                      type="button"
+                      onClick={() => setPastLessonCount(1)}
+                      className={`p-2.5 rounded-xl border text-xs font-black transition-all ${
+                          pastLessonCount === 1 
+                              ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
+                              : 'bg-white border-slate-150 text-slate-500 hover:bg-slate-50'
+                      }`}
+                  >
+                      Tam Ders (40 dk)
+                  </button>
+                  <button 
+                      type="button"
+                      onClick={() => setPastLessonCount(0.5)}
+                      className={`p-2.5 rounded-xl border text-xs font-black transition-all ${
+                          pastLessonCount === 0.5 
+                              ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
+                              : 'bg-white border-slate-150 text-slate-500 hover:bg-slate-50'
+                      }`}
+                  >
+                      Yarım Ders (20 dk)
+                  </button>
+              </div>
+          </div>
       </Dialog>
 
       <Dialog isOpen={isPastPaymentModalOpen} onClose={() => setIsPastPaymentModalOpen(false)} title="Ödeme Ekle" 
@@ -1008,6 +1048,26 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                   <><button onClick={() => handleLessonAction('ABSENT')} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-sm flex items-center gap-2"><XCircle size={16} /> Gelmedi Olarak İşaretle</button><button onClick={() => handleLessonAction('MAKEUP')} className="p-3 bg-orange-50 text-orange-700 rounded-xl font-bold text-sm flex items-center gap-2"><RefreshCcw size={16} /> Telafi Hakkı Tanı</button></>
               )}
               {selectedTx?.note.includes('Telafi Bekliyor') && (<button onClick={() => handleLessonAction('MAKEUP_DONE')} className="p-3 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm flex items-center gap-2"><CheckCircle2 size={16} /> Telafi Yapıldı Olarak İşaretle</button>)}
+              
+              {selectedTx?.isDebt && 
+               !selectedTx.note.includes('Gelmedi') && 
+               !selectedTx.note.includes('Katılım Yok') && 
+               !selectedTx.note.includes('İptal') && 
+               !selectedTx.note.includes('Telafi Bekliyor') && (
+                  <div className="border-t border-slate-100 pt-2 mt-1 flex flex-col gap-2 animate-in fade-in duration-200">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase px-1">Ders Süresi Ayarı</div>
+                      {selectedTx.lessonCount === 0.5 ? (
+                          <button onClick={() => handleLessonAction('MAKE_FULL')} className="p-3 bg-indigo-50 text-indigo-700 hover:bg-indigo-100/70 rounded-xl font-bold text-sm flex items-center gap-2">
+                              <Layers size={16} /> Tam Derse Çevir (1 Ders / 40 dk)
+                          </button>
+                      ) : (
+                          <button onClick={() => handleLessonAction('MAKE_HALF')} className="p-3 bg-indigo-50 text-indigo-700 hover:bg-indigo-100/70 rounded-xl font-bold text-sm flex items-center gap-2">
+                              <Layers size={16} /> Yarım Derse Çevir (0.5 Ders / 20 dk)
+                          </button>
+                      )}
+                  </div>
+              )}
+              
               <button onClick={() => handleLessonAction('DELETE')} className="p-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm flex items-center gap-2"><Trash2 size={16} /> Kaydı Sil</button>
           </div>
       </Dialog>

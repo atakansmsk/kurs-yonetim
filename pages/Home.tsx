@@ -78,7 +78,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                                   !lowerNote.includes("katılım yok") && 
                                   !lowerNote.includes("iptal") &&
                                   !lowerNote.includes("telafi bekliyor");
-            if (isValidLesson) counter++;
+            if (isValidLesson) {
+                const weight = tx.lessonCount !== undefined ? tx.lessonCount : 1;
+                counter += weight;
+            }
         }
     });
     return counter;
@@ -796,7 +799,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                                           unpaidCount > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 
                                           'bg-emerald-50 border-emerald-100 text-emerald-600'
                                       }`}>
-                                          {student.fee === 0 ? "MUAF" : `${unpaidCount} Seans`}
+                                          {student.fee === 0 ? "MUAF" : `${Number(unpaidCount.toFixed(1))} Seans`}
                                       </span>
                                       <ChevronRight size={14} className="text-slate-350 group-hover:text-slate-500 transition-colors" />
                                   </div>
