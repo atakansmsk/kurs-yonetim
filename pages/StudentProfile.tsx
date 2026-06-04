@@ -3,7 +3,7 @@ import { useCourse } from '../context/CourseContext';
 import { useAuth } from '../context/AuthContext';
 import { Phone, Check, Banknote, ArrowLeft, Trash2, MessageCircle, Pencil, Wallet, RefreshCcw, CheckCircle2, Share2, Link, Youtube, FileText, Image, Plus, UploadCloud, X, Loader2, Globe, BellRing, XCircle, Layers, Archive, Activity, CalendarDays, TrendingUp, Eye, AlertTriangle, Sparkles, Clock, Calendar } from 'lucide-react';
 import { Dialog } from '../components/Dialog';
-import { Transaction, DAYS, WeekDay } from '../types';
+import { Student, Transaction, DAYS, WeekDay } from '../types';
 import { FileService } from '../services/api';
 
 interface StudentProfileProps {
@@ -31,6 +31,8 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
   const [isPastPaymentModalOpen, setIsPastPaymentModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [mergeSourceId, setMergeSourceId] = useState("");
   const [isLessonOptionsOpen, setIsLessonOptionsOpen] = useState(false);
   const [isMakeupCompleteModalOpen, setIsMakeupCompleteModalOpen] = useState(false);
   const [isResourcesModalOpen, setIsResourcesModalOpen] = useState(false);
@@ -892,6 +894,21 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                  {editIsActive ? "Aktif: Listelerde görünür." : "Pasif: Arşive kaldırılır, listelerden gizlenir."}
              </p>
 
+             {/* Merge Students Section */}
+             <div className="border-t border-slate-100/80 pt-3 mt-3">
+                 <button 
+                     type="button"
+                     onClick={() => {
+                         setIsEditModalOpen(false);
+                         setMergeSourceId("");
+                         setIsMergeModalOpen(true);
+                     }}
+                     className="w-full py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center gap-2 font-black text-[11px] active:scale-95 transition-all uppercase tracking-widest border border-indigo-100"
+                 >
+                     <Layers size={14} /> Profilleri Birleştir
+                 </button>
+             </div>
+
              {/* Delete Student Section */}
              <div className="border-t border-slate-100/80 pt-3 mt-3">
                  <button 
@@ -943,6 +960,81 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
                   Bu işlem geri alınamaz. Öğrencinin tüm ders katılım kayıtları, ödemeleri, özel ders notları ve yüklediğiniz materyaller kalıcı olarak silinecektir.
               </p>
+          </div>
+      </Dialog>
+
+      {/* Profile Merge Modal */}
+      <Dialog
+          isOpen={isMergeModalOpen}
+          onClose={() => setIsMergeModalOpen(false)}
+          title="Öğrenci Profillerini Birleştir"
+          actions={
+              <>
+                  <button 
+                      onClick={() => setIsMergeModalOpen(false)} 
+                      className="px-4 py-2 text-slate-500 font-bold text-sm"
+                  >
+                      İptal
+                  </button>
+                  <button 
+                      disabled={!mergeSourceId}
+                      onClick={() => {
+                          if (mergeSourceId) {
+                              actions.mergeStudents(mergeSourceId, studentId);
+                              setIsMergeModalOpen(false);
+                          }
+                      }} 
+                      className={`px-6 py-2 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95 ${
+                          mergeSourceId 
+                          ? 'bg-indigo-600 text-white shadow-indigo-600/20 hover:bg-indigo-700' 
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                      }`}
+                  >
+                      Birleştir ve Diğerini Sil
+                  </button>
+              </>
+          }
+      >
+          <div className="py-2 space-y-4">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2 select-none">
+                  <Layers size={24} />
+              </div>
+              
+              <p className="text-xs text-slate-500 font-medium leading-relaxed text-center">
+                  Seçtiğiniz başka bir öğrencinin tüm ders kayıtlarını, ödemelerini, materyallerini ve haftalık programdaki ders saatlerini <strong>{student.name}</strong> profili altına taşıyabilirsiniz. Bu işlem tamamlandığında diğer profil silinecektir.
+              </p>
+
+              <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Birleştirilecek Diğer Öğrenci (Silinecek olan)</label>
+                  <select 
+                      value={mergeSourceId} 
+                      onChange={(e) => setMergeSourceId(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
+                  >
+                      <option value="">Öğrenci Seçiniz...</option>
+                      {Object.values(state.students)
+                          .filter((s: Student) => s.id !== studentId)
+                          .map((s: Student) => (
+                              <option key={s.id} value={s.id}>
+                                  {s.name} ({s.isActive === false ? 'Pasif' : 'Aktif'} - Ders Ücreti: {s.fee} TL)
+                              </option>
+                          ))
+                      }
+                  </select>
+              </div>
+
+              {mergeSourceId && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
+                      <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={16} />
+                      <div className="space-y-1">
+                          <h4 className="text-[11px] font-bold text-amber-800">DİKKAT: Veriler Birleştirilecek!</h4>
+                          <p className="text-[10px] text-amber-700 font-medium leading-normal">
+                              Seçilen öğrencinin verileri bu profile aktarıldıktan sonra <strong>{state.students[mergeSourceId]?.name}</strong> profili kalıcı olarak silinecektir. Bu işlem geri alınamaz. 
+                              Eğer mükerrer (çift) ders kayıtları oluşursa, bunları aşağıdaki geçmiş listesinden tek tek silebilirsiniz.
+                          </p>
+                      </div>
+                  </div>
+              )}
           </div>
       </Dialog>
       

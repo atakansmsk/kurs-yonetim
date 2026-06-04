@@ -432,6 +432,39 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
            const key = `${s.currentTeacher}|${day}`;
            return { ...s, schedule: { ...s.schedule, [key]: [] } };
       }),
+      mergeStudents: (sourceId, targetId) => updateState(s => {
+          const source = s.students[sourceId];
+          const target = s.students[targetId];
+          if (!source || !target) return s;
+
+          // Merge histories
+          const mergedHistory = [...(target.history || []), ...(source.history || [])];
+          // Sort descending by date
+          mergedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+          // Merge resources
+          const mergedResources = [...(target.resources || []), ...(source.resources || [])];
+
+          // Re-route slots from source student to target student in schedule
+          const newSchedule = { ...s.schedule };
+          Object.keys(newSchedule).forEach(key => {
+              newSchedule[key] = (newSchedule[key] || []).map(slot => 
+                  slot.studentId === sourceId ? { ...slot, studentId: targetId } : slot
+              );
+          });
+
+          // Delete source student and update target student
+          const { [sourceId]: deleted, ...restStudents } = s.students;
+          restStudents[targetId] = {
+              ...target,
+              history: mergedHistory,
+              resources: mergedResources,
+              nextLessonNote: target.nextLessonNote || source.nextLessonNote,
+              makeupCredit: (target.makeupCredit || 0) + (source.makeupCredit || 0)
+          };
+
+          return { ...s, students: restStudents, schedule: newSchedule };
+      }),
       forceSync: async () => {
           if (user) {
               await DataService.saveUserData(user.id, sanitize(state));

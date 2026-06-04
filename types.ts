@@ -91,6 +91,7 @@ export interface CourseContextType {
     addResource: (studentId: string, title: string, url: string, type: 'VIDEO' | 'PDF' | 'LINK' | 'IMAGE') => void;
     deleteResource: (studentId: string, resourceId: string) => void;
     clearDay: (day: WeekDay) => void;
+    mergeStudents: (sourceId: string, targetId: string) => void;
     forceSync: () => Promise<void>;
   };
 }
