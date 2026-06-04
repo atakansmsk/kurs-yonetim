@@ -247,13 +247,23 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }),
       switchTeacher: (name) => updateState(s => ({ ...s, currentTeacher: name })),
       addStudent: (name, phone, fee, registrationDate, color) => {
+          const trimmedName = name.trim();
+          const normalized = trimmedName.toLowerCase();
+          const existing = Object.values(state.students).find(s => s.name.trim().toLowerCase() === normalized);
+          if (existing) {
+              return existing.id;
+          }
           const id = Math.random().toString(36).substr(2, 9);
           const newStudent: Student = {
-              id, name: name.trim(), phone: phone.trim(), fee: Number(fee) || 0, 
+              id, name: trimmedName, phone: phone.trim(), fee: Number(fee) || 0, 
               registrationDate: registrationDate ? new Date(registrationDate).toISOString() : new Date().toISOString(),
               debtLessonCount: 0, makeupCredit: 0, history: [], resources: [], color: color || 'indigo', nextLessonNote: "", isActive: true
           };
-          updateState(s => ({ ...s, students: { ...s.students, [id]: newStudent } }));
+          updateState(s => {
+              const duplicate = Object.values(s.students).find(st => st.name.trim().toLowerCase() === normalized);
+              if (duplicate) return s;
+              return { ...s, students: { ...s.students, [id]: newStudent } };
+          });
           return id;
       },
       updateStudent: (id, name, phone, fee, color, nextLessonNote) => updateState(s => {

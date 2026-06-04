@@ -1134,7 +1134,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
       </Dialog>
       
-      <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="İşlem Seçin">
+      <Dialog isOpen={isLessonOptionsOpen} onClose={() => setIsLessonOptionsOpen(false)} title="İşlem Seçin" zIndex="z-[60]">
           <div className="flex flex-col gap-2 py-2">
               {selectedTx?.isDebt && !selectedTx.note.includes('Telafi') && (
                   <><button onClick={() => handleLessonAction('ABSENT')} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-sm flex items-center gap-2"><XCircle size={16} /> Gelmedi Olarak İşaretle</button><button onClick={() => handleLessonAction('MAKEUP')} className="p-3 bg-orange-50 text-orange-700 rounded-xl font-bold text-sm flex items-center gap-2"><RefreshCcw size={16} /> Telafi Hakkı Tanı</button></>
@@ -1164,7 +1164,7 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
       </Dialog>
 
-      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Tarihi" actions={<><button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleMakeupComplete} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Tamamla</button></>}>
+      <Dialog isOpen={isMakeupCompleteModalOpen} onClose={() => setIsMakeupCompleteModalOpen(false)} title="Telafi Tarihi" actions={<><button onClick={() => setIsMakeupCompleteModalOpen(false)} className="px-4 py-2 text-slate-500 font-bold text-sm">İptal</button><button onClick={handleMakeupComplete} className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Tamamla</button></>} zIndex="z-[60]">
            <div className="py-2"><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Telafi Yapılan Tarih</label><input type="date" value={makeupCompleteDate} onChange={(e) => setMakeupCompleteDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" /></div>
       </Dialog>
       

@@ -301,7 +301,20 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                         </div>
 
                         <div 
-                            onClick={() => isOccupied ? onOpenStudentProfile(slot.studentId!) : ((setActiveSlot(slot), resetBookForm(), setIsBookModalOpen(true)))}
+                            onClick={() => {
+                                if (isOccupied) {
+                                    onOpenStudentProfile(slot.studentId!);
+                                } else {
+                                    setActiveSlot(slot);
+                                    resetBookForm();
+                                    setIsBookModalOpen(true);
+                                    const mins = timeToMinutes(slot.end) - timeToMinutes(slot.start);
+                                    if (mins <= 25) {
+                                        setLessonType('HALF');
+                                        setSlotColor('rose');
+                                    }
+                                }
+                            }}
                             className={`flex-1 relative overflow-hidden rounded-xl transition-all duration-200 min-h-[46px] border-l-[3px] shadow-sm ${containerClass}`}
                         >
                             <div className="px-3 py-1.5 flex items-center justify-between gap-2 h-full">
@@ -398,41 +411,41 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
           <div className="space-y-3 pt-1">
               <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">DERS TÜRÜ / TARİFE</label>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
                       <button 
                           type="button"
                           onClick={() => { setLessonType('REGULAR'); setSlotColor(''); }} 
-                          className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all truncate ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-black shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400 font-bold'}`}
                       >
-                          Normal
+                          Normal Ders (40 dk)
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={() => { setLessonType('HALF'); setSlotColor('rose'); }} 
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all truncate ${lessonType === 'HALF' ? 'bg-rose-50 border-rose-200 text-rose-700 font-black shadow-sm' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                      >
+                          Yarım Ders (0.5 Ders)
                       </button>
                       <button 
                           type="button"
                           onClick={() => { setLessonType('MAKEUP'); setSlotColor('amber'); }} 
-                          className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
                       >
                           Telafi
                       </button>
                       <button 
                           type="button"
                           onClick={() => { setLessonType('TRIAL'); setSlotColor('purple'); }} 
-                          className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
                       >
                           Deneme
                       </button>
                       <button 
                           type="button"
-                          onClick={() => { setLessonType('HALF'); setSlotColor('rose'); }} 
-                          className={`p-2 rounded-xl border text-xs font-bold transition-all col-span-2 ${lessonType === 'HALF' ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
-                      >
-                          Yarım Ders (20 dk / 0.5 Sean)
-                      </button>
-                      <button 
-                          type="button"
                           onClick={() => { setLessonType('EXEMPT'); setSlotColor('cyan'); }} 
-                          className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'EXEMPT' ? 'bg-cyan-50 border-cyan-200 text-cyan-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all col-span-2 ${lessonType === 'EXEMPT' ? 'bg-cyan-50 border-cyan-200 text-cyan-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
                       >
-                          Muaf Ders
+                          Muaf / Ücretsiz Ders
                       </button>
                   </div>
               </div>
