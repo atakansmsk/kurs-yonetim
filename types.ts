@@ -36,7 +36,8 @@ export interface LessonSlot {
   start: string;
   end: string;
   studentId: string | null;
-  label?: 'REGULAR' | 'MAKEUP' | 'TRIAL';
+  label?: 'REGULAR' | 'MAKEUP' | 'TRIAL' | 'HALF' | 'EXEMPT';
+  color?: string;
 }
 
 export interface User {
@@ -78,7 +79,7 @@ export interface CourseContextType {
     getStudent: (id: string) => Student | undefined;
     addSlot: (day: WeekDay, start: string, end: string) => void;
     deleteSlot: (day: WeekDay, slotId: string) => void;
-    bookSlot: (day: WeekDay, slotId: string, studentId: string, label?: 'REGULAR' | 'MAKEUP' | 'TRIAL') => void;
+    bookSlot: (day: WeekDay, slotId: string, studentId: string, label?: 'REGULAR' | 'MAKEUP' | 'TRIAL' | 'HALF' | 'EXEMPT', color?: string) => void;
     cancelSlot: (day: WeekDay, slotId: string) => void;
     extendSlot: (day: WeekDay, slotId: string, minutes: number) => void;
     addTransaction: (studentId: string, type: 'LESSON' | 'PAYMENT', customDate?: string, amount?: number, lessonCount?: number) => void;

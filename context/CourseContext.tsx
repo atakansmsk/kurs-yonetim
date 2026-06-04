@@ -165,7 +165,8 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const slotStartMinutes = timeToMinutes(slot.start);
             const slotEndMinutes = timeToMinutes(slot.end);
             const duration = slotEndMinutes - slotStartMinutes;
-            const isHalfLesson = duration <= 25;
+            const isHalfLesson = duration <= 25 || slot.label === 'HALF';
+            const isExempt = slot.label === 'EXEMPT';
             const lessonCount = isHalfLesson ? 0.5 : 1.0;
             
             // Ders başlama saatinden 5 dakika sonra borç yazalım (Hatalı yazımı önlemek için tampon süre)
@@ -176,8 +177,22 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 const isMakeup = slot.label === 'MAKEUP';
                 const isTrial = slot.label === 'TRIAL';
                 
-                const noteType = isMakeup ? 'Telafi Dersi' : isTrial ? 'Deneme Dersi' : 'Otomatik Ders';
-                const note = isHalfLesson ? `Yarım ${noteType} İşlendi (20 dk)` : `${noteType} İşlendi`;
+                let noteType = 'Otomatik Ders';
+                if (isMakeup) {
+                  noteType = 'Telafi Dersi';
+                } else if (isTrial) {
+                  noteType = 'Deneme Dersi';
+                } else if (isExempt) {
+                  noteType = 'Muaf Ders (Ücretsiz)';
+                } else if (isHalfLesson) {
+                  noteType = 'Yarım Ders';
+                }
+                
+                const note = isExempt 
+                  ? 'Muaf Ders İşlendi (Ücretsiz)' 
+                  : isHalfLesson 
+                    ? `Yarım ${noteType} İşlendi (20 dk)` 
+                    : `${noteType} İşlendi`;
                 
                 const newTx: Transaction = {
                   id: txId,
@@ -270,13 +285,13 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const key = `${s.currentTeacher}|${day}`;
           return { ...s, schedule: { ...s.schedule, [key]: (s.schedule[key] || []).filter(slot => slot.id !== slotId) } };
       }),
-      bookSlot: (day, slotId, studentId, label) => updateState(s => {
+      bookSlot: (day, slotId, studentId, label, color) => updateState(s => {
           const key = `${s.currentTeacher}|${day}`;
-          return { ...s, schedule: { ...s.schedule, [key]: (s.schedule[key] || []).map(slot => slot.id === slotId ? { ...slot, studentId, label: label || null as any } : slot) } };
+          return { ...s, schedule: { ...s.schedule, [key]: (s.schedule[key] || []).map(slot => slot.id === slotId ? { ...slot, studentId, label: label || null as any, color: color || null as any } : slot) } };
       }),
       cancelSlot: (day, slotId) => updateState(s => {
           const key = `${s.currentTeacher}|${day}`;
-          return { ...s, schedule: { ...s.schedule, [key]: (s.schedule[key] || []).map(slot => slot.id === slotId ? { ...slot, studentId: null, label: null as any } : slot) } };
+          return { ...s, schedule: { ...s.schedule, [key]: (s.schedule[key] || []).map(slot => slot.id === slotId ? { ...slot, studentId: null, label: null as any, color: null as any } : slot) } };
       }),
       extendSlot: (day, slotId, minutes) => updateState(s => {
         const key = `${s.currentTeacher}|${day}`;

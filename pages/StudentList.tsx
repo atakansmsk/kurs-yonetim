@@ -158,7 +158,7 @@ export const StudentList: React.FC<StudentListProps> = ({ onSelect }) => {
                               'bg-emerald-50 border-emerald-100 text-emerald-600'
                           }`}>
                               <Layers size={9} />
-                              {Number(student.unpaidCount.toFixed(1))} Seans
+                              {Number(student.unpaidCount.toFixed(1))} Ders
                           </span>
                       )}
                       

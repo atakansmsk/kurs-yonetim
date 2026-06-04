@@ -62,7 +62,8 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
   const [bookPhone, setBookPhone] = useState("");
   const [bookFee, setBookFee] = useState("");
   const [existingStudentId, setExistingStudentId] = useState<string | null>(null);
-  const [lessonType, setLessonType] = useState<'REGULAR' | 'MAKEUP' | 'TRIAL'>('REGULAR');
+  const [lessonType, setLessonType] = useState<'REGULAR' | 'MAKEUP' | 'TRIAL' | 'HALF' | 'EXEMPT'>('REGULAR');
+  const [slotColor, setSlotColor] = useState<string>("");
   const [studentCredit, setStudentCredit] = useState(0);
 
   // Suggestions state
@@ -102,6 +103,15 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
     setDuration(mins);
     const startMins = timeToMinutes(newTimeStart);
     setNewTimeEnd(minutesToTime(startMins + mins));
+    // If slot duration is configured to 20 minutes, auto select "HALF" lessonType
+    if (mins === 20) {
+      setLessonType('HALF');
+      // Also default to a custom color like 'rose' so they are easily recognizable
+      setSlotColor('rose');
+    } else if (lessonType === 'HALF') {
+      setLessonType('REGULAR');
+      setSlotColor("");
+    }
   };
 
   const handleStartTimeChange = (val: string) => {
@@ -114,18 +124,18 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
     if (!activeSlot) return;
     let studentId = existingStudentId;
     if (!studentId && bookName) {
-      const fee = lessonType === 'TRIAL' ? 0 : (parseFloat(bookFee) || 0);
+      const fee = (lessonType === 'TRIAL' || lessonType === 'EXEMPT') ? 0 : (parseFloat(bookFee) || 0);
       studentId = actions.addStudent(bookName, bookPhone, fee);
     }
     if (studentId) {
-      actions.bookSlot(selectedDay, activeSlot.id, studentId, lessonType);
+      actions.bookSlot(selectedDay, activeSlot.id, studentId, lessonType, slotColor || undefined);
       setIsBookModalOpen(false);
       resetBookForm();
     }
   };
 
   const resetBookForm = () => {
-    setBookName(""); setBookPhone(""); setBookFee(""); setExistingStudentId(null); setLessonType('REGULAR'); setStudentCredit(0); setSuggestions([]); setShowSuggestions(false);
+    setBookName(""); setBookPhone(""); setBookFee(""); setExistingStudentId(null); setLessonType('REGULAR'); setSlotColor(""); setStudentCredit(0); setSuggestions([]); setShowSuggestions(false);
   };
 
   const openAddSlotModal = (start?: string, end?: string) => {
@@ -236,8 +246,8 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
               let badgeClass = "";
               
               if (isOccupied && student) {
-                  // Use Student's custom color
-                  const color = student.color || 'indigo';
+                  // Use Custom Slot Color override if set, otherwise Student's custom color
+                  const color = slot.color || student.color || 'indigo';
                   const theme = COLOR_MAP[color] || COLOR_MAP['indigo'];
 
                   containerClass = `${theme.box} active:scale-[0.99]`;
@@ -250,6 +260,12 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
                  } else if (slot.label === 'TRIAL') {
                      badgeText = "DENEME";
                      badgeClass = "text-purple-600 opacity-80 bg-purple-50 px-1 rounded";
+                 } else if (slot.label === 'HALF' || slotDuration <= 25) {
+                     badgeText = "YARIM DERS (20 DK)";
+                     badgeClass = "text-rose-600 opacity-80 bg-rose-50 px-1 rounded animate-pulse";
+                 } else if (slot.label === 'EXEMPT') {
+                     badgeText = "MUAF/ÜCRETSİZ";
+                     badgeClass = "text-cyan-600 opacity-80 bg-cyan-50 px-1 rounded";
                  }
               }
               
@@ -377,9 +393,89 @@ export const DailySchedule: React.FC<DailyScheduleProps> = ({ onOpenStudentProfi
           
           {studentCredit > 0 && <div className="p-2 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg flex items-center gap-1"><Layers size={12}/> {studentCredit} Telafi hakkı var</div>}
           
-          <div className="grid grid-cols-2 gap-3"><input type="tel" value={bookPhone} onChange={e=>setBookPhone(e.target.value)} placeholder="Tel" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />{lessonType !== 'TRIAL' && <input type="number" value={bookFee} onChange={e=>setBookFee(e.target.value)} placeholder="Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />}</div>
+          <div className="grid grid-cols-2 gap-3"><input type="tel" value={bookPhone} onChange={e=>setBookPhone(e.target.value)} placeholder="Tel" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />{lessonType !== 'TRIAL' && lessonType !== 'EXEMPT' && <input type="number" value={bookFee} onChange={e=>setBookFee(e.target.value)} placeholder="Ücret" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none" />}</div>
           
-          <div className="grid grid-cols-3 gap-2 mt-2"><button onClick={() => setLessonType('REGULAR')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Normal</button><button onClick={() => setLessonType('MAKEUP')} className={`p-2 rounded-xl border text-xs font-bold ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Telafi</button><button onClick={() => setLessonType('TRIAL')} className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>Deneme</button></div>
+          <div className="space-y-3 pt-1">
+              <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">DERS TÜRÜ / TARİFE</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                      <button 
+                          type="button"
+                          onClick={() => { setLessonType('REGULAR'); setSlotColor(''); }} 
+                          className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'REGULAR' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                      >
+                          Normal
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={() => { setLessonType('MAKEUP'); setSlotColor('amber'); }} 
+                          className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'MAKEUP' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                      >
+                          Telafi
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={() => { setLessonType('TRIAL'); setSlotColor('purple'); }} 
+                          className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'TRIAL' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                      >
+                          Deneme
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={() => { setLessonType('HALF'); setSlotColor('rose'); }} 
+                          className={`p-2 rounded-xl border text-xs font-bold transition-all col-span-2 ${lessonType === 'HALF' ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                      >
+                          Yarım Ders (20 dk / 0.5 Sean)
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={() => { setLessonType('EXEMPT'); setSlotColor('cyan'); }} 
+                          className={`p-2 rounded-xl border text-xs font-bold transition-all ${lessonType === 'EXEMPT' ? 'bg-cyan-50 border-cyan-200 text-cyan-700' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                      >
+                          Muaf Ders
+                      </button>
+                  </div>
+              </div>
+
+              <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">KART RENGİ (ÖZEL)</label>
+                  <div className="flex items-center gap-1.5 p-2 bg-slate-50 border border-slate-150 rounded-xl">
+                      <button
+                          type="button"
+                          onClick={() => setSlotColor('')}
+                          className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${!slotColor ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-500 border-slate-200'}`}
+                      >
+                          Öğrenci Rengi
+                      </button>
+                      <div className="flex gap-1 shrink-0">
+                          {['indigo', 'rose', 'emerald', 'amber', 'cyan', 'purple'].map(color => {
+                              const colors: Record<string, string> = {
+                                  indigo: 'bg-indigo-500',
+                                  rose: 'bg-rose-500',
+                                  emerald: 'bg-emerald-500',
+                                  amber: 'bg-amber-500',
+                                  cyan: 'bg-cyan-400',
+                                  purple: 'bg-purple-500'
+                              };
+                              const isSelected = slotColor === color;
+                              return (
+                                  <button
+                                      key={color}
+                                      type="button"
+                                      onClick={() => setSlotColor(color)}
+                                      className={`w-6 h-6 rounded-full ${colors[color]} border transition-all relative ${isSelected ? 'scale-110 border-slate-800 shadow' : 'border-transparent opacity-80 hover:opacity-100'}`}
+                                      title={color.toUpperCase()}
+                                  >
+                                      {isSelected && (
+                                          <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-[10px]">✓</span>
+                                      )}
+                                  </button>
+                              );
+                          })}
+                      </div>
+                  </div>
+              </div>
+          </div>
         </div>
       </Dialog>
 

@@ -166,7 +166,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
         timeLeft = endWithBonus - currentMins;
         progress = Math.min(((currentMins - start) / (endWithBonus - start)) * 100, 100);
     } 
-    // Eğer programda ders yok ama "Anlık Seans" aktifse
+    // Eğer programda ders yok ama "Anlık Ders" aktifse
     else if (freeSessionEnd && freeSessionEnd > currentMins) {
         statusType = 'FREE_SESSION';
         timeLeft = freeSessionEnd - currentMins;
@@ -295,9 +295,9 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                     <button id="pip-back" class="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 active:scale-90"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                 </div>
                 <div class="flex-1 overflow-y-auto min-h-0 space-y-1.5 px-2">
-                    <button class="pip-student-item w-full p-3 rounded-xl bg-white/5 border border-white/5 text-left flex items-center gap-3 active:scale-95 transition-all group" data-id="none" data-name="Genel Seans">
+                    <button class="pip-student-item w-full p-3 rounded-xl bg-white/5 border border-white/5 text-left flex items-center gap-3 active:scale-95 transition-all group" data-id="none" data-name="Genel Ders">
                         <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs group-hover:bg-indigo-600 group-hover:text-white transition-colors">G</div>
-                        <span class="text-sm font-bold text-white/90">Genel Seans (İsimsiz)</span>
+                        <span class="text-sm font-bold text-white/90">Genel Ders (İsimsiz)</span>
                     </button>
                     ${activeStudents.map(s => `
                         <button class="pip-student-item w-full p-3 rounded-xl bg-white/5 border border-white/5 text-left flex items-center gap-3 active:scale-95 transition-all group" data-id="${s.id}" data-name="${s.name}">
@@ -318,7 +318,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
             container.querySelectorAll('.pip-student-item').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const sid = (btn as HTMLElement).dataset.id;
-                    const sname = (btn as HTMLElement).dataset.name || "Seans";
+                    const sname = (btn as HTMLElement).dataset.name || "Ders";
                     
                     if (sid && sid !== 'none') {
                         // Otomatik Borç Yaz
@@ -637,7 +637,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                       <h4 className="text-sm font-black text-slate-900 leading-none">Bugünün Özeti</h4>
                       <div className="mt-1.5 flex flex-col gap-0.5">
                           <p className="text-xs font-bold text-slate-400">
-                              Toplam <span className="text-orange-600 font-black">{todaysData.lessonCount} Seans</span> Var
+                              Toplam <span className="text-orange-600 font-black">{todaysData.lessonCount} Ders</span> Var
                           </p>
                           {todaysData.firstLesson ? (
                               <p className="text-[10px] font-medium text-slate-500 mt-1">
@@ -724,7 +724,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                   </div>
                   <div className="min-w-0">
                       <h4 className="font-extrabold text-slate-800 text-[13.5px] leading-none mb-1 truncate">{selectedStudent.name}</h4>
-                      <p className="text-[10px] text-slate-400 font-medium">Standard Seans Ücreti: <span className="font-bold text-slate-600">{selectedStudent.fee} ₺</span></p>
+                      <p className="text-[10px] text-slate-400 font-medium">Standard Ders Ücreti: <span className="font-bold text-slate-600">{selectedStudent.fee} ₺</span></p>
                   </div>
               </div>
               
@@ -799,7 +799,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, onToggleWidget, isWidget
                                           unpaidCount > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 
                                           'bg-emerald-50 border-emerald-100 text-emerald-600'
                                       }`}>
-                                          {student.fee === 0 ? "MUAF" : `${Number(unpaidCount.toFixed(1))} Seans`}
+                                          {student.fee === 0 ? "MUAF" : `${Number(unpaidCount.toFixed(1))} Ders`}
                                       </span>
                                       <ChevronRight size={14} className="text-slate-350 group-hover:text-slate-500 transition-colors" />
                                   </div>
