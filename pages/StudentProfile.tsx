@@ -592,6 +592,15 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
       );
   };
 
+  const col = student?.color || 'indigo';
+  const avatarGradient = col === 'indigo' ? 'from-indigo-500 to-violet-600 shadow-indigo-100' :
+                         col === 'rose' ? 'from-rose-500 to-pink-600 shadow-rose-100' :
+                         col === 'emerald' ? 'from-emerald-500 to-teal-600 shadow-emerald-100' :
+                         col === 'amber' ? 'from-amber-500 to-orange-600 shadow-amber-100' :
+                         col === 'cyan' ? 'from-cyan-500 to-blue-500 shadow-cyan-100' :
+                         col === 'purple' ? 'from-purple-500 to-violet-600 shadow-purple-100' :
+                         'from-slate-700 to-slate-800 shadow-slate-100';
+
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] animate-slide-up">
       
@@ -620,55 +629,67 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
         </div>
 
         <div className="flex items-center gap-4">
-             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 text-white flex items-center justify-center text-xl font-bold shadow-lg shadow-slate-200">
+            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${avatarGradient} text-white flex items-center justify-center text-2xl font-black shadow-lg shadow-slate-200/50`}>
                 {student.name.charAt(0).toUpperCase()}
             </div>
-            <div>
-                <h2 className="text-xl font-black text-slate-900 leading-tight">{student.name}</h2>
+            <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-black text-slate-900 leading-tight tracking-tight">{student.name}</h2>
                 <div className="flex items-center gap-2 mt-1">
                      {student.isActive === false ? (
-                         <div className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold border border-slate-200">
-                             Arşivlenmiş (Pasif)
-                         </div>
+                         <span className="px-2.5 py-0.5 bg-slate-100 text-slate-500 rounded-full text-[10px] font-bold border border-slate-200">
+                             Pasif Öğrenci (Arşiv)
+                         </span>
                      ) : (
-                         <div className="flex flex-wrap items-center gap-1.5">
-                              {/* Linki Kopyala Button */}
-                              <button 
-                                  onClick={handleCopyParentPortalLink} 
-                                  className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all active:scale-95 border ${
-                                      isCopied 
-                                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
-                                      : 'text-indigo-600 bg-indigo-50 border-indigo-100 hover:bg-indigo-100'
-                                  }`}
-                                  title="Linki Kopyala"
-                              >
-                                  {isCopied ? <Check size={10} className="text-emerald-600" /> : <Link size={10} />}
-                                  {isCopied ? 'Kopyalandı!' : 'Linki Kopyala'}
-                              </button>
-
-                              {/* WhatsApp ile Gönder Button */}
-                              <button 
-                                  onClick={handleShareParentPortalWhatsApp} 
-                                  className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full hover:bg-emerald-100 transition-all active:scale-95"
-                                  title="WhatsApp ile Veliye Gönder"
-                              >
-                                  <MessageCircle size={10} />
-                                  Veliye Gönder
-                              </button>
-
-                              {/* Portalı Aç Button */}
-                              <button 
-                                  onClick={handleOpenParentPortal} 
-                                  className="flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-full hover:bg-slate-150 transition-all active:scale-95"
-                                  title="Veli Portalını Aç"
-                              >
-                                  <Globe size={10} />
-                                  Aç
-                              </button>
-                          </div>
-                          
+                         <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black border border-indigo-100/70 inline-flex items-center gap-1">
+                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                             Aktif
+                         </span>
+                     )}
+                     {student.phone && (
+                         <span className="text-[10px] font-bold text-slate-400">
+                             • {student.phone}
+                         </span>
                      )}
                 </div>
+
+                {/* Micro Portal Share Toolbar */}
+                {student.isActive !== false && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {/* Aç */}
+                        <button 
+                            onClick={handleOpenParentPortal} 
+                            className="flex items-center gap-1 text-[10px] font-extrabold text-slate-600 hover:text-indigo-600 hover:bg-slate-100 bg-slate-50 border border-slate-150 px-2 py-1 rounded-lg transition-all active:scale-95"
+                            title="Veli Portalını Aç"
+                        >
+                            <Globe size={11} />
+                            <span>Aç</span>
+                        </button>
+
+                        {/* Kopyala */}
+                        <button 
+                            onClick={handleCopyParentPortalLink} 
+                            className={`flex items-center gap-1 text-[10px] font-extrabold px-2 py-1 rounded-lg transition-all active:scale-95 border ${
+                                isCopied 
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                                : 'bg-slate-50 border-slate-150 text-slate-600 hover:text-indigo-600 hover:bg-slate-100'
+                            }`}
+                            title="Linki Kopyala"
+                        >
+                            {isCopied ? <Check size={11} className="text-emerald-600" /> : <Link size={11} />}
+                            <span>{isCopied ? 'Kopyalandı' : 'Kopyala'}</span>
+                        </button>
+
+                        {/* Veliye Gönder */}
+                        <button 
+                            onClick={handleShareParentPortalWhatsApp} 
+                            className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-800 bg-emerald-50 hover:bg-emerald-150 border border-emerald-150 px-2 py-1 rounded-lg transition-all active:scale-95"
+                            title="WhatsApp ile Veliye Gönder"
+                        >
+                            <MessageCircle size={11} className="text-emerald-600" />
+                            <span>Veliye Gönder</span>
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
       </div>
@@ -690,27 +711,30 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
           </div>
 
           {/* SCHEDULE CARD (NEW) */}
-          <div className="bg-white rounded-2xl border border-slate-100/90 p-3.5 shadow-sm">
-             <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Calendar size={14} /> Ders Programı
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3">
+             <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Calendar size={12} /> Ders Programı
                   </h3>
              </div>
              {assignedSlots.length === 0 ? (
-                 <p className="text-xs text-slate-400 font-bold text-center py-2">Ders kaydı bulunmuyor.</p>
+                 <p className="text-[10px] text-slate-400 font-bold text-center py-1">Ders programı ayarlanmadı.</p>
              ) : (
                  <div className="space-y-2">
                      {assignedSlots.map((slot, index) => (
-                         <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                             <div>
-                                 <div className="text-sm font-black text-slate-700">{slot.day}</div>
-                                 <div className="text-xs font-bold text-slate-400 mt-0.5 flex items-center gap-1">
-                                    <Clock size={12} /> {slot.start} - {slot.end}
+                         <div key={index} className="flex items-center justify-between p-2 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 transition-all">
+                             <div className="flex items-center gap-2">
+                                 <div className="px-2 py-0.5 bg-indigo-50 border border-indigo-100/50 text-indigo-700 text-[10px] font-extrabold rounded-md">
+                                     {slot.day}
+                                 </div>
+                                 <div className="text-[11px] font-bold text-slate-600 font-mono flex items-center gap-1">
+                                    <Clock size={11} className="text-slate-400" />
+                                    <span>{slot.start} - {slot.end}</span>
                                  </div>
                              </div>
                              <button 
                                 onClick={() => handleOpenMoveModal(slot)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-[10px] font-bold rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                                className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 text-[10px] font-black rounded-lg hover:border-indigo-300 hover:text-indigo-600 hover:shadow-sm active:scale-95 transition-all"
                              >
                                  Değiştir
                              </button>
@@ -737,7 +761,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
                            <span className="text-5xl font-black tracking-tighter drop-shadow-sm">{Number(totalDoneCount.toFixed(1))}</span>
                            <span className="text-xs font-bold text-indigo-200 uppercase tracking-wide mb-1.5">Ders</span>
                         </div>
-                        <p className="text-[9px] text-indigo-200 font-medium mt-1 opacity-70">Son ödemeden sonra</p>
                      </div>
 
                      <button 
@@ -776,57 +799,6 @@ export const StudentProfile: React.FC<StudentProfileProps> = ({ studentId, onBac
               </div>
 
           </div>
-
-          {/* RESOURCES SECTION */}
-          <div className="bg-slate-50/50 rounded-2xl p-3.5 border border-slate-100">
-              <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Link size={14} /> Materyaller
-                  </h3>
-                  <button onClick={() => { setIsResourcesModalOpen(true); setUploadProgress(0); setUploadStatusText(""); }} className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors">
-                      <Plus size={14} />
-                  </button>
-              </div>
-
-              {student.resources.length === 0 ? (
-                  <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-xl opacity-50">
-                      <p className="text-[10px] font-bold">Dosya veya Link Eklenmedi</p>
-                  </div>
-              ) : (
-                  <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                      {student.resources.map(res => (
-                          <div key={res.id} className="min-w-[140px] bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm relative group">
-                              <div className="flex items-center gap-2 mb-2">
-                                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                      res.type === 'VIDEO' ? 'bg-red-50 text-red-500' : 
-                                      res.type === 'PDF' ? 'bg-blue-50 text-blue-500' : 
-                                      'bg-emerald-50 text-emerald-500'
-                                   }`}>
-                                      {res.type === 'VIDEO' ? <Youtube size={16} /> : res.type === 'PDF' ? <FileText size={16} /> : <Image size={16} />}
-                                   </div>
-                                   <div className="flex-1 min-w-0">
-                                      <div className="text-[10px] font-bold truncate">{res.title}</div>
-                                      <div className="text-[9px] text-slate-400 truncate">{new Date(res.date).toLocaleDateString()}</div>
-                                   </div>
-                              </div>
-                              <div className="flex gap-1">
-                                  <button onClick={() => handleOpenResource(res)} className="flex-1 text-center text-[10px] font-bold bg-slate-50 text-slate-600 py-1 rounded hover:bg-slate-100 flex items-center justify-center gap-1">
-                                      <Eye size={10} /> Aç
-                                  </button>
-                                  <button onClick={() => handleShareResource(res.title, res.url)} className="w-6 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100"><Share2 size={12} /></button>
-                                  <button onClick={async () => {
-                                      if (res.url.includes('firebasestorage')) {
-                                           await FileService.deleteFile(res.url);
-                                      }
-                                      actions.deleteResource(studentId, res.id);
-                                  }} className="w-6 flex items-center justify-center bg-red-50 text-red-500 rounded hover:bg-red-100"><X size={12} /></button>
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-              )}
-          </div>
-
           {/* HISTORY */}
           <div>
                <div className="flex items-center justify-between mb-4">

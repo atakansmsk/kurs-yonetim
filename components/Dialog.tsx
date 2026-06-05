@@ -14,13 +14,13 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center px-4 animate-in fade-in duration-200`}>
+    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center px-4 py-6 animate-in fade-in duration-200`}>
       {/* Backdrop with blur */}
       <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={onClose}></div>
       
-      {/* Dialog Content */}
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-xs sm:max-w-sm overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-        <div className="flex justify-between items-center px-6 pt-6 pb-2">
+      {/* Dialog Content with dynamic height, flex and viewport safety */}
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-xs sm:max-w-sm max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+        <div className="flex justify-between items-center px-6 pt-6 pb-2 shrink-0">
           <h3 className="text-xl font-bold text-textMain tracking-tight">{title}</h3>
           <button 
             onClick={onClose} 
@@ -30,12 +30,12 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children
           </button>
         </div>
         
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 overflow-y-auto flex-1 custom-scrollbar">
           {children}
         </div>
         
         {actions && (
-          <div className="px-6 pb-6 pt-2 flex justify-end gap-3">
+          <div className="px-6 pb-6 pt-2 flex justify-end gap-3 shrink-0 border-t border-slate-50">
             {actions}
           </div>
         )}
